@@ -1,0 +1,11 @@
+extends layout
+
+block content
+  h1= title
+  p Welcome <b>#{user}</b> to #{title}.
+
+  ul
+    li
+      a(href='/auth/google') Login with Google
+    li
+      a(href='/logout') Logout
