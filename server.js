@@ -31,10 +31,13 @@ passport.use(new GoogleStrategy({
     process.nextTick(function () {return done(null, profile);});
 }));
 
-// view engine setup
+
+// View engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
+// Config
+app.set('port', config.port)
 app.use(favicon());
 app.use(logger('dev'));
 app.use(bodyParser.json());
@@ -48,12 +51,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', routes);
 
+
 /// catch 404 and forwarding to error handler
 app.use(function(req, res, next) {
     var err = new Error('Not Found');
     err.status = 404;
     next(err);
 });
+
 
 /// error handlers
 
