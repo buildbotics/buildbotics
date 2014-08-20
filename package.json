@@ -16,7 +16,8 @@
     "stylus": "0.42.3",
     "passport": "~0.2.0",
     "angular": "~1.2.19",
-    "riak": "~1.0.3",
+    "riak-js": "~0.10.2",
+    "connect-riak": "git://github.com/jcoffland/connect-riak.git",
     "passport-google-oauth": "~0.1.5",
     "express-session": "~1.6.1"
   }
