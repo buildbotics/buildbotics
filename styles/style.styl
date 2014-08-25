@@ -1,0 +1,139 @@
+page_width = 1000px
+header_height = 48px
+header_icon_size = 32px
+header_icon_margin = ((header_height - header_icon_size) / 2)
+nav_padding = 8px
+
+#header
+  a
+    text-decoration: none
+    outline: 0
+    color: black
+    &:hover
+      opacity: 0.7
+
+  .navbar-nav > li > a
+    padding: nav_padding 0
+
+  .navbar-contents
+    width: page_width
+    margin: auto
+
+  .title
+    font-size: header_icon_size
+
+  .profile
+    padding-bottom: 0 !important
+
+  .avatar
+    margin-right: nav_padding
+
+  .icon
+    margin: nav_padding
+
+.avatar
+  border-radius: 5px
+
+.icon, .avatar
+  width: header_icon_size
+  height: header_icon_size
+
+.icon
+  background-image: url('../images/icons-small.png')
+
+.facebook
+  background-position: header_icon_size * -1
+
+.twitter
+  background-position: header_icon_size * -2
+
+.github
+  background-position: header_icon_size * -3
+
+.logout
+  background-position: header_icon_size * -4
+
+.settings
+  background-position: header_icon_size * -5
+
+.create
+  background-position: header_icon_size * -6
+
+#content
+  width: page_width
+  margin: auto
+  margin-top: 60px
+
+.home-page
+  .actions
+    width: 600px
+    margin: auto
+    margin-top: 100px
+
+    .panel
+      float: left
+      width: 180px
+      height: 180px
+      margin: 10px
+
+    .panel-heading
+      text-align: center
+      font-weight: bold
+      font-size: 150%
+
+project_highlight = #888
+project_border = 1px solid #aaa
+
+.projects
+  list-style: none
+
+  a
+    text-decoration: none
+
+  .project
+    position: relative
+    float: left
+    margin: 10px
+    width: 294px
+    border: project_border
+    border-radius: 4px
+    overflow: hidden
+    cursor: pointer
+
+    .avatar
+      margin: 5px
+      display: block
+      position: absolute
+      border: 1px solid #aaa
+
+    .info
+      padding-left: 5px
+      width: 160px
+      display: block
+      position: absolute
+      left: 40px
+      color: white
+      font-weight: bold
+      overflow: hidden
+      text-overflow: ellipsis
+      text-shadow: 1px 1px #666
+
+    .title, .author, .likes, .comments
+      display: block
+      white-space: nowrap
+
+    .likes, .comments
+      color: project_highlight
+      width: 96px
+      padding: 10px
+      text-align: center
+      font-size: 14pt
+
+    .ion
+      font-size: 16pt
+
+    .likes
+      float: left
+
+    .comments
+      float: right

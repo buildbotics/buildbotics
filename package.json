@@ -18,6 +18,9 @@
     "angular": "~1.2.19",
     "riak-js": "~0.10.2",
     "connect-riak": "git://github.com/jcoffland/connect-riak.git",
+    "passport-facebook": "~1.0.3",
+    "passport-twitter": "~1.0.2",
+    "passport-github": "~0.1.5",
     "passport-google-oauth": "~0.1.5",
     "express-session": "~1.6.1"
   }

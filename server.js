@@ -1,44 +1,60 @@
 var config = require('./config');
 var express = require('express');
 var session = require('express-session')
-var path = require('path');
 var favicon = require('static-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var passport = require('passport');
+var FacebookStrategy = require('passport-facebook').Strategy;
+var TwitterStrategy  = require('passport-twitter').Strategy;
+var GitHubStrategy  = require('passport-github').Strategy;
 var GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
 var riak = require('riak-js');
 var RiakStore = require('connect-riak')(session);
-var routes = require('./routes/index');
+var routes = require('./routes');
 
 var app = express();
 
 // Passport setup
-passport.serializeUser(function(user, done) {
-    done(null, user);
-});
+// TODO store user in DB
+passport.serializeUser(function(user, done) {done(null, user);});
+passport.deserializeUser(function(obj, done) {done(null, obj);});
 
-passport.deserializeUser(function(obj, done) {
-    done(null, obj);
-});
+function auth_user(accessToken, refreshToken, profile, done) {
+    process.nextTick(function () {return done(null, profile);});
+}
+
+passport.use(new FacebookStrategy({
+    clientID: config.facebook.clientID,
+    clientSecret: config.facebook.clientSecret,
+    callbackURL: config.base_url + '/api/auth/facebook/callback'
+}, auth_user));
+
+passport.use(new TwitterStrategy({
+    consumerKey: config.twitter.consumerKey,
+    consumerSecret: config.twitter.consumerSecret,
+    callbackURL: config.base_url + '/api/auth/twitter/callback'
+}, auth_user));
+
+passport.use(new GitHubStrategy({
+    clientID: config.github.clientID,
+    clientSecret: config.github.clientSecret,
+    callbackURL: config.base_url + '/api/auth/github/callback'
+}, auth_user));
 
 passport.use(new GoogleStrategy({
-    clientID: config.google.client_id,
-    clientSecret: config.google.client_secret,
-    callbackURL: config.base_url + '/auth/google/callback'
+    clientID: config.google.clientID,
+    clientSecret: config.google.clientSecret,
+    callbackURL: config.base_url + '/api/auth/google/callback'
+}, auth_user));
 
-}, function(accessToken, refreshToken, profile, done) {
-    process.nextTick(function () {return done(null, profile);});
-}));
-
-
-// View engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
 
 // DB
-var db = riak.getClient({port: 8098, debug: app.get('env') === 'development'});
+var db = riak.getClient({
+    port: 8098,
+    debug: app.get('env') === 'development'
+});
 
 // Config
 app.use(favicon());
@@ -49,18 +65,16 @@ app.use(cookieParser());
 app.use(session({secret: 'keyboard cat', store: new RiakStore({client: db})}));
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(require('stylus').middleware(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', routes);
-
-
-/// Catch 404 and forwarding to error handler
-app.use(function(req, res, next) {
-    var err = new Error('Not Found');
-    err.status = 404;
-    next(err);
+app.use(function (req, res, next) {
+    req.db = db;
+    next();
 });
+app.use('/api', routes);
+
+
+/// Catch 404
+app.use(function(req, res, next) {res.redirect('/notfound.html')})
 
 
 // Error handlers
