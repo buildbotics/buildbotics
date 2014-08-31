@@ -1,0 +1,25 @@
+.navbar-contents
+  .navbar-header
+    a.title(href='/') Buildbotics
+
+  .collapse.navbar-collapse.navbar-right
+    ul.nav.navbar-nav(ng-switch-when='true')
+      li
+        a.profile(href='/profile' title='View Profile')
+          img.avatar(ng-src='{{avatar}}')
+          span {{user.displayName}}
+      li: a.create(href='/create' title='Create new project')
+        span.fa.fa-plus-circle
+      li: a.settings(href='/settings' title='Settings')
+        span.fa.fa-gear
+      li: a.logout(href='api/auth/logout', title='Sign out')
+        span.fa.fa-sign-out
+
+    ul.nav.navbar-nav(ng-switch-when='false')
+      li.navbar-text Login or register with:
+      each provider in 'google facebook twitter github'.split(' ')
+        - var title = 'Login with ' + provider
+        - var url = 'api/auth/' + provider
+        li: a.login(class=provider href=url title=title)
+          - if (provider == 'google') provider = 'google-plus'
+          span.fa(class='fa-' + provider + '-square')
