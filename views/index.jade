@@ -3,76 +3,25 @@ html
   head
     title= title
 
+    base(href='/')
+
+    - var cdn = '//maxcdn.bootstrapcdn.com'
+    link(rel='stylesheet' href=cdn + '/bootstrap/3.2.0/css/bootstrap.min.css')
     link(rel='stylesheet'
-      href='//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css')
-    link(rel='stylesheet'
-      href='http://code.ionicframework.com/ionicons/1.5.2/css/ionicons.min.css')
+      href=cdn + '/font-awesome/4.1.0/css/font-awesome.min.css')
     link(rel='stylesheet' href='/css/style.css')
 
   body(ng-controller='BodyCtrl')
     #header.navbar.navbar-default.navbar-fixed-top(ng-switch on='authenticated')
-      .navbar-contents
-        .navbar-header
-          a.title(href='#') Buildbotics
-
-        .collapse.navbar-collapse.navbar-right
-          ul.nav.navbar-nav(ng-switch-when='true')
-            li
-              a.profile(href='#profile' title='View Profile')
-                img.avatar(ng-src='{{avatar}}')
-                span {{user.displayName}}
-            li: a.icon.create(href='#create' title='Create new project')
-            li: a.icon.settings(href='#settings' title='Settings')
-            li: a.icon.logout(href='api/auth/logout', title='Sign out')
-
-          ul.nav.navbar-nav(ng-switch-when='false')
-            li.navbar-text Login or register:
-            each provider in 'google facebook twitter github'.split(' ')
-              - var title = 'Login with ' + provider
-              - var url = 'api/auth/' + provider
-              li: a.icon.login(class=provider href=url title=title)
+      include ./include/navbar.jade
 
     #content(ng-controller='ContentCtrl' style='display:none')
       div(ng-switch on='page')
         div.home-page(ng-switch-when='home')
-          .actions
-            .panel.panel-default
-              .panel-heading: a(href="#explore") Explore
-              .panel-body
-                | Explore projects for CNC, 3D printing and LASER.
-
-            .panel.panel-default
-              .panel-heading: a(href="#create") Create
-              .panel-body
-                | Create and share your designs with the community.
-                | Earn <a href="#points">points</a> and
-                | <a href="#badges">badges</a> to unlock extra features.
-
-            .panel.panel-default
-              .panel-heading: a(href="#build") Build
-              .panel-body
-                | Build and sell designs created by you or others.
+          include ./include/home.jade
 
         div.explore-page(ng-switch-when='explore')
-          ul.projects(ng-controller='ProjectListCtrl')
-            li.project(ng-repeat='project in projects')
-              a(href='#{{project.author}}')
-                img.avatar(ng-src='{{avatar}}')
-              span.info
-                span.title {{project.title}}
-                span.author
-                  | by&nbsp;
-                  a(href='#{{project.author}}') {{project.author}}
-              img(ng-src='{{project.image}}')
-              a.likes(title='Like this project')
-                span.ion.ion-star
-                | &nbsp;{{project.likes}}
-              a.comments(title='View comments')
-                span.ion.ion-chatboxes
-                | &nbsp;{{project.comments}}
-
-        div.profile-page(ng-switch-when='profile')
-          h2 Profile
+          include ./include/projects.jade
 
         div.create-page(ng-switch-when='create')
           h2 Create
@@ -86,5 +35,6 @@ html
     script(src=cdn + '/angular.js/1.2.20/angular-route.min.js')
     script(src=cdn + '/angular-ui-bootstrap/0.10.0/ui-bootstrap-tpls.min.js')
 
+    script(src='js/modernizr.custom.js')
     script(src='js/main.js')
 

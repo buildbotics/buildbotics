@@ -22,6 +22,7 @@
     "passport-twitter": "~1.0.2",
     "passport-github": "~0.1.5",
     "passport-google-oauth": "~0.1.5",
-    "express-session": "~1.6.1"
+    "express-session": "~1.6.1",
+    "autoprefixer": "~3.0.0"
   }
 }

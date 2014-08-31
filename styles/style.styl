@@ -1,72 +1,59 @@
-page_width = 1000px
+page_width = 960px
 header_height = 48px
-header_icon_size = 32px
-header_icon_margin = ((header_height - header_icon_size) / 2)
+header_button_size = 32px
 nav_padding = 8px
 
 #header
   a
     text-decoration: none
     outline: 0
-    color: black
+    color: #333
     &:hover
       opacity: 0.7
+    padding-bottom: 0 !important
 
   .navbar-nav > li > a
     padding: nav_padding 0
 
   .navbar-contents
-    width: page_width
+    max-width: page_width
     margin: auto
 
   .title
-    font-size: header_icon_size
-
-  .profile
-    padding-bottom: 0 !important
+    font-size: header_button_size
 
   .avatar
     margin-right: nav_padding
 
-  .icon
-    margin: nav_padding
+  .fa
+    font-size: 26pt
+    margin: 0 nav_padding
+
+  .google
+    color: #cc3d2d
+
+  .facebook
+    color: #2b3990
+
+  .twitter
+    color: #27aae1
+
+  .github
+    color: #1c75bc
 
 .avatar
   border-radius: 5px
-
-.icon, .avatar
-  width: header_icon_size
-  height: header_icon_size
-
-.icon
-  background-image: url('../images/icons-small.png')
-
-.facebook
-  background-position: header_icon_size * -1
-
-.twitter
-  background-position: header_icon_size * -2
-
-.github
-  background-position: header_icon_size * -3
-
-.logout
-  background-position: header_icon_size * -4
-
-.settings
-  background-position: header_icon_size * -5
-
-.create
-  background-position: header_icon_size * -6
+  width: header_button_size
+  height: header_button_size
 
 #content
-  width: page_width
+  max-width: page_width
   margin: auto
   margin-top: 60px
 
 .home-page
   .actions
-    width: 600px
+    max-width: 600px
     margin: auto
     margin-top: 100px
 
@@ -81,42 +68,67 @@ nav_padding = 8px
       font-weight: bold
       font-size: 150%
 
+project_width = 300px
 project_highlight = #888
-project_border = 1px solid #aaa
+project_border = 2px solid #eee
+project_highlight_border = 2px solid #aaa
+
+.flexbox .projects
+  display: flex
+  flex-wrap: wrap
+  justify-content: space-around
+
+  .project
+    flex: 0 0 project_width
 
 .projects
   list-style: none
+  padding: 0
 
   a
     text-decoration: none
 
   .project
     position: relative
-    float: left
-    margin: 10px
-    width: 294px
+    display: inline-block
+    margin: 8px
+    width: project_width
     border: project_border
     border-radius: 4px
     overflow: hidden
     cursor: pointer
 
+    &:hover
+      border: project_highlight_border
+
     .avatar
       margin: 5px
       display: block
       position: absolute
-      border: 1px solid #aaa
+      border: 2px solid #eee
+      width: header_button_size + 4
+      height: header_button_size + 4
+
+      &:hover
+        border: 2px solid #aaa
 
     .info
+      margin-top: 2px
       padding-left: 5px
       width: 160px
       display: block
       position: absolute
       left: 40px
       color: white
-      font-weight: bold
       overflow: hidden
       text-overflow: ellipsis
       text-shadow: 1px 1px #666
+
+      .title
+        font-weight: bold
+
+      .author
+        font-size: 10pt
 
     .title, .author, .likes, .comments
       display: block
@@ -124,12 +136,12 @@ project_border = 1px solid #aaa
 
     .likes, .comments
       color: project_highlight
-      width: 96px
-      padding: 10px
+      width: (project_width / 3)
+      margin: 10px
       text-align: center
       font-size: 14pt
 
-    .ion
+    .fa
       font-size: 16pt
 
     .likes
@@ -137,3 +149,6 @@ project_border = 1px solid #aaa
 
     .comments
       float: right
+
+    .user-likes
+      color: #1574ce

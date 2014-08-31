@@ -27,13 +27,15 @@ $(function() {
     var app = angular.module('buildbotics', ['ngRoute', 'ui.bootstrap']);
 
     // Routing
-    app.config(function($routeProvider) {
+    app.config(function($routeProvider, $locationProvider) {
         $routeProvider
             .when('/explore', {page: 'explore'})
             .when('/profile', {page: 'profile'})
             .when('/create', {page: 'create'})
             .when('/settings', {page: 'settings'})
             .otherwise({page: 'home'});
+
+        $locationProvider.html5Mode(true);
     });
 
     // BodyCtrl
@@ -54,12 +56,12 @@ $(function() {
     app.controller(
         'ContentCtrl',
         function ($scope, $route, $routeParams) {
-            var render = function() {
-                $scope.page = $route.current.page;
-            };
-
-            $scope.$on("$routeChangeSuccess",
-                       function($currentRoute, $previousRoute) {render();});
+            $scope.$on(
+                "$routeChangeSuccess",
+                function($currentRoute, $previousRoute) {
+                    console.log($currentRoute);
+                    $scope.page = $route.current.page;
+                });
         });
 
     // ProjectListCtrl
@@ -67,34 +69,34 @@ $(function() {
         'ProjectListCtrl',
         function ($scope) {
             $scope.projects = [
-                {title: 'A test project', author: 'fred',
-                 likes: 5, comments: 2,
+                {title: 'A test project', author: 'fred', name: 'projectA',
+                 likes: 5, comments: 2, userLikes: true,
                  image: 'images/project1.jpg'},
 
-                {title: 'Another project', author: 'alice',
+                {title: 'Another project', author: 'alice', name: 'projectB',
                  likes: 5450, comments: 2344,
                  image: 'images/project2.jpg'},
 
-                {title: 'Cool project', author: 'bob',
+                {title: 'Cool project', author: 'bob', name: 'projectC',
                  likes: 23, comments: 35,
                  image: 'images/project3.jpg'},
 
-                {title: 'Another project', author: 'alice',
+                {title: 'Another project', author: 'alice', name: 'projectB',
                  likes: 5450, comments: 2344,
                  image: 'images/project2.jpg'},
 
-                {title: 'Cool project', author: 'bob',
+                {title: 'Cool project', author: 'bob', name: 'projectC',
                  likes: 23, comments: 35,
                  image: 'images/project3.jpg'},
 
-                {title: 'A test project', author: 'fred',
+                {title: 'A test project', author: 'fred', name: 'projectA',
                  likes: 5, comments: 2,
                  image: 'images/project1.jpg'},
             ];
         });
 
     // Bootstrap
-    angular.bootstrap(document, ['buildbotics']);
+    angular.bootstrap(document.documentElement, ['buildbotics']);
 
     $('#content').show();
 })
