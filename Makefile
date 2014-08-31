@@ -27,8 +27,11 @@ node_modules:
 static/%.html: views/%.jade $(wildcard views/include/*.jade)
 	$(JADE) -o static $<
 
-static/css/%.css: styles/%.styl
+static/css/%.css: styles/%.styl static/css
 	$(STYLUS) -I styles < $< | $(AP) -b "> 1%" >$@
+
+static/css:
+	mkdir -p $@
 
 tidy:
 	rm -f $(shell find "$(DIR)" -name \*~)
