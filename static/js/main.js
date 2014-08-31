@@ -55,12 +55,17 @@ $(function() {
     // ContentCtrl
     app.controller(
         'ContentCtrl',
-        function ($scope, $route, $routeParams) {
+        function ($scope, $route, $routeParams, $location) {
             $scope.$on(
                 "$routeChangeSuccess",
                 function($currentRoute, $previousRoute) {
-                    console.log($currentRoute);
-                    $scope.page = $route.current.page;
+                    if ($location.path().indexOf('/api/auth') == 0)
+                        window.location.href = $location.path();
+
+                    else {
+                        console.log($currentRoute);
+                        $scope.page = $route.current.page;
+                    }
                 });
         });
 
