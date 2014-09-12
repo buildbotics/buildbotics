@@ -45,12 +45,16 @@ var users = {
 
 // Accessors *******************************************************************
 function project_get(user, name) {
-    return projects[name];
+    var project = projects[name];
+    if (typeof project != 'undefined') project.name = name;
+    return project;
 }
 
 
 function user_get(name) {
-    return users[name];
+    var user = users[name];
+    if (typeof user != 'undefined') user.name = name;
+    return user;
 }
 
 function user_get_projects(name) {
@@ -147,7 +151,21 @@ $(function() {
                     else {
                         console.log($currentRoute);
                         $scope.page = $route.current.page;
-                        $scope.params = $routeParams;
+
+                        var user = $routeParams.user;
+                        var project = $routeParams.project;
+
+                        if (typeof user != 'undefined') {
+                            $scope.user = user_get(user);
+                            if (typeof $scope.user == 'undefined')
+                                $scope.page = '404';
+
+                            else if (typeof project != 'undefined') {
+                                $scope.project = project_get(user, project);
+                                if (typeof $scope.project == 'undefined')
+                                    $scope.page = '404';
+                            }
+                        }
                     }
                 });
         });
@@ -156,29 +174,22 @@ $(function() {
     app.controller(
         'UserCtrl',
         function ($scope, $routeParams) {
-            $scope.user = user_get($routeParams.user);
-            $scope.user.name = $routeParams.user;
-            $scope.projects = $scope.user.projects;
-        });
+            $scope.projects = user_get_projects($routeParams.user);
+        })
 
     // Project List
     app.controller(
         'ProjectListCtrl',
         function ($scope, $routeParams) {
-            $scope.projects = projects;
             if ($routeParams.user)
                 $scope.projects = user_get_projects($routeParams.user);
+            else $scope.projects = projects;
         });
 
     // Project
     app.controller(
         'ProjectCtrl',
         function ($scope, $routeParams) {
-            $scope.project =
-                project_get($routeParams.user, $routeParams.project);
-            $scope.project.name = $routeParams.project;
-            $scope.user = user_get($routeParams.user);
-            $scope.user.name = $routeParams.user;
         });
 
     // Fix body padding-top

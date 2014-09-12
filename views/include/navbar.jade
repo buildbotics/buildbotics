@@ -11,10 +11,10 @@
         a.dropdown-toggle(data-toggle='dropdown')
           img.avatar(ng-src='{{avatar}}')
           .user-info
-            .user-name {{user.username}}
+            .user-name(title='Your account name.') {{user.username}}
             .user-points
-              span.points 1,234
-              span.badges
+              span.points(title='Your points.') 1,234
+              span.badges(title='Your badges.')
                 span.fa.fa-circle
                 | 12
           span.marker.fa.fa-caret-down
