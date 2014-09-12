@@ -8,14 +8,14 @@ html
     - var cdn = '//maxcdn.bootstrapcdn.com'
     link(rel='stylesheet' href=cdn + '/bootstrap/3.2.0/css/bootstrap.min.css')
     link(rel='stylesheet'
-      href=cdn + '/font-awesome/4.1.0/css/font-awesome.min.css')
+      href=cdn + '/font-awesome/4.2.0/css/font-awesome.min.css')
     link(rel='stylesheet' href='/css/style.css')
 
   body(ng-controller='BodyCtrl')
     #header.navbar.navbar-default.navbar-fixed-top(ng-switch on='authenticated')
       include ./include/navbar.jade
 
-    #content(ng-controller='ContentCtrl' style='display:none')
+    #content(ng-controller='ContentCtrl' ng-cloak)
       div(ng-switch on='page')
         div.home-page(ng-switch-when='home')
           include ./include/home.jade
@@ -28,6 +28,15 @@ html
 
         div.settings-page(ng-switch-when='settings')
           h2 Settings
+
+        div.user-page(ng-switch-when='user')
+          include ./include/user.jade
+
+        div.project-page(ng-switch-when='project')
+          include ./include/project.jade
+
+        div.settings-page(ng-switch-when='404')
+          h2 Page not found
 
     - var cdn = '//cdnjs.cloudflare.com/ajax/libs'
     script(src=cdn + '/jquery/1.11.1/jquery.min.js')

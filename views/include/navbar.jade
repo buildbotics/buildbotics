@@ -1,19 +1,39 @@
-.navbar-contents
-  .navbar-header
-    a.title(href='/') Buildbotics
+.navbar-contents(ng-cloak)
+  ul.nav.navbar-nav.navbar-header.nav-pills
+    li: a.title(href='/') Buildbotics:
+    li: a(href='/explore') explore
+    li: a(href='/create') create
+    li: a(href='/build') build
 
-  .collapse.navbar-collapse.navbar-right
+  .navbar-collapse.navbar-right
     ul.nav.navbar-nav(ng-switch-when='true')
-      li
-        a.profile(href='/profile' title='View Profile')
+      li.dropdown
+        a.dropdown-toggle(data-toggle='dropdown')
           img.avatar(ng-src='{{avatar}}')
-          span {{user.displayName}}
-      li: a.create(href='/create' title='Create new project')
-        span.fa.fa-plus-circle
-      li: a.settings(href='/settings' title='Settings')
-        span.fa.fa-gear
-      li: a.logout(href='api/auth/logout', title='Sign out')
-        span.fa.fa-sign-out
+          .user-info
+            .user-name {{user.username}}
+            .user-points
+              span.points 1,234
+              span.badges
+                span.fa.fa-circle
+                | 12
+          span.marker.fa.fa-caret-down
+        ul.dropdown-menu(role='menu')
+          li: a.profile(href='/{{user.username}}')
+            span.fa.fa-user
+            | View Profile
+          li: a.settings.icon(href='/create')
+            span.fa.fa-plus-circle
+            | New Project
+          li: a.activity.icon(href="/{{user.username}}#activity")
+            span.fa.fa-bar-chart
+            | Recent Activity
+          li: a.settings.icon(href='/settings')
+            span.fa.fa-gear
+            | Edit Settings
+          li: a.logout.icon(href='api/auth/logout')
+            span.fa.fa-sign-out
+            | Sign out
 
     ul.nav.navbar-nav(ng-switch-when='false')
       li.navbar-text Login or register with:
@@ -23,3 +43,6 @@
         li: a.login(class=provider href=url title=title)
           - if (provider == 'google') provider = 'google-plus'
           span.fa(class='fa-' + provider + '-square')
+
+  form.navbar-form.navbar-right(role='search')
+    input.form-control(type='text' placeholder='Search Buildbotics')

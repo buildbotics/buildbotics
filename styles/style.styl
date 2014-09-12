@@ -3,31 +3,105 @@ header_height = 48px
 header_button_size = 32px
 nav_padding = 8px
 
-#header
-  a
-    text-decoration: none
-    outline: 0
-    color: #333
-    &:hover
-      opacity: 0.7
-    padding-bottom: 0 !important
+body
+  background-color: #eee
+  padding-top: 60px
 
-  .navbar-nav > li > a
-    padding: nav_padding 0
+#header
+  background-color: #ccc
+  box-shadow: 0 0 5px 0 rgba(50, 50, 50, 0.8)
 
   .navbar-contents
     max-width: page_width
     margin: auto
 
+  .navbar-text
+    margin: 15px 6px
+
+  a
+    text-decoration: none
+    outline: 0
+    color: #333
+
+  .navbar-nav > li > a
+    &:hover
+      background-color: #ddd
+
+  .navbar-nav .dropdown > a
+    padding-top: 10px
+    padding-bottom: 10px
+
+  .navbar-header
+    font-size: 18pt
+
+  .navbar-right li > a.icon
+    padding-top: 8px
+
+  .navbar-form
+    padding-top: 4px
+
+  .dropdown-toggle
+    margin-left: 0.5em
+    border-left: 1px solid #bbb
+    border-right: 1px solid #bbb
+    height: 50px
+
+  .dropdown
+    cursor: pointer
+
+    .fa
+      font-size: 16pt
+      margin-right: 0.3em
+      width: 24px
+
+    .avatar, .user-info, .marker
+      float: left
+
+    .avatar
+      margin-top: 4px
+
+    .user-info
+      margin-top: -2px
+      text-align: center
+
+    .marker
+      margin-top: 20px
+      margin-right: 0
+      padding-right: 0
+
+    .points
+      margin-left: 0.3em
+
+    .badges, .badges .fa
+      width: auto
+      font-size: 10pt
+
+    .badges .fa
+      color: #ccab62
+
+  .dropdown-menu > li > a:hover
+    background-color: #fff
+
   .title
     font-size: header_button_size
 
+  .form-control, .btn-default, .dropdown-menu
+    background-color: #eee
+
+  .form-control
+    border-radius: 20px
+    height: header_height - 18
+
   .avatar
+    display: inline-block
     margin-right: nav_padding
 
   .fa
-    font-size: 26pt
-    margin: 0 nav_padding
+    font-size: 24pt
+    margin-left: 6px
+
+  .login
+    margin-top: 6px
 
   .google
     color: #cc3d2d
@@ -49,7 +123,6 @@ nav_padding = 8px
 #content
   max-width: page_width
   margin: auto
-  margin-top: 60px
 
 .home-page
   .actions
@@ -68,8 +141,18 @@ nav_padding = 8px
       font-weight: bold
       font-size: 150%
 
+a.likes
+  color: #666
+  text-decoration: none
+  cursor: pointer
+
+.likes .user-likes
+  color: #1574ce
+
+
 project_width = 300px
-project_highlight = #888
+project_height = 420px
+project_highlight = #bbb
 project_border = 2px solid #eee
 project_highlight_border = 2px solid #aaa
 
@@ -93,39 +176,51 @@ project_highlight_border = 2px solid #aaa
     display: inline-block
     margin: 8px
     width: project_width
-    border: project_border
-    border-radius: 4px
+    height: project_height
+    box-shadow: 0 0 5px 0 rgba(50, 50, 50, 0.2)
     overflow: hidden
+    text-shadow: 1px 1px #444
     cursor: pointer
 
     &:hover
-      border: project_highlight_border
+      box-shadow: 0 0 5px 0 rgba(50, 50, 50, 0.8)
+
+    .image
+      min-width: project_width
+      height: project_height - 40px
 
     .avatar
-      margin: 5px
-      display: block
-      position: absolute
-      border: 2px solid #eee
-      width: header_button_size + 4
-      height: header_button_size + 4
+      margin: 2px
+      padding: 2px
+      display: inline-block
+      width: header_button_size + 6
+      height: header_button_size + 6
+      vertical-align: top
 
       &:hover
-        border: 2px solid #aaa
+        box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.8)
 
     .info
-      margin-top: 2px
-      padding-left: 5px
-      width: 160px
-      display: block
+      margin: 2px
+      padding: 2px
+      width: 180px
       position: absolute
-      left: 40px
       color: white
       overflow: hidden
       text-overflow: ellipsis
-      text-shadow: 1px 1px #666
+      background-color: rgba(220, 220, 220, 0.6)
+      border-radius: 5px
+      box-shadow: 0 0 5px 0 rgba(50, 50, 50, 0.2)
+
+      > div
+        display: inline-block
 
       .title
+        color: white
         font-weight: bold
+
+        &:hover
+          color: #ddd
 
       .author
         font-size: 10pt
@@ -134,12 +229,17 @@ project_highlight_border = 2px solid #aaa
       display: block
       white-space: nowrap
 
-    .likes, .comments
-      color: project_highlight
-      width: (project_width / 3)
-      margin: 10px
+    .social
+      width: 100%
+      position: absolute
+      bottom: 0px
       text-align: center
       font-size: 14pt
+
+    .likes, .comments
+      width: (project_width / 3)
+      margin: 10px
+      color: project_highlight
 
     .fa
       font-size: 16pt
@@ -150,5 +250,11 @@ project_highlight_border = 2px solid #aaa
     .comments
       float: right
 
-    .user-likes
-      color: #1574ce
+#user
+  .picture
+    width: 200px
+    height: 200px
+    border-radius: 5px
+
+  .name
+    font-weight: bold

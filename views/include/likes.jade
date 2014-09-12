@@ -1,0 +1,5 @@
+a.likes(title="{{project.userLikes ? 'Unlike' : 'Like'}} this project",
+  ng-click="project.toggleLike()")
+  span.fa.fa-star(
+    ng-class="project.userLikes ? 'user-likes' : ''")
+  | &nbsp;{{project.likes}}

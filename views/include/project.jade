@@ -1,0 +1,8 @@
+#project(ng-controller='ProjectCtrl')
+  h2 {{project.title}}
+  h3 Created by&nbsp;
+    a(href='/{{project.author}}') {{project.author}}
+
+  img(src='{{project.image}}')
+
+  include ./likes.jade

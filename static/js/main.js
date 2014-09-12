@@ -1,3 +1,76 @@
+// Fake data *******************************************************************
+var projects = {
+    'projectA':
+    {title: 'A test project', author: 'fred', likes: 5, comments: 2,
+     userLikes: true, image: 'images/project1.jpg'},
+
+    'projectB':
+    {title: 'Another project', author: 'alice', likes: 5450, comments: 2344,
+     image: 'images/project2.jpg'},
+
+    'projectC':
+    {title: 'Cool project', author: 'bob', likes: 23, comments: 35,
+     image: 'images/project3.jpg'},
+
+    'projectD':
+    {title: 'Another project', author: 'alice', likes: 5450, comments: 2344,
+     image: 'images/project4.jpg'},
+
+    'projectE':
+    {title: 'Cool project', author: 'bob', likes: 23, comments: 35,
+     image: 'images/project5.jpg'},
+
+    'projectF':
+    {title: 'A test project', author: 'fred', likes: 5, comments: 2,
+     image: 'images/project6.jpg'}
+};
+
+
+var users = {
+    'fred': {
+        'avatar':
+        'http://png-1.findicons.com/files/icons/1072/face_avatars/300/g01.png'
+    },
+    'alice': {
+        'displayName': 'Alice Andrews',
+        'avatar':
+        'http://png-5.findicons.com/files/icons/1072/face_avatars/300/fd01.png'
+    },
+    'bob': {
+        'avatar':
+        'https://cdn1.iconfinder.com/data/icons/brown-monsters/1024/Brown_Monsters_16-01.png'
+    }
+};
+
+
+// Accessors *******************************************************************
+function project_get(user, name) {
+    return projects[name];
+}
+
+
+function user_get(name) {
+    return users[name];
+}
+
+function user_get_projects(name) {
+    var user_projects = {};
+
+    for (var project in projects)
+        if (projects[project].author == name)
+            user_projects[project] = projects[project];
+
+    return user_projects;
+}
+
+
+function user_toggle_like(project) {
+    project.userLikes = !project.userLikes;
+    if (project.userLikes) project.likes++;
+    else project.likes--;
+}
+
+
 function user_get_avatar(user) {
     if (user.provider == 'facebook')
         return 'http://graph.facebook.com/' +
@@ -13,6 +86,12 @@ function user_get_avatar(user) {
 
 // Main ************************************************************************
 $(function() {
+    $.each(projects, function (name, project) {
+        project.toggleLike = function () {
+            user_toggle_like(project);
+        }
+    });
+
     // Tooltips
     $('a[title]').each(function () {
         $(this).attr({
@@ -29,19 +108,22 @@ $(function() {
     // Routing
     app.config(function($routeProvider, $locationProvider) {
         $routeProvider
+            .when('/', {page: 'home'})
             .when('/explore', {page: 'explore'})
-            .when('/profile', {page: 'profile'})
             .when('/create', {page: 'create'})
             .when('/settings', {page: 'settings'})
-            .otherwise({page: 'home'});
+            .when('/:user', {page: 'user'})
+            .when('/:user/:project', {page: 'project'})
+            .otherwise({page: '404'});
 
         $locationProvider.html5Mode(true);
     });
 
-    // BodyCtrl
+    // Body
     app.controller(
         'BodyCtrl',
         function ($scope, $http) {
+            $scope.users = users;
             $scope.authenticated = false;
 
             $http.get('/api/auth/user').success(function (user) {
@@ -52,7 +134,7 @@ $(function() {
             });
         });
 
-    // ContentCtrl
+    // Content
     app.controller(
         'ContentCtrl',
         function ($scope, $route, $routeParams, $location) {
@@ -65,44 +147,49 @@ $(function() {
                     else {
                         console.log($currentRoute);
                         $scope.page = $route.current.page;
+                        $scope.params = $routeParams;
                     }
                 });
         });
 
-    // ProjectListCtrl
+    // User
+    app.controller(
+        'UserCtrl',
+        function ($scope, $routeParams) {
+            $scope.user = user_get($routeParams.user);
+            $scope.user.name = $routeParams.user;
+            $scope.projects = $scope.user.projects;
+        });
+
+    // Project List
     app.controller(
         'ProjectListCtrl',
-        function ($scope) {
-            $scope.projects = [
-                {title: 'A test project', author: 'fred', name: 'projectA',
-                 likes: 5, comments: 2, userLikes: true,
-                 image: 'images/project1.jpg'},
-
-                {title: 'Another project', author: 'alice', name: 'projectB',
-                 likes: 5450, comments: 2344,
-                 image: 'images/project2.jpg'},
-
-                {title: 'Cool project', author: 'bob', name: 'projectC',
-                 likes: 23, comments: 35,
-                 image: 'images/project3.jpg'},
-
-                {title: 'Another project', author: 'alice', name: 'projectB',
-                 likes: 5450, comments: 2344,
-                 image: 'images/project2.jpg'},
-
-                {title: 'Cool project', author: 'bob', name: 'projectC',
-                 likes: 23, comments: 35,
-                 image: 'images/project3.jpg'},
-
-                {title: 'A test project', author: 'fred', name: 'projectA',
-                 likes: 5, comments: 2,
-                 image: 'images/project1.jpg'},
-            ];
+        function ($scope, $routeParams) {
+            $scope.projects = projects;
+            if ($routeParams.user)
+                $scope.projects = user_get_projects($routeParams.user);
         });
+
+    // Project
+    app.controller(
+        'ProjectCtrl',
+        function ($scope, $routeParams) {
+            $scope.project =
+                project_get($routeParams.user, $routeParams.project);
+            $scope.project.name = $routeParams.project;
+            $scope.user = user_get($routeParams.user);
+            $scope.user.name = $routeParams.user;
+        });
+
+    // Fix body padding-top
+    $('body').css('padding-top', parseInt($('#header').css("height")) + 10);
 
     // Bootstrap
     angular.bootstrap(document.documentElement, ['buildbotics']);
-
-    $('#content').show();
 })
 
+
+// Fix body padding-top
+$(window).resize(function () { 
+    $('body').css('padding-top', parseInt($('#header').css("height")) + 10);
+});

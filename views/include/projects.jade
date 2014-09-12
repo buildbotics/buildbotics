@@ -1,19 +1,18 @@
 ul.projects(ng-controller='ProjectListCtrl')
-  li.project(ng-repeat='project in projects')
-    a(href='/{{project.author}}')
-      img.avatar(ng-src='{{avatar}}')
-    span.info
-      span.title {{project.title}}
-      span.author
-        | by&nbsp;
-        a(href='/{{project.author}}') {{project.author}}
-    a(href='/{{project.author}}/{{project.name}}')
-      img(ng-src='{{project.image}}')
-    a.likes(
-      title="{{project.userLikes ? 'Unlike' : 'Like'}} this project")
-      span.fa.fa-star(
-        ng-class="project.userLikes ? 'user-likes' : ''")
-      | &nbsp;{{project.likes}}
-    a.comments(title='View comments')
-      span.fa.fa-comments
-      | &nbsp;{{project.comments}}
+  li.project(ng-repeat='(name, project) in projects')
+    .info
+      a(href='/{{project.author}}')
+        img.avatar(ng-src='{{users[project.author].avatar}}')
+      div
+        a.title(href='/{{project.author}}/{{name}}') {{project.title}}
+        span.author
+          | by&nbsp;
+          a(href='/{{project.author}}') {{project.author}}
+    a(href='/{{project.author}}/{{name}}')
+      img.image(ng-src='{{project.image}}')
+    .social
+      include ./likes.jade
+      a.comments(href='{{project.author}}/{{name}}#comments',
+        title='View comments')
+        span.fa.fa-comments
+        | &nbsp;{{project.comments}}
