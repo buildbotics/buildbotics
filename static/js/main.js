@@ -89,6 +89,16 @@ function user_get_avatar(user) {
 
 
 // Main ************************************************************************
+function refit_header() {
+    $('body').css('padding-top', $('#header').height() + 10);
+}
+
+
+function refit_header_delayed() {
+    setInterval(refit_header, 1);
+}
+
+
 $(function() {
     $.each(projects, function (name, project) {
         project.toggleLike = function () {
@@ -193,14 +203,9 @@ $(function() {
         });
 
     // Fix body padding-top
-    $('body').css('padding-top', parseInt($('#header').css("height")) + 10);
+    refit_header();
+    $(window).resize(refit_header);
 
     // Bootstrap
     angular.bootstrap(document.documentElement, ['buildbotics']);
 })
-
-
-// Fix body padding-top
-$(window).resize(function () { 
-    $('body').css('padding-top', parseInt($('#header').css("height")) + 10);
-});

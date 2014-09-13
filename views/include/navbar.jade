@@ -8,7 +8,8 @@
   .navbar-collapse.navbar-right
     ul.nav.navbar-nav(ng-switch-when='true')
       li.dropdown
-        a.dropdown-toggle(data-toggle='dropdown')
+        a.dropdown-toggle(data-toggle='dropdown',
+          onclick='refit_header_delayed()')
           img.avatar(ng-src='{{avatar}}')
           .user-info
             .user-name(title='Your account name.') {{user.username}}
