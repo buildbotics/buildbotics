@@ -1,0 +1,12 @@
+doctype html
+html
+  head
+    meta(charset='UTF-8')
+    title BuildBotics API
+
+    link(rel='stylesheet' href='/css/highlight.css')
+    link(rel='stylesheet' href='/css/docs.css')
+
+  body
+    #toc!= md_toc('docs/api.md')
+    #content!= md('docs/api.md')

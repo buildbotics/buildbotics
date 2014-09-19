@@ -1,0 +1,64 @@
+body
+  width: 920px
+  margin: auto
+  font: 12pt "Helvetica Neue",arial,freesans,clean,sans-serif;
+  color: #393939
+  position: relative
+
+#toc
+  width: 260px
+  position: fixed
+  margin-left: 660px
+  margin-top: 1em
+  border: 1px solid #cacaca
+  border-radius: 3px
+
+#toc *
+  padding: 0
+  margin: 0
+
+#toc a
+  text-decoration: none
+  color: #393939
+  display: block
+  padding: 5px
+  border-bottom: 1px solid #cacaca
+
+  &:hover
+    color: #327fc7
+    background-color: #f2f2f3
+
+#toc li
+  list-style: none
+
+#toc > ul > li > ul
+  background-color: #f8f8f9
+
+#toc > ul > li > a
+  font-weight: bold
+
+#toc > ul > li > ul a
+  padding-left: 2.5em
+
+#content
+  width: 630px
+  position: absolute
+  left: 0px
+
+code
+  background: #f8f8f9
+  font-family: Consolas,"Liberation Mono",Courier,monospace;
+  padding: 3px
+
+pre > code
+  display: block
+  border: 1px solid #cacaca
+  border-radius: 3px
+  padding: 8px
+  overflow: auto
+  font-size: 10pt
+
+.lang-sh
+  background-color: #666
+  border: none
+  color: #fff
