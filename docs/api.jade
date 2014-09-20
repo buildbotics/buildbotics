@@ -5,8 +5,17 @@ html
     title BuildBotics API
 
     link(rel='stylesheet' href='/css/highlight.css')
-    link(rel='stylesheet' href='/css/docs.css')
+    link(rel='stylesheet' href='/css/api.css')
+
+    - var cdn = '//maxcdn.bootstrapcdn.com'
+    link(rel='stylesheet'
+      href=cdn + '/font-awesome/4.2.0/css/font-awesome.min.css')
 
   body
     #toc!= md_toc('docs/api.md')
+    div.title BuildBotics API
     #content!= md('docs/api.md')
+
+    - var cdn = '//cdnjs.cloudflare.com/ajax/libs'
+    script(src=cdn + '/jquery/1.11.1/jquery.min.js')
+    script(src='/js/api.js')

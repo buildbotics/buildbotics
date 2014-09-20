@@ -30,16 +30,16 @@ node_modules:
 	npm install
 
 public/%.html: views/%.jade $(wildcard views/include/*.jade) node_modules
-	$(JADE) $< >$@
+	$(JADE) $< >$@ || rm $@
 
 public/css/%.css: styles/%.styl public/css node_modules
-	$(STYLUS) -I styles < $< | $(AP) -b "> 1%" >$@
+	$(STYLUS) -I styles < $< | $(AP) -b "> 1%" >$@ || rm $@
 
 public/css:
 	mkdir -p $@
 
-public/docs/%.html: docs/%.jade node_modules
-	$(JADE) $< >$@
+public/docs/%.html: docs/%.jade docs/%.md node_modules
+	$(JADE) $< >$@ || rm $@
 
 tidy:
 	rm -f $(shell find "$(DIR)" -name \*~)

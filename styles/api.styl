@@ -4,12 +4,12 @@ body
   font: 12pt "Helvetica Neue",arial,freesans,clean,sans-serif;
   color: #393939
   position: relative
+  padding: 1em 0
 
 #toc
   width: 260px
   position: fixed
   margin-left: 660px
-  margin-top: 1em
   border: 1px solid #cacaca
   border-radius: 3px
 
@@ -37,28 +37,64 @@ body
 #toc > ul > li > a
   font-weight: bold
 
+  span
+    color: #888
+    margin-right: 0.25em
+
+#toc > ul > li > ul
+  display: none
+
 #toc > ul > li > ul a
   padding-left: 2.5em
+
+.title
+  font-size: 250%
+  font-weight: bold
 
 #content
   width: 630px
   position: absolute
   left: 0px
 
+p
+  margin: 1em 0
+
+h1, h2, h3, h4
+  margin: 2em auto 1em
+
+h1
+  border-bottom: 1px solid #ddd
+
+h2, h3
+  font-weight: normal
+
+h4
+  color: #888
+
 code
   background: #f8f8f9
+  font-size: 10pt
   font-family: Consolas,"Liberation Mono",Courier,monospace;
-  padding: 3px
+  border: 1px solid #cacaca
+  border-radius: 3px
+  padding: 0 3px
 
 pre > code
   display: block
-  border: 1px solid #cacaca
-  border-radius: 3px
-  padding: 8px
+  padding: 1em
   overflow: auto
-  font-size: 10pt
+  margin: 2em 0
 
 .lang-sh
   background-color: #666
   border: none
   color: #fff
+
+.lang-http
+  padding: 1.25em 1em
+  background-color: #eee
+  margin-bottom: -2.2em
+  border-radius: 3px 3px 0 0
+  border-bottom: 1px solid #ddd
+  z-index: 10
+  position: relative
