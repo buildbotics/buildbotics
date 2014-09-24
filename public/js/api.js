@@ -2,6 +2,10 @@ function expand(item) {
     item.addClass('fa-caret-down')
         .removeClass('fa-caret-right')
         .parent().next().slideDown('fast');
+
+    $('#toc .fa-caret-down').each(function () {
+        if (!$(this).is(item)) collapse($(this));
+    });
 }
 
 
@@ -29,4 +33,6 @@ $(function() {
     $('#toc > ul > li > a').click(function (e) {
         expand($(this).find('span'));
     });
+
+    // TODO expand current hashtag
 })

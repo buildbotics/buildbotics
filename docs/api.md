@@ -64,6 +64,12 @@ All timestamps are in [ISO 8601 format](http://en.wikipedia.org/wiki/ISO_8601):
 YYYY-MM-DDTHH:MM:SSZ
 ```
 
+### Email Addresses
+Email addresss are formated as described in
+[RFC 2822 Section 3.4.1][rfc2822-3.4.1].
+
+[rfc2822-3.4.1]: http://tools.ietf.org/html/rfc2822#section-3.4.1
+
 ### Markdown
 ```none
 <markdown>
@@ -108,11 +114,12 @@ A user profile is defined as follows:
 ```coffeescript
 {
   owner: <name>
+  fullname: <string> (0,120)
   avatar: <url>
   bio: <markdown>
   url: <url>
-  stars: [<project_ref>...]
-  following: [<name>...]
+  stars: [<project_ref>...] (0,4096)
+  following: [<name>...] (0,4096)
   followers: <integer>
 }
 ```
@@ -191,6 +198,37 @@ PUT /users/johndoe/unfollow HTTP/1.1
 
 ```
 Status: 200 OK
+```
+
+# Settings
+## Model
+```coffeescript
+{
+  email: [<email>...] (0,8)
+  notifications: <notifications>
+}
+```
+
+## Email
+```coffeescript
+{
+  address: <email_address>
+  verified: <bool>
+  primary: <bool>
+}
+```
+
+## Notifications
+```coffeescript
+{
+  enabled: <bool>
+  project_comments: <bool>
+  project_starred: <bool>
+  when_followed: <bool>
+  comment_refed: <bool>
+  stared_project_updates: <bool>
+  stared_project_comments: <bool>
+}
 ```
 
 # Projects
