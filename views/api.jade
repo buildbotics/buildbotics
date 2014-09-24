@@ -1,21 +1,23 @@
+- var cdn = 'http://cdnjs.cloudflare.com/ajax/libs'
+
 doctype html
 html
   head
     meta(charset='UTF-8')
     title BuildBotics API
 
-    link(rel='stylesheet' href='/css/highlight.css')
-    link(rel='stylesheet' href='/css/api.css')
-
-    - var cdn = '//maxcdn.bootstrapcdn.com'
+    //link(rel='stylesheet'
+    //  href=cdn + '/twitter-bootstrap/3.2.0/css/bootstrap.min.css')
+    link(rel='stylesheet' href=cdn + '/highlight.js/8.2/styles/github.min.css')
     link(rel='stylesheet'
       href=cdn + '/font-awesome/4.2.0/css/font-awesome.min.css')
+
+    link(rel='stylesheet' href='/css/api.css')
 
   body
     #toc!= md_toc('docs/api.md')
     div.title BuildBotics API
     #content!= md('docs/api.md')
 
-    - var cdn = '//cdnjs.cloudflare.com/ajax/libs'
     script(src=cdn + '/jquery/1.11.1/jquery.min.js')
     script(src='/js/api.js')

@@ -8,9 +8,8 @@ MARKDOWN  := $(DIR)/markdown.js
 
 HTML := $(patsubst views/%.jade,public/%.html,$(wildcard views/*.jade))
 CSS := $(patsubst styles/%.styl,public/css/%.css,$(wildcard styles/*.styl))
-DOCS := $(patsubst docs/%.jade,public/docs/%.html,$(wildcard docs/*.jade))
 
-all: build docs
+all: build dev
 
 install:
 	npm install
@@ -24,7 +23,11 @@ html: $(HTML)
 
 css: $(CSS)
 
-docs: $(DOCS)
+dev: public/api.html public/css/api.css
+	mkdir -p dev/css dev/js
+	cp public/api.html dev/index.html
+	cp public/css/api.css dev/css
+	cp public/js/api.js dev/js
 
 node_modules:
 	npm install
@@ -38,13 +41,11 @@ public/css/%.css: styles/%.styl public/css node_modules
 public/css:
 	mkdir -p $@
 
-public/docs/%.html: docs/%.jade docs/%.md node_modules
-	$(JADE) $< >$@ || rm $@
-
 tidy:
 	rm -f $(shell find "$(DIR)" -name \*~)
 
 clean: tidy
 	rm $(HTML) $(CSS) $(DOCS)
+	rm -rf dev
 
-.PHONY: all install run build html css clean tidy docs
+.PHONY: all install run build html css clean tidy
