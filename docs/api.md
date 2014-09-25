@@ -108,11 +108,11 @@ should be endoded as JSON with Content-Type ```application/json```.
 ## Pagination
 
 # Users
-## Model
-A user profile is defined as follows:
+## Profile Model
+User profiles are defined as follows:
 
 ```coffeescript
-{
+<profile> = {
   owner: <name>
   fullname: <string> (0,120)
   avatar: <url>
@@ -126,6 +126,7 @@ A user profile is defined as follows:
 
 A ```<project_ref>``` is defined as ```<name>/<name>``` where the first name
 is the user and the second the project.
+For example, ```jimmy/fun_with_lasers```.
 
 ## Get user profile
 ```none
@@ -133,9 +134,12 @@ GET /users/{name}
 ```
 
 ### Example
+#### Request
 ```
 GET /users/johndoe HTTP/1.1
 ```
+
+#### Response
 ```http
 Status: 200 OK
 Content-Type: application/json
@@ -143,19 +147,29 @@ Content-Type: application/json
 ```json
 {
   owner: "johndoe",
-  avatar: "http://example.com/images/johndoe.png",
+  avatar: "http://example.com/~johndoe/images/johndoe.png",
   bio: "John is an avid builder...",
-  url: "http://johndoe.com/",
+  url: "http://example.com/~johndoe/",
   stars: ["janedoe/funproject", "jimmy/laser_bot"],
   following: ["janedoe", "buildbotics"],
   followers: 2
 }
 ```
 
-## Set user profile
+## Set user profile data
 ```none
 PUT /users/{name}
 ```
+
+### Parameters
+Name | Type | Description
+--|--|--
+**avatar** | ```<url>``` | URL to user's avatar.
+**bio** | ```<markdown>``` | User's public biography.
+**url** | ```<url>``` | Link to user's home page.
+
+Other profile parameters cannot be changed with this API call.
+
 
 ### Example
 ```http
@@ -164,7 +178,7 @@ PUT /users/johndoe HTTP/1.1
 ```json
 {
   bio: "I like turtles.",
-  url: "http://johndoe.com/",
+  url: "http://example.com/~johndoe/",
 }
 ```
 
@@ -201,40 +215,105 @@ Status: 200 OK
 ```
 
 # Settings
-## Model
+## Settings Model
 ```coffeescript
-{
+<settings> = {
   email: [<email>...] (0,8)
   notifications: <notifications>
 }
 ```
 
-## Email
 ```coffeescript
-{
+<email> = {
   address: <email_address>
   verified: <bool>
   primary: <bool>
 }
 ```
 
-## Notifications
 ```coffeescript
-{
+<notifications> = {
   enabled: <bool>
   project_comments: <bool>
   project_starred: <bool>
   when_followed: <bool>
-  comment_refed: <bool>
+  comment_referenced: <bool>
   stared_project_updates: <bool>
   stared_project_comments: <bool>
 }
 ```
 
+## Get email addresses
+```none
+GET /emails
+```
+
+## Add email address
+```none
+PUT /emails/{email_address}
+```
+
+### Parameters
+Name | Type | Description
+--|--|--
+**primary** | ```<bool>``` | Make this the primary email address.
+
+
+## Remove email address
+```none
+DELETE /emails/{email_address}
+```
+
+## Get notification settings
+```none
+GET /notifications
+```
+
+## Set notification settings
+```none
+PUT /notifications
+```
+
+### Parameters
+<table>
+  <tr>
+    <th>Name</th><th>Type</th><th>Description</th>
+  </tr>
+  <tr>
+    <td>**enabled**</td><td>```<bool>```</td>
+    <td>Enable or disable all notifications.</td>
+  </tr>
+  <tr>
+    <td>**project_comments**</td><td>```<bool>```</td>
+    <td>Comments on the owner's project.</td>
+  </tr>
+  <tr>
+    <td>**project_starred**</td><td>```<bool>```</td>
+    <td>Stars on the owner's project.</td>
+  </tr>
+  <tr>
+    <td>**when_followed**</td><td>```<bool>```</td>
+    <td>Someone followed the owner.</td>
+  </tr>
+  <tr>
+    <td>**comment_referenced**</td><td>```<bool>```</td>
+    <td>The owner's comment was referenced.</td>
+  </tr>
+  <tr>
+    <td>**stared_project_updates**</td><td>```<bool>```</td>
+    <td>A project the owner starred was updated.</td>
+  </tr>
+  <tr>
+    <td>**stared_project_comments**</td><td>```<bool>```</td>
+    <td>A project the owner starred was commented.</td>
+  </tr>
+</table>
+
+
 # Projects
-## Model
+## Project Model
 ```coffeescript
-{
+<project> = {
   name: <name>
   creation: <date>
   url: <url>
@@ -260,9 +339,9 @@ Status: 200 OK
 ## Untag project
 
 # Comments
-## Model
+## Comment Model
 ```coffeescript
-{
+<comment> = {
   id: <integer>
   owner: <name>
   creation: <date>
@@ -272,9 +351,9 @@ Status: 200 OK
 ```
 
 # Steps
-## Model
+## Step Model
 ```coffeescript
-{
+<step> = {
   title: <string> (0,120)
   text: <markdown>
   media: [<file>...] (0,64)
@@ -283,9 +362,9 @@ Status: 200 OK
 ```
 
 # Files
-## Model
+## File Model
 ```coffeescript
-{
+<file> = {
   type: <media_type>
   creation: <date>
   ref: <file_ref>
@@ -303,16 +382,45 @@ VvOv3aKEySQCe8K3/JjoLiYmDPXb7/2W7FjdoTzZ2qk
 [rfc4648]: http://tools.ietf.org/html/rfc4648
 
 # Events
+## Event Model
+```coffeescript
+<event> = {
+  type: <string>
+  timestamp: <date>
+  url: <url>
+  summary: <markdown>
+}
+```
 
 # Search
+## Result Model
+```coffeescript
+<result> = {
+  url: <url>
+  summary: <markdown>
+}
+```
 
 # Tags
-A tag may be any ```<name>```.
+## Get a list of tags
+```none
+GET /tags
+```
+
+## Create a new tag
+```none
+PUT /tags
+```
+
+### Parameters
+Name | Type | Description
+--|--|--
+**tag** | ```<name>``` | **Required**. The tag name.
 
 # Licenses
-## Model
+## License Model
 ```coffeescript
-{
+<license> = {
   name: <string> (2,120)
   url: <url>
   brief: <markdown>
@@ -323,3 +431,17 @@ A tag may be any ```<name>```.
 }
 ```
 
+## Get a list of licenses
+```none
+GET /licenses
+```
+
+## Create a new license
+```none
+PUT /licenses
+```
+
+### Parameters
+Name | Type | Description
+--|--|--
+**license** | ```<license>``` | **Required**. The license record.

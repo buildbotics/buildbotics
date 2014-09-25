@@ -41,6 +41,8 @@ public/css/%.css: styles/%.styl public/css node_modules
 public/css:
 	mkdir -p $@
 
+public/api.html: docs/api.md
+
 tidy:
 	rm -f $(shell find "$(DIR)" -name \*~)
 

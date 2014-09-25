@@ -34,5 +34,15 @@ $(function() {
         expand($(this).find('span'));
     });
 
-    // TODO expand current hashtag
+    // Expand current hashtag
+    var target = $('#toc a[href="' + window.location.hash + '"]');
+    if (target.length) {
+        var li = target.parent().parent().parent();
+        if (li.get(0).tagName == 'LI') target = li;
+
+        target = target.find('.fa')[0];
+
+        $(target).parent().next().show();
+        expand($(target));
+    }
 })
