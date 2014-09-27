@@ -102,6 +102,42 @@ should be endoded as JSON with Content-Type ```application/json```.
 
 ## Errors
 
+In case of error, HTTP status codes are returned.  These codes are defined by
+[RFC 2068 Section 10][rfc2068-sec10] and [RFC 4918 Section 11][rfc4918-sec11].
+
+Possible errors include:
+
+- ```400 Bad Request``` in case of malformed JSON input.
+- ```403 Forbidden``` or ```404 Not Found``` in case of an authorization error.
+- ```404 Not Found``` in case a request resource does not exist.
+- ```405 Method Not Allowed``` in case of an invalid or unsupported API call.
+- ```422 Unprocessable Entity``` in case of semantically incorrect input.
+
+[rfc2068-sec10]: https://tools.ietf.org/html/rfc2068#section-10
+[rfc4918-sec11]: https://tools.ietf.org/html/rfc4918#section-11
+
+Other HTTP error codes may be returned where appropriate.
+
+More details about an error may be returned as JSON data defined as follows:
+
+```coffeescript
+<errors> = [<error>...]
+
+<error> = {
+  message: <string>
+  code: <name>
+  field: <name> # The particular field for which there was an error.
+}
+```
+
+Possible error codes are:
+
+Error Code | Description
+:----------|--------------------------------------------------------------------
+required   | The specified field is not optional.
+invalid    | The specified field is invalid.
+exists     | The resource already exists and cannot be created.
+
 ## HTTP Verbs
 
 - GET
