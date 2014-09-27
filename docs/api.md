@@ -38,7 +38,7 @@ example a complete type definition may appear as follows:
 
 ```coffeescript
 {
-  a: <string> (2,120) # A string, 0 to 64 characters long.
+  a: <string> (2,120) # A string, 2 to 120 characters long.
   b: <bool>
   c: <integer> (0,100) # An integer in the range 0 to 100 inclusive.
 }
@@ -47,24 +47,26 @@ example a complete type definition may appear as follows:
 
 ### Names
 ```none
-<name>
+<name> = <string> (2,64) # Matching regex [A-Za-z0-9][A-Za-z0-9_-]{1,63}
 ```
 
-A ```<name>``` is a ```string``` with length ```(2,64)``` and containing only
+A ```<name>``` is a ```<string>``` with length ```(2,64)``` containing only
 ```[A-Za-z0-9_-]``` and not starting with '_' or '-'.
 
 ### Dates
 ```none
-<date>
+<date> = <string> # In ISO 8601 format
 ```
 
-All timestamps are in [ISO 8601 format](http://en.wikipedia.org/wiki/ISO_8601):
-
-```none
-YYYY-MM-DDTHH:MM:SSZ
-```
+All dates and times are in
+[ISO 8601 format](http://en.wikipedia.org/wiki/ISO_8601)
+:```YYYY-MM-DDTHH:MM:SSZ```
 
 ### Email Addresses
+```none
+<email_address> = <string> # In RFC 28822 Section 3.4.1 format
+```
+
 Email addresss are formated as described in
 [RFC 2822 Section 3.4.1][rfc2822-3.4.1].
 
@@ -72,19 +74,18 @@ Email addresss are formated as described in
 
 ### Markdown
 ```none
-<markdown>
+<markdown> = <string> (0,10KiB) # In Markdown format
 ```
 
 Many text fields are in [Markdown format][markdown-syntax].
-[GitHub flavored markdown][github-markdown] is also allowed.  These fields can
-be no larger than 10KiB.
+[GitHub flavored markdown][github-markdown] is also allowed.
 
 [markdown-syntax]: http://daringfireball.net/projects/markdown/syntax
 [github-markdown]: https://help.github.com/articles/github-flavored-markdown
 
 ### Media types
 ```none
-<media_type>
+<media_type> = <string> # As defined by iana.org
 ```
 
 Media types, AKA mime types, are defined by [iana.org][media-types].
@@ -103,7 +104,13 @@ should be endoded as JSON with Content-Type ```application/json```.
 
 ## HTTP Verbs
 
+- GET
+- POST
+- PUT
+- DELETE
+
 ## Authentication
+OAuth2
 
 ## Pagination
 
@@ -553,6 +560,7 @@ DELETE /users/{user}/projects/{project}/files/{file}
   target: <name>
   url: <url>
   summary: <markdown>
+  offset: <string>
 }
 ```
 
@@ -567,6 +575,13 @@ Name | Description
 **star** | Someone starred a project.
 **follow** | Someone followed a user.
 **unfollow** | Someone unfollowed a user.
+
+## Event Parameters
+Name | Type | Description
+:--|--|--
+**limit**  | ```<integer>``` | Limit the number of events returned.
+**before** | ```<string>```  | Return events before this offset.
+**after**  | ```<string>```  | Return events after this offset.
 
 ## View your events
 ```none
@@ -598,6 +613,7 @@ GET /users/{user}/projects/{project}
 GET /search/projects
 ```
 
+### Parameters
 Name | Type | Description
 :--|--|--
 **query** | ```<string>``` | Search string.
