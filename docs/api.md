@@ -32,7 +32,7 @@ Type definitions may be followed by range definitions.  For example:
 In the case of a number, this indicates the numbers range is from 0 to 64
 inclusive.  In the case of a string or array it refers to it's length.
 
-### Comments
+### Model Comments
 Type definitions may also include comments which follow a ```#``` sign.  For
 example a complete type definition may appear as follows:
 
@@ -114,6 +114,7 @@ User profiles are defined as follows:
 ```coffeescript
 <profile> = {
   owner: <name>
+  joined: <date>
   fullname: <string> (0,120)
   avatar: <url>
   bio: <markdown>
@@ -147,6 +148,8 @@ Content-Type: application/json
 ```json
 {
   owner: "johndoe",
+  joined: "2014-09-27T07:15:05Z",
+  fullname: "John Doe",
   avatar: "http://example.com/~johndoe/images/johndoe.png",
   bio: "John is an avid builder...",
   url: "http://example.com/~johndoe/",
@@ -163,7 +166,7 @@ PUT /users/{name}
 
 ### Parameters
 Name | Type | Description
---|--|--
+:--|--|--
 **avatar** | ```<url>``` | URL to user's avatar.
 **bio** | ```<markdown>``` | User's public biography.
 **url** | ```<url>``` | Link to user's home page.
@@ -255,7 +258,7 @@ PUT /emails/{email_address}
 
 ### Parameters
 Name | Type | Description
---|--|--
+:--|--|--
 **primary** | ```<bool>``` | Make this the primary email address.
 
 
@@ -315,28 +318,79 @@ PUT /notifications
 ```coffeescript
 <project> = {
   name: <name>
-  creation: <date>
-  url: <url>
-  license: <string> (2,120)
   owner: <name>
+  creation: <date>
+  modified: <date>
   parent: <project_ref>
   published: <bool>
-  text: <markdown>
-  tags: [<tag>...] (0,64)
-  files: [<file>..] (0,64)
-  steps: [<step>...] (0,64)
-  comment: [<comment>...] (0,4096)
+  url: <url>
+  license: <string> (2,120)
+  description: <markdown>
+  video: <url>
   stars: <integer>
   latest_stars: [<name>...] (0,100)
+  tags: [<tag>...] (0,64)
+  comment: [<comment>...] (0,4096)
+  steps: [<step>...] (0,64)
+  files: [<file>..] (0,64)
 }
 ```
 
-## Create project
-## Update project
+## Create or update a project
+```none
+PUT /users/{user}/projects/{project}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**url** | ```<url>``` | A URL to more information about the project.
+**license** | ```<string>``` | One of the avaialble license names.
+**published** | ```<bool>``` | True to publish the project publicly.
+**description** | ```<markdown>``` | The project description.
+**video** | ```<url>``` | The project video.
+
+Only approved video URLs are allowed.
+
+## Rename a project
+```none
+PUT /users/{user}/projects/{project}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**name** | ```<name>``` | The new project name.
+
+## Duplicate a project
+```none
+PUT /users/{user}/projects/{project}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**ref** | ```<project_ref>``` | A reference to the parent project.
+
 ## Star project
+```none
+PUT /users/{user}/projects/{project}/star
+```
+
 ## Unstar project
+```none
+DELETE /users/{user}/projects/{project}/star
+```
+
 ## Tag project
+```none
+PUT /users/{user}/projects/{project}/tags/{tag}
+```
+
 ## Untag project
+```none
+DELETE /users/{user}/projects/{project}/tags/{tag}
+```
 
 # Comments
 ## Comment Model
@@ -345,30 +399,103 @@ PUT /notifications
   id: <integer>
   owner: <name>
   creation: <date>
-  ref: <integer> # A reference to a previous comment.
+  ref: <integer>   # A reference to a previous comment.
   text: <markdown>
+  deleted: <bool>  # True if the comment was marked as deleted.
 }
 ```
+
+## Post a comment
+```none
+POST /users/{user}/projects/{project}/comments
+```
+or
+```none
+POST /users/{user}/projects/{project}/steps/{step}/comments
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**ref** | ```<integer>``` | A reference to an existing comment.
+**text** | ```<markdown>``` | **Required**.  The comment text.
+
+## Update a comment
+```none
+PUT /users/{user}/projects/{project}/comments/{comment}
+```
+or
+```none
+PUT /users/{user}/projects/{project}/steps/{step}/comments/{comment}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**text** | ```<markdown>``` | The updated comment text.
+**delete** | ```<bool>``` | True if the comment should be marked deleted.
 
 # Steps
 ## Step Model
 ```coffeescript
 <step> = {
-  title: <string> (0,120)
-  text: <markdown>
-  media: [<file>...] (0,64)
+  name: <name>
+  description: <markdown>
+  video: <url>
   comments: [<comment>...]
+  files: [<string>...] (0,8)
 }
+```
+
+## Create or update a step
+```none
+PUT /users/{user}/projects/{project}/steps/{step}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**description** | ```<markdown>``` | The step description.
+**video** | ```<url>``` | The step video.
+
+Only approved video URLs are allowed.
+
+## Rename a step
+```none
+PUT /users/{user}/projects/{project}/steps/{step}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**name** | ```<name>``` | The new step name.
+
+## Reorder a step
+```none
+PUT /users/{user}/projects/{project}/steps/{step}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**position** | ```<integer>``` | **Required**.  New position of the step.
+
+## Delete a step
+```none
+DELETE /users/{user}/projects/{project}/steps/{step}
 ```
 
 # Files
 ## File Model
 ```coffeescript
 <file> = {
+  name: <string> (1,256)
   type: <media_type>
   creation: <date>
   ref: <file_ref>
   downloads: <integer>
+  caption: <string> (0,120)
+  display: <bool>   # Images only
 }
 ```
 
@@ -381,15 +508,79 @@ VvOv3aKEySQCe8K3/JjoLiYmDPXb7/2W7FjdoTzZ2qk
 
 [rfc4648]: http://tools.ietf.org/html/rfc4648
 
+## Upload a file
+```none
+PUT /users/{user}/projects/{project}/files/{file}
+```
+
+## Update a file
+```none
+PUT /users/{user}/projects/{project}/files/{file}
+```
+Name | Type | Description
+:--|--|--
+**caption** | ```<integer>``` | The file caption.
+**display** | ```<bool>``` | **Images only***.  The file caption.
+
+## Reorder a file
+```none
+PUT /users/{user}/projects/{project}/files/{file}
+```
+Name | Type | Description
+:--|--|--
+**position** | ```<integer>``` | The new file position.
+
+## Rename a file
+```none
+PUT /users/{user}/projects/{project}/files/{file}
+```
+Name | Type | Description
+:--|--|--
+**name** | ```<name>``` | The new file name.
+
+## Delete a file
+```none
+DELETE /users/{user}/projects/{project}/files/{file}
+```
+
 # Events
 ## Event Model
 ```coffeescript
 <event> = {
   type: <string>
   timestamp: <date>
+  owner: <name>
+  target: <name>
   url: <url>
   summary: <markdown>
 }
+```
+
+## Event Types
+Name | Description
+:--|--
+**publish** | Someone published a new project.
+**update** | Someone updated a project.
+**tag** | Someone tagged a project.
+**untag** | Someone untagged a project.
+**comment** | Someone posted a comment.
+**star** | Someone starred a project.
+**follow** | Someone followed a user.
+**unfollow** | Someone unfollowed a user.
+
+## View your events
+```none
+GET /events
+```
+
+## View user events
+```none
+GET /users/{user}
+```
+
+## View project events
+```none
+GET /users/{user}/projects/{project}
 ```
 
 # Search
@@ -397,9 +588,38 @@ VvOv3aKEySQCe8K3/JjoLiYmDPXb7/2W7FjdoTzZ2qk
 ```coffeescript
 <result> = {
   url: <url>
-  summary: <markdown>
+  result: <profile> | <project>
+  offset: <string>
 }
 ```
+
+## Search for projects
+```none
+GET /search/projects
+```
+
+Name | Type | Description
+:--|--|--
+**query** | ```<string>``` | Search string.
+**license** | ```<string>``` | Restrict to specified license.
+**tags** | ```<string>``` | Restrict to specified tags.
+**owner** | ```<name>``` | Restrict to specified owner.
+**order_by** | ```<string>``` | ```stars```, ```creation```, ```modified```
+**limit** | ```<integer>``` | Results limit.
+**before** | ```<string>``` | Search before this offset.
+**after** | ```<string>``` | Search after this offset.
+
+## Search for users
+```none
+GET /search/users
+```
+Name | Type | Description
+:--|--|--
+**query** | ```<string>``` | Search string.
+**order_by** | ```<string>``` | ```followers```, ```joined```
+**limit** | ```<integer>``` | Results limit.
+**before** | ```<string>``` | Search before this offset.
+**after** | ```<string>``` | Search after this offset.
 
 # Tags
 ## Get a list of tags
@@ -409,13 +629,13 @@ GET /tags
 
 ## Create a new tag
 ```none
-PUT /tags
+PUT /tags/{tag}
 ```
 
-### Parameters
-Name | Type | Description
---|--|--
-**tag** | ```<name>``` | **Required**. The tag name.
+## Delete a tag
+```none
+DELETE /tags/{tag}
+```
 
 # Licenses
 ## License Model
@@ -426,7 +646,7 @@ Name | Type | Description
   brief: <markdown>
   text: <markdown>
   sharable: <bool>
-  comercial_use: <bool>
+  commercial_use: <bool>
   attribution: <bool>
 }
 ```
@@ -436,12 +656,23 @@ Name | Type | Description
 GET /licenses
 ```
 
-## Create a new license
+## Create or update a license
 ```none
-PUT /licenses
+PUT /licenses/{license}
 ```
 
 ### Parameters
 Name | Type | Description
---|--|--
-**license** | ```<license>``` | **Required**. The license record.
+:--|--|--
+**url** | <url> | URL to license.
+**brief** | <markdown> | Brief description of license.
+**text** | <markdown> | Full text of license.
+**shareable** | <bool> | Does this license allow sharing.
+**commercial_use** | <bool> | Does this license allow commercial use.
+**attribution** | <bool> | Does this license require attribution.
+
+## Delete a license
+```none
+DELETE /licenses/{license}
+```
+
