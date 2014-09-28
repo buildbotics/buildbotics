@@ -15,8 +15,10 @@ html
     link(rel='stylesheet' href='/css/api.css')
 
   body
-    #toc!= md_toc('docs/api.md')
-    div.title BuildBotics API
+    #toc
+      h2: a(href='#') Buildbotics API
+      != md_toc('docs/api.md')
+    .title BuildBotics API
     #content!= md('docs/api.md')
 
     script(src=cdn + '/jquery/1.11.1/jquery.min.js')

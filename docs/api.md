@@ -2,9 +2,47 @@
 This document describes the resources that are accessible through the
 BuildBotics API.
 
+This section describes the details of the protocol and the following sections
+describe individual data models and their API calls.
+
 ## Schema
-All API access is over HTTP, and accessed from the root url
+All API access is over HTTP, and accessed from the root URL
 http://buildbotics.org/api/.  All data is sent and received as JSON.
+
+In the API docmentation the root URL and HTTP version are left off.  So for
+example:
+
+```none
+PUT /users/{name}/follow
+```
+
+is actually:
+
+```http
+PUT http://buildbotics.org/api/users/{name}/follow HTTP/1.1
+```
+
+## Parameters
+API methods may take optional parameters.  These request parameters may be
+specified as follows:
+
+ 1. URL parameters as part of the URL path.
+ 2. As HTTP [query string parameters][rfc3986-3.4].
+ 3. As JSON encoded data.
+
+[rfc3986-3.4]: http://tools.ietf.org/html/rfc3986#section-3.4
+
+URL parameters are specified using curly braces.  For example:
+
+```none
+PUT /users/{name}/follow
+```
+
+In the above case ```{name}``` is a URL parameter.
+
+For POST, PUT and DELETE request parameters not included in the URL path
+should be encoded as JSON with Content-Type ```application/json```.
+
 
 ## Data Types
 ### Notation
@@ -67,7 +105,7 @@ All dates and times are in
 <email_address> = <string> # In RFC 28822 Section 3.4.1 format
 ```
 
-Email addresss are formated as described in
+Email addressees are formatted as described in
 [RFC 2822 Section 3.4.1][rfc2822-3.4.1].
 
 [rfc2822-3.4.1]: http://tools.ietf.org/html/rfc2822#section-3.4.1
@@ -92,14 +130,6 @@ Media types, AKA mime types, are defined by [iana.org][media-types].
 
 [media-types]: http://www.iana.org/assignments/media-types/media-types.xhtml
 
-## Parameters
-API methods may take optional parameters.  For GET requests parameters
-may be specified either as part of the URL path or as HTTP query string
-parameters.
-
-For POST, PUT and DELETE request parameters not included in the URL path
-should be endoded as JSON with Content-Type ```application/json```.
-
 ## Errors
 
 In case of error, HTTP status codes are returned.  These codes are defined by
@@ -112,6 +142,7 @@ Possible errors include:
 - ```404 Not Found``` in case a request resource does not exist.
 - ```405 Method Not Allowed``` in case of an invalid or unsupported API call.
 - ```422 Unprocessable Entity``` in case of semantically incorrect input.
+- ```503 Service Unavailable``` rate limit exceeded.
 
 [rfc2068-sec10]: https://tools.ietf.org/html/rfc2068#section-10
 [rfc4918-sec11]: https://tools.ietf.org/html/rfc4918#section-11
@@ -130,7 +161,7 @@ More details about an error may be returned as JSON data defined as follows:
 }
 ```
 
-Possible error codes are:
+## Error Codes
 
 Error Code | Description
 :----------|--------------------------------------------------------------------
@@ -140,15 +171,57 @@ exists     | The resource already exists and cannot be created.
 
 ## HTTP Verbs
 
-- GET
-- POST
-- PUT
-- DELETE
+This API uses the following HTTP Verbs as described below.
+
+- ```GET```    - Get a resource or list of resources.
+- ```POST```   - Create a new resource for which the name is not yet known.
+- ```PUT```    - Create or modify an resource for which the name is known.
+- ```DELETE``` - Delete an existing resource by name.
 
 ## Authentication
-OAuth2
+
+Authentication is provided by third-party providers exclusively.  These are as
+follows:
+
+Provider | Type
+:--|--|--
+Google+  | [OAuth 2.0 API][google-oauth2]
+Facebook | [OAuth 2.0 API][facebook-oauth2]
+GitHub   | [OAuth 2.0 API][github-oauth2]
+Twitter  | [OAuth 1.0a API][twitter-oauth1a]
+
+[google-oauth2]:   https://developers.google.com/+/api/oauth
+[facebook-oauth2]: https://developers.facebook.com/docs/reference/dialogs/oauth/
+[github-oauth2]:   https://developer.github.com/v3/oauth/
+[twitter-oauth1a]: https://dev.twitter.com/oauth
+
+One or more of these third-parties may be used to associate logins and
+verified email addresses with the BuildBotics API.
 
 ## Pagination
+Request which return multiple items are paginated.  By default 20 items are
+returned per call.  Each item is supplied with an ```offset``` key which
+tells where it is in the stream.
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**limit** | ```<integer>``` (1,100) | **Default 30**. Items per page.
+**next** | ```<string>``` | Offset of the item just before the requested page.
+**prev** | ```<string>``` | Offset of the item just after the requested page.
+
+Either **next** or **prev** may be provided but not both.  Both parameters
+should be copied from the **offset** field of a previous request.
+
+## Rate Limiting
+Rate limits are as follows:
+
+User | Max Requests in <br/> Past 5 Minutes
+:--|--
+Unauthenticated | 50
+Authenticated   | 200
+
+If you exceed the rate limit ```503 Service Unavailable``` will be returned.
 
 # Users
 ## Profile Model
@@ -368,6 +441,7 @@ PUT /notifications
   published: <bool>
   url: <url>
   license: <string> (2,120)
+  brief: <markdown> (0,200)
   description: <markdown>
   video: <url>
   stars: <integer>
@@ -388,7 +462,7 @@ PUT /users/{user}/projects/{project}
 Name | Type | Description
 :--|--|--
 **url** | ```<url>``` | A URL to more information about the project.
-**license** | ```<string>``` | One of the avaialble license names.
+**license** | ```<string>``` | One of the available license names.
 **published** | ```<bool>``` | True to publish the project publicly.
 **description** | ```<markdown>``` | The project description.
 **video** | ```<url>``` | The project video.
@@ -451,9 +525,6 @@ DELETE /users/{user}/projects/{project}/tags/{tag}
 ## Post a comment
 ```none
 POST /users/{user}/projects/{project}/comments
-```
-or
-```none
 POST /users/{user}/projects/{project}/steps/{step}/comments
 ```
 
@@ -466,9 +537,6 @@ Name | Type | Description
 ## Update a comment
 ```none
 PUT /users/{user}/projects/{project}/comments/{comment}
-```
-or
-```none
 PUT /users/{user}/projects/{project}/steps/{step}/comments/{comment}
 ```
 
@@ -554,12 +622,15 @@ VvOv3aKEySQCe8K3/JjoLiYmDPXb7/2W7FjdoTzZ2qk
 ## Upload a file
 ```none
 PUT /users/{user}/projects/{project}/files/{file}
+PUT /users/{user}/machines/{machine}/files/{file}
 ```
 
 ## Update a file
 ```none
 PUT /users/{user}/projects/{project}/files/{file}
+PUT /users/{user}/machines/{machine}/files/{file}
 ```
+
 Name | Type | Description
 :--|--|--
 **caption** | ```<integer>``` | The file caption.
@@ -568,7 +639,9 @@ Name | Type | Description
 ## Reorder a file
 ```none
 PUT /users/{user}/projects/{project}/files/{file}
+PUT /users/{user}/machines/{machine}/files/{file}
 ```
+
 Name | Type | Description
 :--|--|--
 **position** | ```<integer>``` | The new file position.
@@ -576,7 +649,9 @@ Name | Type | Description
 ## Rename a file
 ```none
 PUT /users/{user}/projects/{project}/files/{file}
+PUT /users/{user}/machines/{machine}/files/{file}
 ```
+
 Name | Type | Description
 :--|--|--
 **name** | ```<name>``` | The new file name.
@@ -584,6 +659,7 @@ Name | Type | Description
 ## Delete a file
 ```none
 DELETE /users/{user}/projects/{project}/files/{file}
+DELETE /users/{user}/machines/{machine}/files/{file}
 ```
 
 # Events
@@ -634,45 +710,6 @@ GET /users/{user}
 GET /users/{user}/projects/{project}
 ```
 
-# Search
-## Result Model
-```coffeescript
-<result> = {
-  url: <url>
-  result: <profile> | <project>
-  offset: <string>
-}
-```
-
-## Search for projects
-```none
-GET /search/projects
-```
-
-### Parameters
-Name | Type | Description
-:--|--|--
-**query** | ```<string>``` | Search string.
-**license** | ```<string>``` | Restrict to specified license.
-**tags** | ```<string>``` | Restrict to specified tags.
-**owner** | ```<name>``` | Restrict to specified owner.
-**order_by** | ```<string>``` | ```stars```, ```creation```, ```modified```
-**limit** | ```<integer>``` | Results limit.
-**before** | ```<string>``` | Search before this offset.
-**after** | ```<string>``` | Search after this offset.
-
-## Search for users
-```none
-GET /search/users
-```
-Name | Type | Description
-:--|--|--
-**query** | ```<string>``` | Search string.
-**order_by** | ```<string>``` | ```followers```, ```joined```
-**limit** | ```<integer>``` | Results limit.
-**before** | ```<string>``` | Search before this offset.
-**after** | ```<string>``` | Search after this offset.
-
 # Tags
 ## Get a list of tags
 ```none
@@ -695,9 +732,9 @@ DELETE /tags/{tag}
 <license> = {
   name: <string> (2,120)
   url: <url>
-  brief: <markdown>
+  brief: <markdown> (0,200)
   text: <markdown>
-  sharable: <bool>
+  shareable: <bool>
   commercial_use: <bool>
   attribution: <bool>
 }
@@ -727,4 +764,247 @@ Name | Type | Description
 ```none
 DELETE /licenses/{license}
 ```
+
+# Machines
+## Machine Model
+```coffeescript
+<machine> = {
+  name: <name>
+  type: <name>            # "cnc", "3d_printer", "laser", "plasma", "lathe"
+  owner: <name>
+  creation: <date>
+  modified: <date>
+  parent: <project_ref>
+  published: <bool>
+  url: <url>
+  brief: <markdown> (0,200)
+  description: <markdown>
+  units: <string>         # "imperial" or "metric"
+  rotation: <string>      # "degrees" or "radians"
+  max_rpm: <real>         # Maximum rotational speed
+  spin_up: <real>         # Rate of spin up in RPM/sec
+  axes: [<axis>...] (1,9)
+  files: [<file>..] (0,64)
+}
+```
+```coffeescript
+<axis> = {
+  name: <string> (1,1)  # X, Y, Z, A, B, C, U, V, W
+  min: <real>           # in, mm, deg, radians
+  max: <real>           # in, mm, deg, radians
+  step: <real>          # in or mm
+  rapid_feed: <real>    # in/sec or mm/sec
+  cutting_feed: <real>  # in/sec or mm/sec
+  ramp_up: <real>       # in/sec/sec or mm/sec/sec
+  ramp_down: <real>     # in/sec/sec or mm/sec/sec
+}
+```
+
+## Get a list of machines
+```none
+GET /users/{user}/machines
+```
+
+## Create or update a machine
+```none
+PUT /users/{user}/machines/{machine}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**url** | ```<url>``` | URL to page about machine.
+**brief** | ```<markdown>``` | A brief description of the machine.
+**description** | ```<markdown>``` | A full description of the machine.
+**units** | ```<string>``` | ```"imperial"``` or ```"metric"```.
+**rotation** | ```<string>``` | ```"degrees"``` or ```"radians"```.
+
+## Copy a machine
+```none
+PUT /users/{user}/machines/{machine}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**ref** | ```<string>``` | A machine reference: ```{user}/{machine}```.
+
+## Rename a machine
+```none
+PUT /users/{user}/machines/{machine}
+```
+### Parameters
+Name | Type | Description
+:--|--|--
+**name** | ```<name>``` | New machine name.
+
+
+## Delete a machine
+```none
+DELETE /users/{user}/machines/{machine}
+```
+
+## Create or update an Axis
+```none
+PUT /users/{user}/machines/{machine}/axes/{axis}
+```
+### Parameters
+Name | Type | Description
+:--|--|--
+**min**           | ```<real>``` | Minimum position of axis.
+**max**           | ```<real>``` | Maximum position of axis.
+**step**          | ```<real>``` | Minimum step.
+**rapid_speed**   | ```<real>``` | Fastest rapid speed.
+**cutting_speed** | ```<real>``` | Fastest cutting speed.
+**ramp_up**       | ```<real>``` | Ramp up rate.
+**ramp_down**     | ```<real>``` | Ramp down rate.
+
+## Delete an Axis
+```none
+DELETE /users/{user}/machines/{machine}/axes/{axis}
+```
+
+# Tools
+## Tool Model
+```coffeescript
+<tool> = {
+  name: <name>
+  owner: <name>
+  creation: <date>
+  modified: <date>
+  parent: <project_ref>
+  published: <bool>
+  type: <string>        # "cylindrical", "conical", "ballnose",
+                        # "spheroid" or "composite"
+  url: <url>
+  brief: <markdown> (0,200)
+  description: <markdown>
+  units: <string>       # "imperial" or "metric"
+  length: <real>        # Length of cutter
+  diameter: <real>      # Diameter a base
+  nose_diameter: <real> # Diameter a tip
+  flutes: <integer>     # Number of flutes
+  flute_angle: <real>   # Rake angle of the flute
+  lead_angle: <real>    # Angle between cutting edge & perpendicular plane
+  max_doc: <real>       # Maximum depth of cut
+  max_woc: <real>       # Maximum width of cut
+  max_rpm: <real>       # Maximum rotational speed
+  max_feed: <real>      # Maximum feed rate
+  children: [{          # Composite tools only
+    offset: <real>
+    tool: <tool>
+  }...]
+}
+```
+
+## Get a list of tools
+```none
+GET /users/{user}/tools
+```
+
+## Create or update a tool
+```none
+PUT /users/{user}/tools/{tool}
+PUT /users/{user}/tools/{tool}/children/{tool}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**type** | ```<string>``` | Tool type.
+**url** | ```<url>``` | URL to webpage about tool.
+**brief** | ```<markdown>``` (0,200) | A brief description of the tool.
+**description** | ```<markdown>``` | A full description of the tool.
+**units** | ```<string>``` | "imperial" or "metric"
+**length** | ```<real>``` | Length of cutting area.
+**diameter** | ```<real>``` | Diameter at base of cutting area.
+**nose_diameter** | ```<real>``` | Diameter at tip of cutting area.
+**flutes** | ```<integer>``` | Number of flutes.
+**lead_angle** | ```<real>``` | Flute lead angle.
+**max_doc** | ```<real>``` | Maximum depth of cut
+**max_woc** | ```<real>``` | Maximum width of cut
+**max_rpm** | ```<real>``` | Maximum rotational speed
+**max_feed** | ```<real>``` | Maximum feed rate
+
+## Copy a tool
+```none
+PUT /users/{user}/tools/{tool}
+PUT /users/{user}/tools/{tool}/children/{tool}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**ref** | ```<string>``` | A tool reference:```{user}/{tool}```.
+
+## Rename a tool
+```none
+PUT /users/{user}/tools/{tool}
+PUT /users/{user}/tools/{tool}/children/{tool}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**name** | ```<name>``` | New tool name.
+
+
+## Delete a tool
+```none
+DELETE /users/{user}/tools/{tool}
+DELETE /users/{user}/tools/{tool}/children/{tool}
+```
+
+# Search
+
+[Pagination](#pagination) parameters apply to all search operations.
+
+## Result Model
+```coffeescript
+<result> = {
+  url: <url>
+  result: <profile> | <project> | <machine> | <tool>
+  offset: <string>
+}
+```
+
+## Search for projects
+```none
+GET /search/projects
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**query** | ```<string>``` | Search string.
+**license** | ```<string>``` | Restrict to specified license.
+**tags** | ```<string>``` | Restrict to specified tags.
+**owner** | ```<name>``` | Restrict to specified owner.
+**order_by** | ```<string>``` | ```stars```, ```creation```, ```modified```
+
+## Search for users
+```none
+GET /search/users
+```
+Name | Type | Description
+:--|--|--
+**query** | ```<string>``` | Search string.
+**order_by** | ```<string>``` | ```followers```, ```joined```
+
+## Search for machines
+```none
+GET /search/machines
+```
+Name | Type | Description
+:--|--|--
+**query** | ```<string>``` | Search string.
+
+
+## Search for tools
+```none
+GET /search/tools
+```
+Name | Type | Description
+:--|--|--
+**query** | ```<string>``` | Search string.
 
