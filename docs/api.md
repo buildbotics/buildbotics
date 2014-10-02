@@ -348,12 +348,12 @@ GET /users/{name}/followers
 
 ## Follow User
 ```none
-PUT /users/{name}/followers
+PUT /users/{name}/follow
 ```
 
 ### Example
 ```
-PUT /users/johndoe/followers HTTP/1.1
+PUT /users/johndoe/follow HTTP/1.1
 ```
 
 ```
@@ -362,12 +362,12 @@ Status: 200 OK
 
 ## Unfollow User
 ```none
-DELETE /users/{name}/followers
+DELETE /users/{name}/follow
 ```
 
 ### Example
 ```
-DELETE /users/johndoe/followers HTTP/1.1
+DELETE /users/johndoe/follow HTTP/1.1
 ```
 
 ```
