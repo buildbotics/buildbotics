@@ -28,7 +28,7 @@ specified as follows:
 
  1. URL parameters as part of the URL path.
  2. As HTTP [query string parameters][rfc3986-3.4].
- 3. As JSON encoded data.
+ 3. As JSON encoded data with ```Content-Type: application/json```.
 
 [rfc3986-3.4]: http://tools.ietf.org/html/rfc3986#section-3.4
 
@@ -41,10 +41,12 @@ PUT /users/{name}/follow
 In the above case ```{name}``` is a URL parameter.
 
 For POST, PUT and DELETE request parameters not included in the URL path
-should be encoded as JSON with Content-Type ```application/json```.
+should be encoded as JSON.
 
 
-## Data Types
+## Types
+This section describes how data types are defined in this document.
+
 ### Notation
 Types are denoted in this document by a keyword enclosed with ```<``` and
 ```>```.  For example: ```<name>``` or ```<integer>```.
@@ -59,6 +61,17 @@ definition.  For example:
   c: <integer>
 }
 ```
+
+### Inheritance
+Data model inheritance is denoted as follows:
+```coffeescript
+<child>(<parent>) = {
+  # Child property definitions here
+}
+```
+
+Meaning the ```<child>``` model being defined, inherits all the properties
+of ```<parent>``` model.
 
 ### Ranges
 Type definitions may be followed by range definitions.  For example:
@@ -161,7 +174,7 @@ More details about an error may be returned as JSON data defined as follows:
 }
 ```
 
-## Error Codes
+### Error Codes
 
 Error Code | Description
 :----------|--------------------------------------------------------------------
@@ -198,6 +211,17 @@ Twitter  | [OAuth 1.0a API][twitter-oauth1a]
 One or more of these third-parties may be used to associate logins and
 verified email addresses with the BuildBotics API.
 
+## Authorization
+Various API calls require different levels of authorization.  Authorization is
+handled through the badge system and ownership.  For example, adding a new
+license type might require the ```admin``` badge whereas editing a project
+would require that either the user is the owner or has a badge sufficient to
+override the ownership requirement.
+
+In case a user attempts an operation for which they are not authorized,
+a ```403 Forbidden``` or possibly ```404 Not Found``` HTTP response code will
+be returned.
+
 ## Pagination
 Request which return multiple items are paginated.  By default 20 items are
 returned per call.  Each item is supplied with an ```offset``` key which
@@ -207,11 +231,11 @@ tells where it is in the stream.
 Name | Type | Description
 :--|--|--
 **limit** | ```<integer>``` (1,100) | **Default 30**. Items per page.
-**next** | ```<string>``` | Offset of the item just before the requested page.
-**prev** | ```<string>``` | Offset of the item just after the requested page.
+**next** | ```<string>``` | Key of the item just before the requested page.
+**prev** | ```<string>``` | Key of the item just after the requested page.
 
 Either **next** or **prev** may be provided but not both.  Both parameters
-should be copied from the **offset** field of a previous request.
+should be copied from the ```<owner>/<name>``` of a previous request.
 
 ## Rate Limiting
 Rate limits are as follows:
@@ -235,9 +259,12 @@ User profiles are defined as follows:
   avatar: <url>
   bio: <markdown>
   url: <url>
-  stars: [<project_ref>...] (0,4096)
-  following: [<name>...] (0,4096)
+  disabled: <bool>
   followers: <integer>
+  following: <integer>
+  stars: <integer>
+  points: <integer>
+  badges: <integer>
 }
 ```
 
@@ -269,13 +296,16 @@ Content-Type: application/json
   avatar: "http://example.com/~johndoe/images/johndoe.png",
   bio: "John is an avid builder...",
   url: "http://example.com/~johndoe/",
-  stars: ["janedoe/funproject", "jimmy/laser_bot"],
-  following: ["janedoe", "buildbotics"],
+  disabled: false
   followers: 2
+  following: 2
+  starrs: 10
+  points: 10305
+  badges: 1
 }
 ```
 
-## Set user profile data
+## Update user profile
 ```none
 PUT /users/{name}
 ```
@@ -286,6 +316,7 @@ Name | Type | Description
 **avatar** | ```<url>``` | URL to user's avatar.
 **bio** | ```<markdown>``` | User's public biography.
 **url** | ```<url>``` | Link to user's home page.
+**disabled** | ```<bool>``` | Disable the account.
 
 Other profile parameters cannot be changed with this API call.
 
@@ -305,14 +336,24 @@ PUT /users/johndoe HTTP/1.1
 Status: 200 OK
 ```
 
+## List who a user is following
+```none
+GET /users/{name}/following
+```
+
+## List user followers
+```none
+GET /users/{name}/followers
+```
+
 ## Follow User
 ```none
-PUT /users/{name}/follow
+PUT /users/{name}/followers
 ```
 
 ### Example
 ```
-PUT /users/johndoe/follow HTTP/1.1
+PUT /users/johndoe/followers HTTP/1.1
 ```
 
 ```
@@ -321,27 +362,71 @@ Status: 200 OK
 
 ## Unfollow User
 ```none
-PUT /users/{name}/unfollow
+DELETE /users/{name}/followers
 ```
 
 ### Example
 ```
-PUT /users/johndoe/unfollow HTTP/1.1
+DELETE /users/johndoe/followers HTTP/1.1
 ```
 
 ```
 Status: 200 OK
 ```
 
+## List user stars
+```none
+GET /users/{user}/stars
+```
+
+### Response
+```none
+{
+  projects: [<name>/<name>...]
+  machines: [<name>/<name>...]
+  tools: [<name>/<name>...]
+}
+```
+
+A list of projects the user has starred.
+
+## List user badges
+```none
+GET /users/{user}/badges
+```
+
+## Grant a badge
+```none
+PUT /users/{user}/badges/{badge}
+```
+
+## Revoke a badge
+```none
+DELETE /users/{user}/badges/{badge}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**reason**  | ```<markdown>``` | The reason the badge was revoked.
+
+
 # Settings
 ## Settings Model
 ```coffeescript
 <settings> = {
+  accounts: [<account>...]
   email: [<email>...] (0,8)
   notifications: <notifications>
 }
 ```
-
+```coffeescript
+<account> = {
+  type: <string>  # google, twitter, facebook, github
+  id: <string>
+  primary: <bool>
+}
+```
 ```coffeescript
 <email> = {
   address: <email_address>
@@ -361,6 +446,26 @@ Status: 200 OK
   stared_project_comments: <bool>
 }
 ```
+
+## Associate an account
+```none
+PUT /accounts/{type}
+```
+
+Only one account of each type can be associated at a time.
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**id**  | ```<string>``` | Account ID
+**primary** | ```<bool>``` | Is the primary account?
+
+## Disassociate an account
+```none
+DELETE /accounts/{type}
+```
+
+Must not be the primary account.
 
 ## Get email addresses
 ```none
@@ -411,6 +516,10 @@ PUT /notifications
     <td>Stars on the owner's project.</td>
   </tr>
   <tr>
+    <td>**project_duplicated**</td><td>```<bool>```</td>
+    <td>When a project is duplicated.</td>
+  </tr>
+  <tr>
     <td>**when_followed**</td><td>```<bool>```</td>
     <td>Someone followed the owner.</td>
   </tr>
@@ -428,132 +537,155 @@ PUT /notifications
   </tr>
 </table>
 
+# Things
+a ```<thing>``` is an abstract model from
+which ```<project>```, ```<machine>``` and ```<tools>``` inherit.
 
-# Projects
-## Project Model
+## Thing Model
 ```coffeescript
-<project> = {
+<thing> = {
   name: <name>
   owner: <name>
   creation: <date>
   modified: <date>
-  parent: <project_ref>
+  parent: <name>/<name>
   published: <bool>
   url: <url>
   license: <string> (2,120)
   brief: <markdown> (0,200)
   description: <markdown>
-  video: <url>
   stars: <integer>
-  latest_stars: [<name>...] (0,100)
   tags: [<tag>...] (0,64)
-  comment: [<comment>...] (0,4096)
-  steps: [<step>...] (0,64)
+  duplications: <integer>
   files: [<file>..] (0,64)
 }
 ```
 
-## Create or update a project
+## Get a list of things
+```none
+GET /users/{user}/projects
+GET /users/{user}/machines
+GET /users/{user}/tools
+GET /users/{user}/tools/{tool}/children
+```
+
+See [Search](#search).
+
+## Create or update a thing
 ```none
 PUT /users/{user}/projects/{project}
+PUT /users/{user}/machines/{machine}
+PUT /users/{user}/tools/{tool}
+PUT /users/{user}/tools/{tool}/children/{tool}
 ```
 
 ### Parameters
 Name | Type | Description
 :--|--|--
-**url** | ```<url>``` | A URL to more information about the project.
+**url** | ```<url>``` | A URL to more information about the thing.
 **license** | ```<string>``` | One of the available license names.
-**published** | ```<bool>``` | True to publish the project publicly.
-**description** | ```<markdown>``` | The project description.
-**video** | ```<url>``` | The project video.
+**published** | ```<bool>``` | True to publish the thing publicly.
+**description** | ```<markdown>``` | The thing description.
 
-Only approved video URLs are allowed.
+## Get a thing
+```none
+GET /users/{user}/projects/{project}
+GET /users/{user}/machines/{machine}
+GET /users/{user}/tools/{tool}
+GET /users/{user}/tools/{tool}/children/{tool}
+```
 
-## Rename a project
+## Rename a thing
 ```none
 PUT /users/{user}/projects/{project}
+PUT /users/{user}/machines/{machine}
+PUT /users/{user}/tools/{tool}
+PUT /users/{user}/tools/{tool}/children/{tool}
 ```
 
 ### Parameters
 Name | Type | Description
 :--|--|--
-**name** | ```<name>``` | The new project name.
+**name** | ```<name>``` | The new thing name.
 
-## Duplicate a project
+## Duplicate a thing
 ```none
 PUT /users/{user}/projects/{project}
+PUT /users/{user}/machines/{machine}
+PUT /users/{user}/tools/{tool}
 ```
 
 ### Parameters
 Name | Type | Description
 :--|--|--
-**ref** | ```<project_ref>``` | A reference to the parent project.
+**ref** | ```<name>/<name>``` | A reference to the parent owner and thing.
 
-## Star project
+## Delete a thing
+```none
+DELETE /users/{user}/projects/{project}
+DELETE /users/{user}/machines/{machine}
+DELETE /users/{user}/tools/{tool}
+DELETE /users/{user}/tools/{tool}/children/{tool}
+```
+
+## List thing stars
+```none
+GET /users/{user}/projects/{project}/stars
+GET /users/{user}/machines/{machine}/stars
+GET /users/{user}/tools/{tool}/stars
+```
+
+### Response
+```none
+[<name>...]
+```
+A list of users who have starred this thing.
+
+## Star a thing
 ```none
 PUT /users/{user}/projects/{project}/star
+PUT /users/{user}/machines/{machine}/star
+PUT /users/{user}/tools/{tool}/star
 ```
 
-## Unstar project
+## Unstar a thing
 ```none
 DELETE /users/{user}/projects/{project}/star
+DELETE /users/{user}/machines/{machine}/star
+DELETE /users/{user}/tools/{tool}/star
 ```
 
-## Tag project
+## Tag a thing
 ```none
 PUT /users/{user}/projects/{project}/tags/{tag}
+PUT /users/{user}/machines/{machine}/tags/{tag}
+PUT /users/{user}/tools/{tool}/tags/{tag}
 ```
 
-## Untag project
+## Untag a thing
 ```none
 DELETE /users/{user}/projects/{project}/tags/{tag}
+DELETE /users/{user}/machines/{machine}/tags/{tag}
+DELETE /users/{user}/tools/{tool}/tags/{tag}
 ```
 
-# Comments
-## Comment Model
+# Projects
+## Project Model
+Inherits from the [thing](#things) abstract model.
+
 ```coffeescript
-<comment> = {
-  id: <integer>
-  owner: <name>
-  creation: <date>
-  ref: <integer>   # A reference to a previous comment.
-  text: <markdown>
-  deleted: <bool>  # True if the comment was marked as deleted.
+<project>(<thing>) = {
+  steps: [<step>...] (0,64)
 }
 ```
-
-## Post a comment
-```none
-POST /users/{user}/projects/{project}/comments
-POST /users/{user}/projects/{project}/steps/{step}/comments
-```
-
-### Parameters
-Name | Type | Description
-:--|--|--
-**ref** | ```<integer>``` | A reference to an existing comment.
-**text** | ```<markdown>``` | **Required**.  The comment text.
-
-## Update a comment
-```none
-PUT /users/{user}/projects/{project}/comments/{comment}
-PUT /users/{user}/projects/{project}/steps/{step}/comments/{comment}
-```
-
-### Parameters
-Name | Type | Description
-:--|--|--
-**text** | ```<markdown>``` | The updated comment text.
-**delete** | ```<bool>``` | True if the comment should be marked deleted.
 
 # Steps
 ## Step Model
 ```coffeescript
 <step> = {
   name: <name>
+  brief: <markdown> (0,200)
   description: <markdown>
-  video: <url>
-  comments: [<comment>...]
   files: [<string>...] (0,8)
 }
 ```
@@ -596,6 +728,170 @@ Name | Type | Description
 DELETE /users/{user}/projects/{project}/steps/{step}
 ```
 
+
+# Machines
+## Machine Model
+Inherits from the [thing](#things) abstract model.
+
+```coffeescript
+<machine>(<thing>) = {
+  type: <string>          # "cnc", "3d_printer", "laser", "plasma", "lathe"
+  units: <string>         # "imperial" or "metric"
+  rotation: <string>      # "degrees" or "radians"
+  max_rpm: <real>         # Maximum rotational speed
+  spin_up: <real>         # Rate of spin up in RPM/sec
+  axes: [<axis>...] (1,9)
+}
+```
+```coffeescript
+<axis> = {
+  name: <string>        # "x", "y", "z", "a", "b", "c", "u", "v" or "w"
+  min: <real>           # in, mm, deg, radians
+  max: <real>           # in, mm, deg, radians
+  step: <real>          # in or mm
+  rapid_feed: <real>    # in/sec or mm/sec
+  cutting_feed: <real>  # in/sec or mm/sec
+  ramp_up: <real>       # in/sec/sec or mm/sec/sec
+  ramp_down: <real>     # in/sec/sec or mm/sec/sec
+}
+```
+
+## Create or update a machine
+```none
+PUT /users/{user}/machines/{machine}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**type** | ```<string>``` | A machine type.
+**units** | ```<string>``` | ```"imperial"``` or ```"metric"```.
+**rotation** | ```<string>``` | ```"degrees"``` or ```"radians"```.
+**max_rpm** | ```<real>``` | Maximum rotational speed.
+**spin_up** | ```<real>``` | Rate of spin up in RPM/sec.
+
+## Create or update an Axis
+```none
+PUT /users/{user}/machines/{machine}/axes/{axis}
+```
+### Parameters
+Name | Type | Description
+:--|--|--
+**min**           | ```<real>``` | Minimum position of axis.
+**max**           | ```<real>``` | Maximum position of axis.
+**step**          | ```<real>``` | Minimum step.
+**rapid_speed**   | ```<real>``` | Fastest rapid speed.
+**cutting_speed** | ```<real>``` | Fastest cutting speed.
+**ramp_up**       | ```<real>``` | Ramp up rate.
+**ramp_down**     | ```<real>``` | Ramp down rate.
+
+## Delete an Axis
+```none
+DELETE /users/{user}/machines/{machine}/axes/{axis}
+```
+
+# Tools
+## Tool Model
+```coffeescript
+<tool>(<thing>) = {
+  type: <string>         # "cylindrical", "conical", "ballnose",
+                         # "spheroid" or "composite"
+  units: <string>        # "imperial" or "metric"
+  length: <real>         # Length of cutter
+  diameter: <real>       # Diameter a base
+  nose_diameter: <real>  # Diameter a tip
+  flutes: <integer>      # Number of flutes
+  flute_angle: <real>    # Rake angle of the flute
+  lead_angle: <real>     # Angle between cutting edge & perpendicular plane
+  max_doc: <real>        # Maximum depth of cut
+  max_woc: <real>        # Maximum width of cut
+  max_rpm: <real>        # Maximum rotational speed
+  max_feed: <real>       # Maximum feed rate
+  offset: <real>         # Composite tool children only
+  children: [<tool>...]} # Composite tools only
+}
+```
+
+## Create or update a tool
+```none
+PUT /users/{user}/tools/{tool}
+PUT /users/{user}/tools/{tool}/children/{tool}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**type** | ```<string>``` | Tool type.
+**units** | ```<string>``` | "imperial" or "metric"
+**length** | ```<real>``` | Length of cutting area.
+**diameter** | ```<real>``` | Diameter at base of cutting area.
+**nose_diameter** | ```<real>``` | Diameter at tip of cutting area.
+**flutes** | ```<integer>``` | Number of flutes.
+**lead_angle** | ```<real>``` | Flute lead angle.
+**max_doc** | ```<real>``` | Maximum depth of cut
+**max_woc** | ```<real>``` | Maximum width of cut
+**max_rpm** | ```<real>``` | Maximum rotational speed
+**max_feed** | ```<real>``` | Maximum feed rate
+**offset** | ```<real>``` | Maximum feed rate
+
+# Comments
+## Comment Model
+```coffeescript
+<comment> = {
+  id: <integer>
+  owner: <name>
+  creation: <date>
+  modified: <date>
+  ref: <integer>   # A reference to a previous comment.
+  text: <markdown>
+  deleted: <bool>  # True if the comment was marked as deleted.
+}
+```
+
+## List comments
+```none
+GET /users/{user}/projects/{project}/comments
+GET /users/{user}/projects/{project}/steps/{step}/comments
+GET /users/{user}/machines{machine}/comments
+GET /users/{user}/tools/{tool}/comments
+```
+
+## Post a comment
+```none
+POST /users/{user}/projects/{project}/comments
+POST /users/{user}/projects/{project}/steps/{step}/comments
+POST /users/{user}/machines/{machine}/comments
+POST /users/{user}/tools/{tool}/comments
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**ref** | ```<integer>``` | A reference to an existing comment.
+**text** | ```<markdown>``` | **Required**.  The comment text.
+
+## Update a comment
+```none
+PUT /users/{user}/projects/{project}/comments/{comment}
+PUT /users/{user}/projects/{project}/steps/{step}/comments/{comment}
+PUT /users/{user}/machines/{machine}/comments/{comment}
+PUT /users/{user}/tools/{tool}/comments/{comment}
+```
+
+### Parameters
+Name | Type | Description
+:--|--|--
+**text** | ```<markdown>``` | The updated comment text.
+
+
+## Mark a comment deleted
+```none
+DELETE /users/{user}/projects/{project}/comments/{comment}
+DELETE /users/{user}/projects/{project}/steps/{step}/comments/{comment}
+DELETE /users/{user}/machines/{machine}/comments/{comment}
+DELETE /users/{user}/tools/{tool}/comments/{comment}
+```
+
 # Files
 ## File Model
 ```coffeescript
@@ -603,53 +899,51 @@ DELETE /users/{user}/projects/{project}/steps/{step}
   name: <string> (1,256)
   type: <media_type>
   creation: <date>
-  ref: <file_ref>
+  url: <url>
   downloads: <integer>
   caption: <string> (0,120)
   display: <bool>   # Images only
 }
 ```
 
-A ```<file_ref>``` is an SHA256 hash of the file contents in
-[RFC 4648][rfc4648] base 64 format for a total of 43 bytes.  For example:
+Actual file data is stored in Amazon S3 storage.  Requests to upload or change
+the contents of a file will generate a signed S3 URL and authorization
+parameters for file upload.
 
-```none
-VvOv3aKEySQCe8K3/JjoLiYmDPXb7/2W7FjdoTzZ2qk
-```
+A file's ```<media_type>``` must match its file name extensions according to
+[Amazon's File Extension to Mime Types table](http://goo.gl/2lOmj9).
 
-[rfc4648]: http://tools.ietf.org/html/rfc4648
-
-## Upload a file
+## Upload or update a file
 ```none
 PUT /users/{user}/projects/{project}/files/{file}
+PUT /users/{user}/projects/{project}/steps/{step}/files/{file}
 PUT /users/{user}/machines/{machine}/files/{file}
+PUT /users/{user}/tools/{tool}/files/{file}
 ```
 
-## Update a file
-```none
-PUT /users/{user}/projects/{project}/files/{file}
-PUT /users/{user}/machines/{machine}/files/{file}
-```
-
+### Parameters
 Name | Type | Description
 :--|--|--
-**caption** | ```<integer>``` | The file caption.
-**display** | ```<bool>``` | **Images only***.  The file caption.
+**caption** | ```<string> (0,120)``` | The file caption.
+**display** | ```<bool>``` | **Images only***.  Display this image.
+**position** | ```<integer>``` | The file position.
 
-## Reorder a file
-```none
-PUT /users/{user}/projects/{project}/files/{file}
-PUT /users/{user}/machines/{machine}/files/{file}
-```
-
+### Response
 Name | Type | Description
 :--|--|--
-**position** | ```<integer>``` | The new file position.
+**url** | ```<url>``` | S3 file upload URL.
+**key** | ```<string>``` | S3 key.
+**acl** | ```<string>``` | S3 ACL.
+**policy** | ```<string>``` | S3 policy.
+**signature** | ```<string>``` | S3 signature.
+**access** | ```<string>``` | S3 access key.
 
 ## Rename a file
 ```none
 PUT /users/{user}/projects/{project}/files/{file}
+PUT /users/{user}/projects/{project}/steps/{step}/files/{file}
 PUT /users/{user}/machines/{machine}/files/{file}
+PUT /users/{user}/tools/{tool}/files/{file}
 ```
 
 Name | Type | Description
@@ -659,7 +953,9 @@ Name | Type | Description
 ## Delete a file
 ```none
 DELETE /users/{user}/projects/{project}/files/{file}
+DELETE /users/{user}/projects/{project}/steps/{step}/files/{file}
 DELETE /users/{user}/machines/{machine}/files/{file}
+DELETE /users/{user}/tools/{tool}/files/{file}
 ```
 
 # Events
@@ -687,6 +983,8 @@ Name | Description
 **star** | Someone starred a project.
 **follow** | Someone followed a user.
 **unfollow** | Someone unfollowed a user.
+**grant** | A new badge was granted.
+**revoke** | A badge was revoked.
 
 ## Event Parameters
 Name | Type | Description
@@ -700,14 +998,12 @@ Name | Type | Description
 GET /events
 ```
 
-## View user events
+## View events
 ```none
 GET /users/{user}
-```
-
-## View project events
-```none
 GET /users/{user}/projects/{project}
+GET /users/{user}/machines/{machine}
+GET /users/{user}/tools/{tool}
 ```
 
 # Tags
@@ -724,6 +1020,31 @@ PUT /tags/{tag}
 ## Delete a tag
 ```none
 DELETE /tags/{tag}
+```
+
+# Badges
+## Badge Model
+```coffeescript
+<badge> = {
+  name: <name>
+  points: <integer>
+  description: <markdown>
+}
+```
+
+## Get a list of badges
+```none
+GET /badges
+```
+
+## Create a new badge
+```none
+PUT /badges/{badge}
+```
+
+## Delete a badge
+```none
+DELETE /badges/{badge}
 ```
 
 # Licenses
@@ -765,212 +1086,27 @@ Name | Type | Description
 DELETE /licenses/{license}
 ```
 
-# Machines
-## Machine Model
-```coffeescript
-<machine> = {
-  name: <name>
-  type: <name>            # "cnc", "3d_printer", "laser", "plasma", "lathe"
-  owner: <name>
-  creation: <date>
-  modified: <date>
-  parent: <project_ref>
-  published: <bool>
-  url: <url>
-  brief: <markdown> (0,200)
-  description: <markdown>
-  units: <string>         # "imperial" or "metric"
-  rotation: <string>      # "degrees" or "radians"
-  max_rpm: <real>         # Maximum rotational speed
-  spin_up: <real>         # Rate of spin up in RPM/sec
-  axes: [<axis>...] (1,9)
-  files: [<file>..] (0,64)
-}
-```
-```coffeescript
-<axis> = {
-  name: <string> (1,1)  # X, Y, Z, A, B, C, U, V, W
-  min: <real>           # in, mm, deg, radians
-  max: <real>           # in, mm, deg, radians
-  step: <real>          # in or mm
-  rapid_feed: <real>    # in/sec or mm/sec
-  cutting_feed: <real>  # in/sec or mm/sec
-  ramp_up: <real>       # in/sec/sec or mm/sec/sec
-  ramp_down: <real>     # in/sec/sec or mm/sec/sec
-}
-```
-
-## Get a list of machines
-```none
-GET /users/{user}/machines
-```
-
-## Create or update a machine
-```none
-PUT /users/{user}/machines/{machine}
-```
-
-### Parameters
-Name | Type | Description
-:--|--|--
-**url** | ```<url>``` | URL to page about machine.
-**brief** | ```<markdown>``` | A brief description of the machine.
-**description** | ```<markdown>``` | A full description of the machine.
-**units** | ```<string>``` | ```"imperial"``` or ```"metric"```.
-**rotation** | ```<string>``` | ```"degrees"``` or ```"radians"```.
-
-## Copy a machine
-```none
-PUT /users/{user}/machines/{machine}
-```
-
-### Parameters
-Name | Type | Description
-:--|--|--
-**ref** | ```<string>``` | A machine reference: ```{user}/{machine}```.
-
-## Rename a machine
-```none
-PUT /users/{user}/machines/{machine}
-```
-### Parameters
-Name | Type | Description
-:--|--|--
-**name** | ```<name>``` | New machine name.
-
-
-## Delete a machine
-```none
-DELETE /users/{user}/machines/{machine}
-```
-
-## Create or update an Axis
-```none
-PUT /users/{user}/machines/{machine}/axes/{axis}
-```
-### Parameters
-Name | Type | Description
-:--|--|--
-**min**           | ```<real>``` | Minimum position of axis.
-**max**           | ```<real>``` | Maximum position of axis.
-**step**          | ```<real>``` | Minimum step.
-**rapid_speed**   | ```<real>``` | Fastest rapid speed.
-**cutting_speed** | ```<real>``` | Fastest cutting speed.
-**ramp_up**       | ```<real>``` | Ramp up rate.
-**ramp_down**     | ```<real>``` | Ramp down rate.
-
-## Delete an Axis
-```none
-DELETE /users/{user}/machines/{machine}/axes/{axis}
-```
-
-# Tools
-## Tool Model
-```coffeescript
-<tool> = {
-  name: <name>
-  owner: <name>
-  creation: <date>
-  modified: <date>
-  parent: <project_ref>
-  published: <bool>
-  type: <string>        # "cylindrical", "conical", "ballnose",
-                        # "spheroid" or "composite"
-  url: <url>
-  brief: <markdown> (0,200)
-  description: <markdown>
-  units: <string>       # "imperial" or "metric"
-  length: <real>        # Length of cutter
-  diameter: <real>      # Diameter a base
-  nose_diameter: <real> # Diameter a tip
-  flutes: <integer>     # Number of flutes
-  flute_angle: <real>   # Rake angle of the flute
-  lead_angle: <real>    # Angle between cutting edge & perpendicular plane
-  max_doc: <real>       # Maximum depth of cut
-  max_woc: <real>       # Maximum width of cut
-  max_rpm: <real>       # Maximum rotational speed
-  max_feed: <real>      # Maximum feed rate
-  children: [{          # Composite tools only
-    offset: <real>
-    tool: <tool>
-  }...]
-}
-```
-
-## Get a list of tools
-```none
-GET /users/{user}/tools
-```
-
-## Create or update a tool
-```none
-PUT /users/{user}/tools/{tool}
-PUT /users/{user}/tools/{tool}/children/{tool}
-```
-
-### Parameters
-Name | Type | Description
-:--|--|--
-**type** | ```<string>``` | Tool type.
-**url** | ```<url>``` | URL to webpage about tool.
-**brief** | ```<markdown>``` (0,200) | A brief description of the tool.
-**description** | ```<markdown>``` | A full description of the tool.
-**units** | ```<string>``` | "imperial" or "metric"
-**length** | ```<real>``` | Length of cutting area.
-**diameter** | ```<real>``` | Diameter at base of cutting area.
-**nose_diameter** | ```<real>``` | Diameter at tip of cutting area.
-**flutes** | ```<integer>``` | Number of flutes.
-**lead_angle** | ```<real>``` | Flute lead angle.
-**max_doc** | ```<real>``` | Maximum depth of cut
-**max_woc** | ```<real>``` | Maximum width of cut
-**max_rpm** | ```<real>``` | Maximum rotational speed
-**max_feed** | ```<real>``` | Maximum feed rate
-
-## Copy a tool
-```none
-PUT /users/{user}/tools/{tool}
-PUT /users/{user}/tools/{tool}/children/{tool}
-```
-
-### Parameters
-Name | Type | Description
-:--|--|--
-**ref** | ```<string>``` | A tool reference:```{user}/{tool}```.
-
-## Rename a tool
-```none
-PUT /users/{user}/tools/{tool}
-PUT /users/{user}/tools/{tool}/children/{tool}
-```
-
-### Parameters
-Name | Type | Description
-:--|--|--
-**name** | ```<name>``` | New tool name.
-
-
-## Delete a tool
-```none
-DELETE /users/{user}/tools/{tool}
-DELETE /users/{user}/tools/{tool}/children/{tool}
-```
-
 # Search
-
 [Pagination](#pagination) parameters apply to all search operations.
 
-## Result Model
-```coffeescript
-<result> = {
-  url: <url>
-  result: <profile> | <project> | <machine> | <tool>
-  offset: <string>
-}
-```
-
-## Search for projects
+## Search for users
 ```none
-GET /search/projects
+GET /users
+```
+Name | Type | Description
+:--|--|--
+**query** | ```<string>``` | Search string.
+**badges** | ```<string>``` | Restrict to users with the specified badges.
+**order_by** | ```<string>``` | ```points```, ```followers```, ```joined```
+
+## Search for things
+```none
+GET /projects
+GET /machines
+GET /tools
+GET /users/{user}/projects
+GET /users/{user}/machines
+GET /users/{user}/tools
 ```
 
 ### Parameters
@@ -979,32 +1115,5 @@ Name | Type | Description
 **query** | ```<string>``` | Search string.
 **license** | ```<string>``` | Restrict to specified license.
 **tags** | ```<string>``` | Restrict to specified tags.
-**owner** | ```<name>``` | Restrict to specified owner.
 **order_by** | ```<string>``` | ```stars```, ```creation```, ```modified```
-
-## Search for users
-```none
-GET /search/users
-```
-Name | Type | Description
-:--|--|--
-**query** | ```<string>``` | Search string.
-**order_by** | ```<string>``` | ```followers```, ```joined```
-
-## Search for machines
-```none
-GET /search/machines
-```
-Name | Type | Description
-:--|--|--
-**query** | ```<string>``` | Search string.
-
-
-## Search for tools
-```none
-GET /search/tools
-```
-Name | Type | Description
-:--|--|--
-**query** | ```<string>``` | Search string.
 
