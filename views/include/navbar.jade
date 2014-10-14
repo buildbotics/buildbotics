@@ -10,9 +10,9 @@
       li.dropdown
         a.dropdown-toggle(data-toggle='dropdown',
           onclick='refit_header_delayed()')
-          img.avatar(ng-src='{{avatar}}')
+          img.avatar(ng-src='{{user.avatar}}')
           .user-info
-            .user-name(title='Your account name.') {{user.username}}
+            .user-name(title='Your account name.') {{user.name}}
             .user-points
               span.points(title='Your points.') 1,234
               span.badges(title='Your badges.')
@@ -20,13 +20,13 @@
                 | 12
           span.marker.fa.fa-caret-down
         ul.dropdown-menu(role='menu')
-          li: a.profile(href='/{{user.username}}')
+          li: a.profile(href='/{{user.name}}')
             span.fa.fa-user
             | View Profile
           li: a.settings.icon(href='/create')
             span.fa.fa-plus-circle
             | New Project
-          li: a.activity.icon(href="/{{user.username}}#activity")
+          li: a.activity.icon(href="/{{user.name}}#activity")
             span.fa.fa-bar-chart
             | Recent Activity
           li: a.settings.icon(href='/settings')

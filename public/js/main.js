@@ -141,9 +141,8 @@ $(function() {
             $scope.authenticated = false;
 
             $http.get('/api/auth/user').success(function (user) {
-                if (!user) return;
+                if (!user || user == 'null') return;
                 $scope.user = user;
-                $scope.avatar = user_get_avatar(user);
                 $scope.authenticated = true;
             });
         });

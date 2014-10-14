@@ -22,6 +22,7 @@ passport.serializeUser(function(user, done) {done(null, user);});
 passport.deserializeUser(function(obj, done) {done(null, obj);});
 
 function auth_user(accessToken, refreshToken, profile, done) {
+    console.log(profile);
     process.nextTick(function () {return done(null, profile);});
 }
 

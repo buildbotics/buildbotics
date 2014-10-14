@@ -104,6 +104,15 @@ example a complete type definition may appear as follows:
 A ```<name>``` is a ```<string>``` with length ```(2,64)``` containing only
 ```[A-Za-z0-9_-]``` and not starting with '_' or '-'.
 
+### References
+```none
+<ref> = <name>/<name>
+```
+
+A ```<ref>``` references a thing as owner name slash thing name.
+For example, ```jimmy/fun_with_lasers```.
+
+
 ### Dates
 ```none
 <date> = <string> # In ISO 8601 format
@@ -247,6 +256,43 @@ Authenticated   | 200
 
 If you exceed the rate limit ```503 Service Unavailable``` will be returned.
 
+# Authenticate
+
+## Login
+```none
+GET /auth/{provider}
+```
+Where ```{provider}``` is one of:
+
+ - ```google```
+ - ```facebook```
+ - ```twitter```
+ - ```github```
+
+## Login Callback
+```none
+GET /auth/{provider}/callback
+```
+
+## Logout
+```none
+GET /auth/logout
+```
+
+## Get Active User Profile
+```none
+GET /auth/user
+```
+
+### Response
+```none
+<profile>
+```
+or
+```none
+null
+```
+
 # Users
 ## Profile Model
 User profiles are defined as follows:
@@ -267,10 +313,6 @@ User profiles are defined as follows:
   badges: <integer>
 }
 ```
-
-A ```<project_ref>``` is defined as ```<name>/<name>``` where the first name
-is the user and the second the project.
-For example, ```jimmy/fun_with_lasers```.
 
 ## Get user profile
 ```none
@@ -382,9 +424,9 @@ GET /users/{user}/stars
 ### Response
 ```none
 {
-  projects: [<name>/<name>...]
-  machines: [<name>/<name>...]
-  tools: [<name>/<name>...]
+  projects: [<ref>...]
+  machines: [<ref>...]
+  tools: [<ref>...]
 }
 ```
 
@@ -539,7 +581,7 @@ PUT /notifications
 
 # Things
 a ```<thing>``` is an abstract model from
-which ```<project>```, ```<machine>``` and ```<tools>``` inherit.
+which ```<project>```, ```<machine>``` and ```<tool>``` inherit.
 
 ## Thing Model
 ```coffeescript
@@ -548,7 +590,7 @@ which ```<project>```, ```<machine>``` and ```<tools>``` inherit.
   owner: <name>
   creation: <date>
   modified: <date>
-  parent: <name>/<name>
+  parent: <ref>
   published: <bool>
   url: <url>
   license: <string> (2,120)
@@ -618,7 +660,7 @@ PUT /users/{user}/tools/{tool}
 ### Parameters
 Name | Type | Description
 :--|--|--
-**ref** | ```<name>/<name>``` | A reference to the parent owner and thing.
+**ref** | ```<ref>``` | A reference to the parent owner and thing.
 
 ## Delete a thing
 ```none
@@ -675,7 +717,22 @@ Inherits from the [thing](#things) abstract model.
 
 ```coffeescript
 <project>(<thing>) = {
+  machine: <ref>
+  tools: {<integer>: <ref>...] (0,64)
+  workpiece: <workpiece>
   steps: [<step>...] (0,64)
+}
+```
+```coffeescript
+<workpiece> = {
+  material: <image>
+  dimensions: <vector>
+  offset: <vector>
+}
+<vector> = {
+  x: <real>
+  y: <real>
+  z: <real>
 }
 ```
 
