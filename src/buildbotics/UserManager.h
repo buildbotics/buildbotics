@@ -52,9 +52,9 @@ namespace BuildBotics {
 
     void cleanup();
 
-    User &create();
-    User *get(const std::string &id);
-    void updateID(User &user);
+    cb::SmartPointer<User> create();
+    cb::SmartPointer<User> get(const std::string &id);
+    void updateID(const cb::SmartPointer<User> &user);
   };
 }
 

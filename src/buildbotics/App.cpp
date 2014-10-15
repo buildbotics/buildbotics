@@ -52,13 +52,20 @@ using namespace std;
 App::App() :
   cb::Application("BuildBotics"), dns(base), client(base, dns, new SSLContext),
   googleAuth(getOptions()), server(*this), userManager(*this),
-  sessionCookieName("buildbotics.sid") {
+  sessionCookieName("buildbotics.sid"), authTimeout(Time::SEC_PER_DAY),
+  authGraceperiod(Time::SEC_PER_HOUR) {
 
   options.pushCategory("BuildBotics Server");
   options.add("outbound-ip", "IP address for outbound connections.  Defaults "
               "to first http-address.");
   options.addTarget("session-cookie-name", sessionCookieName,
                     "Name of the HTTP session cookie.");
+  options.addTarget("auth-timeout", authTimeout,
+                    "Time in seconds before a user authorization times out.");
+  options.addTarget("auth-graceperiod", authGraceperiod,
+                    "Time in seconds before expiration at which the server "
+                    "automatically refreshes a user's authorization.");
+  options.add("document-root", "Serve files from this directory.");
   options.popCategory();
 
   // Seed random number generator

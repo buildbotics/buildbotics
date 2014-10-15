@@ -36,7 +36,10 @@
 
 #include <string>
 
-namespace cb {class KeyPair;}
+namespace cb {
+  class KeyPair;
+  namespace Event {class Request;}
+}
 
 
 namespace BuildBotics {
@@ -46,22 +49,29 @@ namespace BuildBotics {
     App &app;
 
     std::string id;
+    uint64_t expires;
     bool authenticated;
 
   public:
-    User(App &app) : app(app), authenticated(false) {}
+    User(App &app);
     User(App &app, const std::string &id);
 
     void setID(const std::string &id) {this->id = id;}
     const std::string &getID() const {return id;}
+    std::string getToken() const {return id.substr(0, 32);}
 
-    std::string generateID() const;
+    std::string updateID();
     void decodeID(const std::string &id);
 
     std::string getName() const {return has("name") ? getString("name") : "";}
 
+    bool hasExpired() const;
+    bool isExpiring() const;
+
     bool isAuthenticated() const {return authenticated;}
     void setAuthenticated(bool x) {authenticated = x;}
+
+    void setCookie(cb::Event::Request &req) const;
   };
 }
 

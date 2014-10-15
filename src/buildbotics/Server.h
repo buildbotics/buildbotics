@@ -34,39 +34,21 @@
 
 #include <cbang/event/WebServer.h>
 
-#include <map>
-
-namespace cb {
-  namespace HTTP {class Session;}
-  namespace Event {
-    class Request;
-    class PendingRequest;
-  }
-}
-
 
 namespace BuildBotics {
   class App;
+  class User;
 
   class Server : public cb::Event::WebServer {
     App &app;
-
-    typedef std::map<std::string, cb::SmartPointer<cb::HTTP::Session> >
-    sessions_t;
-    sessions_t sessions;
-
-    cb::SmartPointer<cb::Event::PendingRequest> pending;
 
   public:
     Server(App &app);
 
     void init();
 
-    // Event::WebServer request callbacks
-    bool apiAuthUser(cb::Event::Request &req, const cb::JSON::ValuePtr &msg,
-                     cb::JSON::Sync &sync);
-    bool apiAuthGoogle(cb::Event::Request &req);
-    bool apiNotFound(cb::Event::Request &req);
+    // From Event::HTTPHandler
+    cb::Event::Request *createRequest(evhttp_request *req);
   };
 }
 

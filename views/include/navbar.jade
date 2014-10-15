@@ -32,7 +32,7 @@
           li: a.settings.icon(href='/settings')
             span.fa.fa-gear
             | Edit Settings
-          li: a.logout.icon(href='api/auth/logout')
+          li: a.logout.icon(href='#', ng-click='logout($event)')
             span.fa.fa-sign-out
             | Sign out
 
@@ -40,7 +40,7 @@
       li.navbar-text Login or register with:
       each provider in 'google facebook twitter github'.split(' ')
         - var title = 'Login with ' + provider
-        - var url = 'api/auth/' + provider
+        - var url = "/api/auth/" + provider
         li: a.login(class=provider href=url title=title)
           - if (provider == 'google') provider = 'google-plus'
           span.fa(class='fa-' + provider + '-square')

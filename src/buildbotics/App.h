@@ -63,6 +63,8 @@ namespace BuildBotics {
 
     cb::IPAddress outboundIP;
     std::string sessionCookieName;
+    uint64_t authTimeout;
+    uint64_t authGraceperiod;
     cb::KeyPair key;
 
     typedef cb::SmartPointer<cb::Event::Event> EventPtr;
@@ -82,6 +84,8 @@ namespace BuildBotics {
 
     const cb::IPAddress &getOutboundIP() const {return outboundIP;}
     const std::string &getSessionCookieName() const {return sessionCookieName;}
+    uint64_t getAuthTimeout() const {return authTimeout;}
+    uint64_t getAuthGraceperiod() const {return authGraceperiod;}
     const cb::KeyPair &getPrivateKey() const {return key;}
 
     // From cb::Application

@@ -36,22 +36,28 @@
 #include <cbang/event/RequestMethod.h>
 #include <cbang/event/PendingRequest.h>
 
+#include <cbang/json/JSON.h>
+
 
 namespace BuildBotics {
   class App;
   class User;
 
-  class Transaction : public cb::Event::RequestMethod {
+  class Transaction : public cb::Event::Request {
     App &app;
-    cb::Event::Request source;
-    User &user;
+    cb::SmartPointer<User> user;
     cb::SmartPointer<cb::Event::PendingRequest> pending;
 
   public:
-    Transaction(App &app, const cb::Event::Request &source, User &user);
+    Transaction(App &app, evhttp_request *req);
 
-    void setPending(const cb::SmartPointer<cb::Event::PendingRequest> &pending)
-    {this->pending = pending;}
+    void lookupUser(bool skipAuthCheck = false);
+
+    // Event::WebServer request callbacks
+    bool apiAuthUser(const cb::JSON::ValuePtr &msg, cb::JSON::Sync &sync);
+    bool apiAuthGoogle();
+    bool apiAuthLogout();
+    bool apiNotFound();
 
     // Event::Client callbacks
     bool verify(cb::Event::Request &req);

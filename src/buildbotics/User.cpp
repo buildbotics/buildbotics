@@ -42,6 +42,7 @@
 #include <cbang/net/Base64.h>
 #include <cbang/io/StringInputSource.h>
 #include <cbang/log/Logger.h>
+#include <cbang/event/Request.h>
 
 #include <stdlib.h>
 
@@ -50,19 +51,25 @@ using namespace cb;
 using namespace BuildBotics;
 
 
+User::User(App &app) : app(app), expires(0), authenticated(false) {
+  updateID();
+}
+
+
 User::User(App &app, const string &id) :
   app(app), id(id), authenticated(false) {
   decodeID(id);
 }
 
 
-string User::generateID() const {
+string User::updateID() {
   const KeyPair &key = app.getPrivateKey();
   JSON::BufferWriter buf;
+  expires = Time::now() + app.getAuthTimeout();
 
   buf.beginDict();
   buf.insert("nonce", lrand48());
-  buf.insert("ts", Time().toString());
+  buf.insert("expires", Time(expires).toString());
   if (has("name")) buf.insert("name", getString("name"));
   if (has("auth")) buf.insert("auth", getString("auth"));
   buf.endDict();
@@ -77,7 +84,7 @@ string User::generateID() const {
   ctx.signInit();
   ctx.setRSAPadding(KeyContext::NO_PADDING);
 
-  return Base64('=', '-', '_', 0).encode(ctx.sign(state));
+  return id = Base64('=', '-', '_', 0).encode(ctx.sign(state));
 }
 
 
@@ -92,7 +99,26 @@ void User::decodeID(const string &id) {
   JSON::ValuePtr data = JSON::Reader(StringInputSource(state)).parse();
 
   data->getNumber("nonce");
-  insert("ts", Time::parse(data->getString("ts")).toString());
+  expires = Time::parse(data->getString("expires"));
+  if (hasExpired()) THROW("User auth expired");
   if (data->has("name")) insert("name", data->getString("name"));
-  if (data->has("auth")) insert("auth", data->getString("auth"));
+  if (data->has("auth")) {
+    insert("auth", data->getString("auth"));
+    authenticated = true;
+  }
+}
+
+
+bool User::hasExpired() const {
+  return expires < Time::now();
+}
+
+
+bool User::isExpiring() const {
+  return expires < Time::now() + app.getAuthGraceperiod();
+}
+
+
+void User::setCookie(Event::Request &req) const {
+  req.setCookie(app.getSessionCookieName(), getID(), "", "/");
 }

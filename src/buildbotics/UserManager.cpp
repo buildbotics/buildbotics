@@ -45,54 +45,47 @@ UserManager::UserManager(App &app) : app(app) {
 
 
 void UserManager::cleanup() {
-  // TODO clean up old Users
+  // TODO clean up expired Users
 }
 
 
-User &UserManager::create() {
+SmartPointer<User> UserManager::create() {
   SmartPointer<User> user = new User(app);
 
-  string id = user->generateID();
-  user->setID(id);
-  if (!users.insert(users_t::value_type(id, user)).second)
-    THROWS("User ID already exists: " << id);
+  if (!users.insert(users_t::value_type(user->getID(), user)).second)
+    THROWS("User ID already exists: " << user->getID());
 
-  return *user;
+  return user;
 }
 
 
-User *UserManager::get(const string &id) {
+SmartPointer<User> UserManager::get(const string &id) {
   users_t::iterator it = users.find(id);
-  if (it != users.end()) return it->second.get();
+  if (it != users.end()) return it->second;
 
   // Decode ID and create user if valid
   try {
     SmartPointer<User> user = new User(app, id);
 
     // TODO look up user profile in DB
-    // TODO check timestamp and authentication
 
     // Add user
-    users.insert(users_t::value_type(id, user));
+    return users.insert(users_t::value_type(id, user)).first->second;
 
-    return user.get();
   } CATCH_ERROR;
 
   return 0;
 }
 
 
-void UserManager::updateID(User &user) {
-  string newID = user.generateID();
+void UserManager::updateID(const SmartPointer<User> &user) {
+  string oldID = user->getID();
+  string newID = user->updateID();
 
-  // Get user pointer
-  users_t::iterator it = users.find(user.getID());
-  if (it == users.end()) THROWS("User not found " << user.getID());
-  SmartPointer<User> userPtr = it->second;
-
-  if (!users.insert(users_t::value_type(newID, userPtr)).second)
+  // Insert user under new ID
+  if (!users.insert(users_t::value_type(newID, user)).second)
     THROWS("User ID already exists " << newID);
 
-  users.erase(user.getID());
-  user.setID(newID);
+  // Remove user under old ID
+  users.erase(oldID);
 }

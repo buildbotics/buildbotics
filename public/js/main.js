@@ -38,7 +38,8 @@ var users = {
     },
     'bob': {
         'avatar':
-        'https://cdn1.iconfinder.com/data/icons/brown-monsters/1024/Brown_Monsters_16-01.png'
+        'https://cdn1.iconfinder.com/data/icons/brown-monsters/1024/' +
+            'Brown_Monsters_16-01.png'
     }
 };
 
@@ -117,10 +118,24 @@ $(function() {
     });
 
     // Angular
-    var app = angular.module('buildbotics', ['ngRoute', 'ui.bootstrap']);
+    var app = angular
+        .module('buildbotics', ['ngRoute', 'ngCookies', 'ui.bootstrap'])
+        .factory('httpRequestInterceptor', function ($cookies) {
+            return {
+                request: function ($config) {
+                    var sid = $cookies['buildbotics.sid'];
+                    if (sid) {
+                        var auth = 'Token ' + sid.substr(0, 32);
+                        $config.headers['Authorization'] = auth;
+                    }
+
+                    return $config;
+                }
+            };
+        });
 
     // Routing
-    app.config(function($routeProvider, $locationProvider) {
+    app.config(function($routeProvider, $locationProvider, $httpProvider) {
         $routeProvider
             .when('/', {page: 'home'})
             .when('/explore', {page: 'explore'})
@@ -131,6 +146,8 @@ $(function() {
             .otherwise({page: '404'});
 
         $locationProvider.html5Mode(true);
+
+        $httpProvider.interceptors.push('httpRequestInterceptor');
     });
 
     // Body
@@ -140,11 +157,22 @@ $(function() {
             $scope.users = users;
             $scope.authenticated = false;
 
-            $http.get('/api/auth/user').success(function (user) {
-                if (!user || user == 'null') return;
-                $scope.user = user;
-                $scope.authenticated = true;
-            });
+            function load_user() {
+                $http.get('/api/auth/user').success(function (user) {
+                    if (!user || user == 'null') return;
+                    $scope.user = user;
+                    $scope.authenticated = true;
+                });
+            }
+
+            $scope.logout = function ($event) {
+                $http.get('/api/auth/logout').success(function () {
+                    $scope.user = undefined;
+                    $scope.authenticated = false;
+                });
+            }
+
+            load_user();
         });
 
     // Content
