@@ -90,16 +90,6 @@ function user_get_avatar(user) {
 
 
 // Main ************************************************************************
-function refit_header() {
-    $('body').css('padding-top', $('#header').height() + 10);
-}
-
-
-function refit_header_delayed() {
-    setInterval(refit_header, 1);
-}
-
-
 $(function() {
     $.each(projects, function (name, project) {
         project.toggleLike = function () {
@@ -140,6 +130,7 @@ $(function() {
             .when('/', {page: 'home'})
             .when('/explore', {page: 'explore'})
             .when('/create', {page: 'create'})
+            .when('/build', {page: 'build'})
             .when('/settings', {page: 'settings'})
             .when('/:user', {page: 'user'})
             .when('/:user/:project', {page: 'project'})
@@ -228,10 +219,6 @@ $(function() {
         'ProjectCtrl',
         function ($scope, $routeParams) {
         });
-
-    // Fix body padding-top
-    refit_header();
-    $(window).resize(refit_header);
 
     // Bootstrap
     angular.bootstrap(document.documentElement, ['buildbotics']);

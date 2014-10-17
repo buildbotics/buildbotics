@@ -119,6 +119,18 @@ bool User::isExpiring() const {
 }
 
 
+void User::setProfile(const SmartPointer<JSON::Value> &profile) {
+  LOG_DEBUG(3, "profile = " << *profile);
+
+  insert("name", profile->getString("name"));
+  insert("avatar", profile->getString("avatar"));
+  insert("email", profile->getString("email"));
+  insert("auth",
+         profile->getString("provider") + ":" + profile->getString("id"));
+  setAuthenticated(true);
+}
+
+
 void User::setCookie(Event::Request &req) const {
   req.setCookie(app.getSessionCookieName(), getID(), "", "/");
 }

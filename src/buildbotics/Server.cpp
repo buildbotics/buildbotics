@@ -77,7 +77,9 @@ void Server::init() {
   api.addMember<Transaction> (METHODS, PATTERN, &Transaction::FUNC)
 
   ADD_TM(HTTP_GET, "/api/auth/user", apiAuthUser);
-  ADD_TM(HTTP_GET | HTTP_POST, "/api/auth/google(/callback)?", apiAuthGoogle);
+  ADD_TM(HTTP_GET | HTTP_POST,
+         "/api/auth/((google)|(github)|(twitter)|(facebook))(/callback)?",
+         apiAuthLogin);
   ADD_TM(HTTP_GET, "/api/auth/logout", apiAuthLogout);
   ADD_TM(HTTP_ANY, "", apiNotFound);
 

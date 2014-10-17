@@ -13,7 +13,7 @@ html
     link(rel='stylesheet' href='/css/style.css')
 
   body(ng-controller='BodyCtrl')
-    #header.navbar.navbar-default.navbar-fixed-top(ng-switch on='authenticated')
+    #header.navbar.navbar-default(ng-switch on='authenticated')
       include ./include/navbar.jade
 
     #content(ng-controller='ContentCtrl' ng-cloak)
@@ -22,13 +22,21 @@ html
           include ./include/home.jade
 
         div.explore-page(ng-switch-when='explore')
+          h2 Explore
+          hr
           include ./include/projects.jade
 
         div.create-page(ng-switch-when='create')
           h2 Create
+          hr
+
+        div.build-page(ng-switch-when='build')
+          h2 Build
+          hr
 
         div.settings-page(ng-switch-when='settings')
           h2 Settings
+          hr
 
         div.user-page(ng-switch-when='user')
           include ./include/user.jade

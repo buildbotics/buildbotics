@@ -35,33 +35,34 @@
 #include <cbang/event/Request.h>
 #include <cbang/event/RequestMethod.h>
 #include <cbang/event/PendingRequest.h>
+#include <cbang/event/OAuth2Login.h>
 
 #include <cbang/json/JSON.h>
+
+namespace cb {class OAuth2Login;}
 
 
 namespace BuildBotics {
   class App;
   class User;
 
-  class Transaction : public cb::Event::Request {
+  class Transaction : public cb::Event::Request, public cb::Event::OAuth2Login {
     App &app;
     cb::SmartPointer<User> user;
-    cb::SmartPointer<cb::Event::PendingRequest> pending;
 
   public:
     Transaction(App &app, evhttp_request *req);
 
     void lookupUser(bool skipAuthCheck = false);
 
+    // From cb::Event::OAuth2Login
+    void processProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
+
     // Event::WebServer request callbacks
     bool apiAuthUser(const cb::JSON::ValuePtr &msg, cb::JSON::Sync &sync);
-    bool apiAuthGoogle();
+    bool apiAuthLogin();
     bool apiAuthLogout();
     bool apiNotFound();
-
-    // Event::Client callbacks
-    bool verify(cb::Event::Request &req);
-    bool profile(cb::Event::Request &req);
   };
 }
 

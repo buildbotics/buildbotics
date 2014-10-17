@@ -38,8 +38,11 @@
 #include <cbang/Application.h>
 #include <cbang/os/Mutex.h>
 #include <cbang/net/IPAddress.h>
-#include <cbang/auth/GoogleOAuth2.h>
 #include <cbang/security/KeyPair.h>
+
+#include <cbang/auth/GoogleOAuth2.h>
+#include <cbang/auth/GitHubOAuth2.h>
+#include <cbang/auth/FacebookOAuth2.h>
 
 #include <cbang/event/Base.h>
 #include <cbang/event/DNSBase.h>
@@ -57,6 +60,8 @@ namespace BuildBotics {
     cb::Event::Client client;
 
     cb::GoogleOAuth2 googleAuth;
+    cb::GitHubOAuth2 githubAuth;
+    cb::FacebookOAuth2 facebookAuth;
 
     Server server;
     UserManager userManager;
@@ -78,6 +83,8 @@ namespace BuildBotics {
     cb::Event::Client &getEventClient() {return client;}
 
     cb::GoogleOAuth2 &getGoogleAuth() {return googleAuth;}
+    cb::GitHubOAuth2 &getGitHubAuth() {return githubAuth;}
+    cb::FacebookOAuth2 &getFacebookAuth() {return facebookAuth;}
 
     Server &getServer() {return server;}
     UserManager &getUserManager() {return userManager;}

@@ -1,16 +1,13 @@
 ul.projects(ng-controller='ProjectListCtrl')
   li.project(ng-repeat='(name, project) in projects')
-    .info
-      a(href='/{{project.author}}')
-        img.avatar(ng-src='{{users[project.author].avatar}}')
-      div
-        a.title(href='/{{project.author}}/{{name}}') {{project.title}}
-        span.author
-          | by&nbsp;
-          a(href='/{{project.author}}') {{project.author}}
     a(href='/{{project.author}}/{{name}}')
+      .title {{project.title}}
       img.image(ng-src='{{project.image}}')
-    .social
+    .info
+      a.author(href='/{{project.author}}',
+        title="View {{project.author}}'s profile")
+        //img.avatar(ng-src='{{users[project.author].avatar}}')
+        | by <span>{{project.author}}</span>
       include ./likes.jade
       a.comments(href='{{project.author}}/{{name}}#comments',
         title='View comments')

@@ -51,7 +51,8 @@ using namespace std;
 
 App::App() :
   cb::Application("BuildBotics"), dns(base), client(base, dns, new SSLContext),
-  googleAuth(getOptions()), server(*this), userManager(*this),
+  googleAuth(getOptions()), githubAuth(getOptions()),
+  facebookAuth(getOptions()), server(*this), userManager(*this),
   sessionCookieName("buildbotics.sid"), authTimeout(Time::SEC_PER_DAY),
   authGraceperiod(Time::SEC_PER_HOUR) {
 

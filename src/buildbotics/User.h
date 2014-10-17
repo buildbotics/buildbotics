@@ -71,6 +71,8 @@ namespace BuildBotics {
     bool isAuthenticated() const {return authenticated;}
     void setAuthenticated(bool x) {authenticated = x;}
 
+    void setProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
+
     void setCookie(cb::Event::Request &req) const;
   };
 }

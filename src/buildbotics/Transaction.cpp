@@ -38,6 +38,7 @@
 
 #include <cbang/json/JSON.h>
 #include <cbang/log/Logger.h>
+#include <cbang/util/DefaultCatch.h>
 
 using namespace std;
 using namespace cb;
@@ -45,7 +46,7 @@ using namespace BuildBotics;
 
 
 Transaction::Transaction(App &app, evhttp_request *req) :
-  Request(req), app(app) {}
+  Request(req), Event::OAuth2Login(app.getEventClient()), app(app) {}
 
 
 void Transaction::lookupUser(bool skipAuthCheck) {
@@ -55,7 +56,7 @@ void Transaction::lookupUser(bool skipAuthCheck) {
   string sid = findCookie(app.getSessionCookieName());
   if (sid.empty()) return;
 
-  // Check Authorization header matches at least first 32 bytes of session ID
+  // Check Authorization header matches first 32 bytes of session ID
   if (!skipAuthCheck) {
     if (!inHas("Authorization")) return;
 
@@ -84,8 +85,25 @@ void Transaction::lookupUser(bool skipAuthCheck) {
 }
 
 
+void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
+  if (!profile.isNull())
+    try {
+      // Update user
+      user->setProfile(profile);
+      app.getUserManager().updateID(user);
+      user->setCookie(*this);
+
+      // TODO Save user data to DB
+
+    } CATCH_ERROR;
+
+  // Redirect
+  redirect("/");
+}
+
+
 bool Transaction::apiAuthUser(const JSON::ValuePtr &msg, JSON::Sync &sync) {
-  lookupUser(req);
+  lookupUser();
 
   if (!user.isNull() && user->isAuthenticated()) user->write(sync);
   else sync.writeNull();
@@ -94,7 +112,7 @@ bool Transaction::apiAuthUser(const JSON::ValuePtr &msg, JSON::Sync &sync) {
 }
 
 
-bool Transaction::apiAuthGoogle() {
+bool Transaction::apiAuthLogin() {
   const URI &uri = getURI();
 
   // Get user
@@ -105,33 +123,20 @@ bool Transaction::apiAuthGoogle() {
     return true;
   }
 
-  if (!uri.has("state")) {
-    user->setCookie(*this); // Set session cookie
+  // Set session cookie
+  if (!uri.has("state")) user->setCookie(*this);
 
-    // Redirect
-    redirect(app.getGoogleAuth().getRedirectURL
-             (uri.getPath(), user->getToken(), "openid email profile"));
+  OAuth2 *auth;
+  string path = getURI().getPath();
+  if (String::endsWith(path, "/callback"))
+    path = path.substr(0, path.length() - 9);
 
-    return true;
-  }
+  if (String::endsWith(path, "/google")) auth = &app.getGoogleAuth();
+  else if (String::endsWith(path, "/github")) auth = &app.getGitHubAuth();
+  else if (String::endsWith(path, "/facebook")) auth = &app.getFacebookAuth();
+  else THROWC("Unsupported login provider", HTTP_BAD_REQUEST);
 
-  // Verify auth
-  URI postURI = app.getGoogleAuth().getVerifyURL(uri, user->getToken());
-  LOG_DEBUG(5, "Token URI: " << postURI);
-
-  // Extract query data
-  string data = postURI.getQuery();
-  postURI.setQuery("");
-
-  // Verify authorization with OAuth2 server
-  Event::Client &client = app.getEventClient();
-  pending = client.callMember
-    (postURI, HTTP_POST, data.data(), data.length(), this,
-     &Transaction::verify);
-  pending->setContentType("application/x-www-form-urlencoded");
-  pending->send();
-
-  return true;
+  return OAuth2Login::authorize(*this, *auth, user->getToken());
 }
 
 
@@ -144,54 +149,4 @@ bool Transaction::apiAuthLogout() {
 
 bool Transaction::apiNotFound() {
   THROWCS("Invalid API method: " << getURI().getPath(), HTTP_NOT_FOUND);
-}
-
-
-bool Transaction::verify(Event::Request &req) {
-  JSON::ValuePtr json = req.getInputJSON();
-
-  LOG_DEBUG(5, "Token Response: \n" << req.getResponseLine() << *json);
-
-  // Process claims
-  JSON::ValuePtr claims =
-    app.getGoogleAuth().parseClaims(json->getString("id_token"));
-
-  user->insert("auth", "google:" + claims->getString("sub"));
-  user->setAuthenticated(true);
-
-  LOG_INFO(1, "Authenticated: " << claims->getString("email"));
-  LOG_DEBUG(3, "Claims: " << *claims);
-
-  // Get profile
-  string accessToken = json->getString("access_token");
-  URI profileURI("https://www.googleapis.com/plus/v1/people/me/openIdConnect");
-  profileURI.set("access_token", accessToken);
-
-  Event::Client &client = app.getEventClient();
-  pending =
-    client.callMember(profileURI, HTTP_GET, this, &Transaction::profile);
-  pending->send();
-
-  return true;
-}
-
-
-bool Transaction::profile(Event::Request &req) {
-  JSON::ValuePtr json = req.getInputJSON();
-
-  LOG_DEBUG(3, *json);
-
-  // Update user
-  user->insert("name", json->getString("name"));
-  user->insert("avatar", json->getString("picture"));
-  user->insert("email", json->getString("email"));
-
-  // Update user ID
-  app.getUserManager().updateID(user);
-  user->setCookie(*this);
-
-  // Redirect
-  redirect("/");
-
-  return true;
 }
