@@ -25,7 +25,11 @@ build/Release
 node_modules
 
 public/css/*.css
-config.js
 
 # Backup files
 *~
+
+# Scons
+.sconf_temp
+.sconsign.dblite
+

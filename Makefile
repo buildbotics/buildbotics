@@ -47,7 +47,7 @@ tidy:
 	rm -f $(shell find "$(DIR)" -name \*~)
 
 clean: tidy
-	rm $(HTML) $(CSS) $(DOCS)
+	rm -f $(HTML) $(CSS) $(DOCS)
 	rm -rf dev
 
 .PHONY: all install run build html css clean tidy
