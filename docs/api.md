@@ -302,10 +302,10 @@ User profiles are defined as follows:
   owner: <name>
   joined: <date>
   fullname: <string> (0,120)
+  location: <string> (0,255)
   avatar: <url>
   bio: <markdown>
   url: <url>
-  disabled: <bool>
   followers: <integer>
   following: <integer>
   stars: <integer>
@@ -338,11 +338,10 @@ Content-Type: application/json
   avatar: "http://example.com/~johndoe/images/johndoe.png",
   bio: "John is an avid builder...",
   url: "http://example.com/~johndoe/",
-  disabled: false
-  followers: 2
-  following: 2
-  starrs: 10
-  points: 10305
+  followers: 2,
+  following: 2,
+  stars: 10,
+  points: 10305,
   badges: 1
 }
 ```
@@ -596,6 +595,7 @@ which ```<project>```, ```<machine>``` and ```<tool>``` inherit.
   license: <string> (2,120)
   brief: <markdown> (0,200)
   description: <markdown>
+  comments: <integer>
   stars: <integer>
   tags: [<tag>...] (0,64)
   duplications: <integer>
@@ -743,6 +743,7 @@ Inherits from the [thing](#things) abstract model.
   name: <name>
   brief: <markdown> (0,200)
   description: <markdown>
+  comments: <integer>
   files: [<string>...] (0,8)
 }
 ```
@@ -1153,7 +1154,6 @@ GET /users
 Name | Type | Description
 :--|--|--
 **query** | ```<string>``` | Search string.
-**badges** | ```<string>``` | Restrict to users with the specified badges.
 **order_by** | ```<string>``` | ```points```, ```followers```, ```joined```
 
 ## Search for things

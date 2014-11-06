@@ -41,6 +41,7 @@
 #include <cbang/time/Time.h>
 #include <cbang/log/Logger.h>
 #include <cbang/event/Event.h>
+#include <cbang/db/maria/EventDB.h>
 
 #include <stdlib.h>
 
@@ -54,7 +55,8 @@ App::App() :
   googleAuth(getOptions()), githubAuth(getOptions()),
   facebookAuth(getOptions()), server(*this), userManager(*this),
   sessionCookieName("buildbotics.sid"), authTimeout(Time::SEC_PER_DAY),
-  authGraceperiod(Time::SEC_PER_HOUR) {
+  authGraceperiod(Time::SEC_PER_HOUR), dbHost("localhost"),
+  dbName("buildbotics"), dbPort(3306), dbTimeout(5) {
 
   options.pushCategory("BuildBotics Server");
   options.add("outbound-ip", "IP address for outbound connections.  Defaults "
@@ -69,14 +71,44 @@ App::App() :
   options.add("document-root", "Serve files from this directory.");
   options.popCategory();
 
+  options.pushCategory("Database");
+  options.addTarget("db-host", dbHost, "DB host name");
+  options.addTarget("db-user", dbUser, "DB user name");
+  options.addTarget("db-pass", dbPass, "DB password");
+  options.addTarget("db-name", dbName, "DB name");
+  options.addTarget("db-port", dbPort, "DB port");
+  options.addTarget("db-timeout", dbTimeout, "DB timeout");
+  options.popCategory();
+
   // Seed random number generator
   srand48(Time::now());
+}
+
+
+SmartPointer<MariaDB::EventDB> App::getDBConnection() {
+  SmartPointer<MariaDB::EventDB> db = new MariaDB::EventDB(base);
+
+  // Configure
+  db->setConnectTimeout(dbTimeout);
+  db->setReadTimeout(dbTimeout);
+  db->setWriteTimeout(dbTimeout);
+  db->setReconnect(true);
+  db->enableNonBlocking();
+
+  // Connect
+  db->connect(dbHost, dbUser, dbPass, dbName, dbPort);
+
+  return db;
 }
 
 
 int App::init(int argc, char *argv[]) {
   int i = Application::init(argc, argv);
   if (i == -1) return -1;
+
+  LOG_DEBUG(3, "MySQL client version: " << MariaDB::DB::getClientInfo());
+  MariaDB::DB::libraryInit();
+  MariaDB::DB::threadInit();
 
   server.init();
 
@@ -88,9 +120,12 @@ int App::init(int argc, char *argv[]) {
   // Read private key
   key.readPrivate(*SystemUtilities::iopen(options["private-key-file"]));
 
+  // Check DB credentials
+  if (dbUser.empty()) THROWS("db-user not set");
+  if (dbPass.empty()) THROWS("db-pass not set");
+
   // Handle exit signal
-  sigEvent = base.newSignal(SIGINT, this, &App::signalEvent);
-  sigEvent->add();
+  base.newSignal(SIGINT, this, &App::signalEvent).add();
 
   return 0;
 }
@@ -104,6 +139,6 @@ void App::run() {
 }
 
 
-void App::signalEvent(int signal) {
+void App::signalEvent(Event::Event &e, int signal, unsigned flags) {
   base.loopExit();
 }

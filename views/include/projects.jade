@@ -6,7 +6,6 @@ ul.projects(ng-controller='ProjectListCtrl')
     .info
       a.author(href='/{{project.author}}',
         title="View {{project.author}}'s profile")
-        //img.avatar(ng-src='{{users[project.author].avatar}}')
         | by <span>{{project.author}}</span>
       include ./likes.jade
       a.comments(href='{{project.author}}/{{name}}#comments',

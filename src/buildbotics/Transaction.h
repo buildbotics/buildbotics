@@ -36,10 +36,14 @@
 #include <cbang/event/RequestMethod.h>
 #include <cbang/event/PendingRequest.h>
 #include <cbang/event/OAuth2Login.h>
+#include <cbang/db/maria/EventDBCallback.h>
 
 #include <cbang/json/JSON.h>
 
-namespace cb {class OAuth2Login;}
+namespace cb {
+  class OAuth2Login;
+  namespace MariaDB {class EventDB;}
+}
 
 
 namespace BuildBotics {
@@ -49,11 +53,15 @@ namespace BuildBotics {
   class Transaction : public cb::Event::Request, public cb::Event::OAuth2Login {
     App &app;
     cb::SmartPointer<User> user;
+    cb::SmartPointer<cb::MariaDB::EventDB> db;
 
   public:
     Transaction(App &app, evhttp_request *req);
 
     void lookupUser(bool skipAuthCheck = false);
+    typedef typename cb::MariaDB::EventDBMemberFunctor<Transaction>::member_t
+    event_db_member_functor_t;
+    void query(event_db_member_functor_t member, const std::string &s);
 
     // From cb::Event::OAuth2Login
     void processProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
@@ -62,7 +70,11 @@ namespace BuildBotics {
     bool apiAuthUser(const cb::JSON::ValuePtr &msg, cb::JSON::Sync &sync);
     bool apiAuthLogin();
     bool apiAuthLogout();
+    bool apiProjects();
     bool apiNotFound();
+
+    // MariaDB::EventDB callbacks
+    void projectsRow(cb::MariaDB::EventDBCallback::state_t state);
   };
 }
 

@@ -35,10 +35,12 @@
 #include <cbang/event/Client.h>
 #include <cbang/event/Buffer.h>
 #include <cbang/event/BufferDevice.h>
+#include <cbang/event/Event.h>
 
 #include <cbang/json/JSON.h>
 #include <cbang/log/Logger.h>
 #include <cbang/util/DefaultCatch.h>
+#include <cbang/db/maria/EventDB.h>
 
 using namespace std;
 using namespace cb;
@@ -82,6 +84,12 @@ void Transaction::lookupUser(bool skipAuthCheck) {
     app.getUserManager().updateID(user);
     user->setCookie(*this);
   }
+}
+
+
+void Transaction::query(event_db_member_functor_t member, const string &s) {
+  if (db.isNull()) db = app.getDBConnection();
+  db->query(this, member, s);
 }
 
 
@@ -147,6 +155,30 @@ bool Transaction::apiAuthLogout() {
 }
 
 
+bool Transaction::apiProjects() {
+  query(&Transaction::projectsRow, "SELECT * FROM thing_type");
+  return true;
+}
+
+
 bool Transaction::apiNotFound() {
   THROWCS("Invalid API method: " << getURI().getPath(), HTTP_NOT_FOUND);
+}
+
+
+void Transaction::projectsRow(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    LOG_DEBUG(1, db->rowToString());
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_DONE:
+    LOG_DEBUG(1, "query done");
+    sendReply("OK");
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_ERROR:
+    LOG_ERROR(db->getError());
+    break;
+  }
 }

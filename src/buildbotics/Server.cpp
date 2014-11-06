@@ -81,6 +81,9 @@ void Server::init() {
          "/api/auth/((google)|(github)|(twitter)|(facebook))(/callback)?",
          apiAuthLogin);
   ADD_TM(HTTP_GET, "/api/auth/logout", apiAuthLogout);
+
+  ADD_TM(HTTP_GET, "/api/projects", apiProjects);
+
   ADD_TM(HTTP_ANY, "", apiNotFound);
 
   if (app.getOptions()["document-root"].hasValue()) {

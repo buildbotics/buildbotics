@@ -50,6 +50,7 @@
 
 namespace cb {
   namespace Event {class Event;}
+  namespace MariaDB {class EventDB;}
 }
 
 
@@ -72,8 +73,12 @@ namespace BuildBotics {
     uint64_t authGraceperiod;
     cb::KeyPair key;
 
-    typedef cb::SmartPointer<cb::Event::Event> EventPtr;
-    EventPtr sigEvent;
+    std::string dbHost;
+    std::string dbUser;
+    std::string dbPass;
+    std::string dbName;
+    uint32_t dbPort;
+    unsigned dbTimeout;
 
   public:
     App();
@@ -89,6 +94,8 @@ namespace BuildBotics {
     Server &getServer() {return server;}
     UserManager &getUserManager() {return userManager;}
 
+    cb::SmartPointer<cb::MariaDB::EventDB> getDBConnection();
+
     const cb::IPAddress &getOutboundIP() const {return outboundIP;}
     const std::string &getSessionCookieName() const {return sessionCookieName;}
     uint64_t getAuthTimeout() const {return authTimeout;}
@@ -99,7 +106,7 @@ namespace BuildBotics {
     int init(int argc, char *argv[]);
     void run();
 
-    void signalEvent(int signal);
+    void signalEvent(cb::Event::Event &e, int signal, unsigned flags);
   };
 }
 
