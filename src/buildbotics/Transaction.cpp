@@ -71,11 +71,11 @@ void Transaction::lookupUser(bool skipAuthCheck) {
 
   // Get user
   user = app.getUserManager().get(sid);
-  if (user.isNull()) return;
 
-  // Check if the user has expired
-  if (user->hasExpired()) {
+  // Check if we have a user and it's not expired
+  if (user.isNull() || user->hasExpired()) {
     user.release();
+    setCookie(app.getSessionCookieName(), "", "", "/");
     return;
   }
 
@@ -90,6 +90,27 @@ void Transaction::lookupUser(bool skipAuthCheck) {
 void Transaction::query(event_db_member_functor_t member, const string &s) {
   if (db.isNull()) db = app.getDBConnection();
   db->query(this, member, s);
+}
+
+
+void Transaction::apiError(int code, const string &msg) {
+  LOG_ERROR(msg);
+
+  // Reset output
+  if (!writer.isNull()) writer->reset();
+  getOutputBuffer().clear();
+
+  // Error message
+  writer = getJSONWriter();
+  writer->beginDict();
+  writer->insert("message", msg);
+  writer->insert("code", code);
+  writer->endDict();
+
+  // Send it
+  writer.release();
+  setContentType("application/json");
+  reply(code);
 }
 
 
@@ -156,29 +177,96 @@ bool Transaction::apiAuthLogout() {
 
 
 bool Transaction::apiProjects() {
-  query(&Transaction::projectsRow, "SELECT * FROM thing_type");
+  query(&Transaction::returnList,
+        "CALL FindThings(null, null, null, null, null, null)");
+  return true;
+}
+
+
+bool Transaction::apiGetTags() {
+  query(&Transaction::returnList, "CALL GetTags()");
+  return true;
+}
+
+
+bool Transaction::apiAddTag() {
+  string tag = getPathArg(0);
+  query(&Transaction::returnOK, "CALL AddTag('" + tag + "')");
+  return true;
+}
+
+
+bool Transaction::apiDeleteTag() {
+  string tag = getPathArg(0);
+  query(&Transaction::returnOK, "CALL DeleteTag('" + tag + "')");
   return true;
 }
 
 
 bool Transaction::apiNotFound() {
-  THROWCS("Invalid API method: " << getURI().getPath(), HTTP_NOT_FOUND);
+  apiError(HTTP_NOT_FOUND, "Invalid API method " + getURI().getPath());
+  return true;
 }
 
 
-void Transaction::projectsRow(MariaDB::EventDBCallback::state_t state) {
+void Transaction::returnOK(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
-    LOG_DEBUG(1, db->rowToString());
+  case MariaDB::EventDBCallback::EVENTDB_DONE:
+    getJSONWriter()->write("ok");
+    setContentType("application/json");
+    reply();
     break;
 
+  case MariaDB::EventDBCallback::EVENTDB_ERROR: return returnJSON(state);
+
+  default:
+    apiError(HTTP_INTERNAL_SERVER_ERROR, "Unexpected DB response");
+    return;
+  }
+
+}
+
+
+void Transaction::returnList(MariaDB::EventDBCallback::state_t state) {
+  returnJSON(state);
+
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    writer->beginAppend();
+
+    if (db->getFieldCount() == 1) db->writeField(*writer, 0);
+    else db->writeRowList(*writer);
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
+    writer->beginList();
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+    writer->endList();
+    break;
+
+  default: break;
+  }
+}
+
+
+void Transaction::returnJSON(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_DONE:
-    LOG_DEBUG(1, "query done");
-    sendReply("OK");
+    writer.release();
+    setContentType("application/json");
+    reply();
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_ERROR:
-    LOG_ERROR(db->getError());
+    apiError(HTTP_INTERNAL_SERVER_ERROR, "DB: " + db->getError());
     break;
+
+  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
+    if (writer.isNull()) writer = getJSONWriter();
+    break;
+
+  default: break;
   }
 }

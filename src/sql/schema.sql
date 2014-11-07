@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS config (
 CREATE TABLE IF NOT EXISTS profiles (
   `id`            INT AUTO_INCREMENT,
   `name`          VARCHAR(64) NOT NULL UNIQUE,
-  `joined`        TIMESTAMP NOT NULL,
+  `joined`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `disabled`      BOOL DEFAULT false,
   `redirect`      BOOL DEFAULT false,
   `profile`       MEDIUMTEXT,
@@ -44,10 +44,10 @@ CREATE TABLE IF NOT EXISTS thing_type (
   `name` CHAR(8) PRIMARY KEY
 );
 
-REPLACE INTO thing_type VALUES("project");
-REPLACE INTO thing_type VALUES("machine");
-REPLACE INTO thing_type VALUES("tool");
-REPLACE INTO thing_type VALUES("step");
+
+INSERT INTO thing_type
+  VALUES ('project'), ('machine'), ('tool'), ('step')
+  ON DUPLICATE KEY UPDATE name = name;
 
 
 CREATE TABLE IF NOT EXISTS things (
@@ -58,16 +58,17 @@ CREATE TABLE IF NOT EXISTS things (
   `type`      CHAR(8),
   `published` BOOL DEFAULT false,
   `redirect`  BOOL DEFAULT false,
-  `modified`  TIMESTAMP   NOT NULL,
-  `brief`     VARCHAR(256) DEFAULT "",
-  `text`      TEXT DEFAULT "",
-  `tags`      TEXT DEFAULT "",
+  `created`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `modified`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `brief`     VARCHAR(256) DEFAULT '',
+  `text`      TEXT DEFAULT '',
+  `tags`      TEXT DEFAULT '',
   `comments`  INT NOT NULL DEFAULT 0,
-  `value`      MEDIUMBLOB,
+  `stars`     INT NOT NULL DEFAULT 0,
+  `value`     MEDIUMBLOB,
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`name`, `brief`, `text`, `tags`),
-  FULLTEXT KEY `tags` (`tags`),
   UNIQUE (`owner_id`, `type`, `name`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`),
   FOREIGN KEY (`parent_id`) REFERENCES things(`id`),
@@ -92,7 +93,7 @@ CREATE TABLE IF NOT EXISTS comments (
   `creation`  TIMESTAMP NOT NULL,
   `modified`  TIMESTAMP NOT NULL,
   `ref`       INT,
-  `text`      TEXT DEFAULT "",
+  `text`      TEXT DEFAULT '',
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`text`)
@@ -100,8 +101,9 @@ CREATE TABLE IF NOT EXISTS comments (
 
 
 CREATE TABLE IF NOT EXISTS tags (
-  `id`   INT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(64) NOT NULL UNIQUE,
+  `id`    INT NOT NULL AUTO_INCREMENT,
+  `name`  VARCHAR(64) NOT NULL UNIQUE,
+  `count` INT NOT NULL DEFAULT 0,
 
   PRIMARY KEY (`id`)
 );

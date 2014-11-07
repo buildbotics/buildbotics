@@ -43,6 +43,7 @@
 namespace cb {
   class OAuth2Login;
   namespace MariaDB {class EventDB;}
+  namespace JSON {class Writer;}
 }
 
 
@@ -54,6 +55,7 @@ namespace BuildBotics {
     App &app;
     cb::SmartPointer<User> user;
     cb::SmartPointer<cb::MariaDB::EventDB> db;
+    cb::SmartPointer<cb::JSON::Writer> writer;
 
   public:
     Transaction(App &app, evhttp_request *req);
@@ -63,6 +65,8 @@ namespace BuildBotics {
     event_db_member_functor_t;
     void query(event_db_member_functor_t member, const std::string &s);
 
+    void apiError(int code, const std::string &msg);
+
     // From cb::Event::OAuth2Login
     void processProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
 
@@ -71,10 +75,17 @@ namespace BuildBotics {
     bool apiAuthLogin();
     bool apiAuthLogout();
     bool apiProjects();
+
+    bool apiGetTags();
+    bool apiAddTag();
+    bool apiDeleteTag();
+
     bool apiNotFound();
 
     // MariaDB::EventDB callbacks
-    void projectsRow(cb::MariaDB::EventDBCallback::state_t state);
+    void returnOK(cb::MariaDB::EventDBCallback::state_t state);
+    void returnList(cb::MariaDB::EventDBCallback::state_t state);
+    void returnJSON(cb::MariaDB::EventDBCallback::state_t state);
   };
 }
 

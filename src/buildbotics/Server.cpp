@@ -84,6 +84,10 @@ void Server::init() {
 
   ADD_TM(HTTP_GET, "/api/projects", apiProjects);
 
+  ADD_TM(HTTP_GET, "/api/tags", apiGetTags);
+  ADD_TM(HTTP_PUT, "/api/tags/(\\w+)", apiAddTag);
+  ADD_TM(HTTP_DELETE, "/api/tags/(\\w+)", apiDeleteTag);
+
   ADD_TM(HTTP_ANY, "", apiNotFound);
 
   if (app.getOptions()["document-root"].hasValue()) {

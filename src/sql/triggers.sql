@@ -27,6 +27,7 @@ FOR EACH ROW
 BEGIN
   UPDATE profiles SET stars = stars + 1
     WHERE id = (SELECT owner_id FROM things WHERE id = NEW.thing_id);
+  UPDATE things SET stars = stars + 1 WHERE id = NEW.thing_id;
 END;
 
 DROP TRIGGER IF EXISTS DecStars;
@@ -35,6 +36,7 @@ FOR EACH ROW
 BEGIN
   UPDATE profiles SET stars = stars - 1
     WHERE id = (SELECT owner_id FROM things WHERE id = OLD.thing_id);
+  UPDATE things SET stars = stars - 1 WHERE id = OLD.thing_id;
 END;
 
 

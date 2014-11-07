@@ -86,6 +86,8 @@ App::App() :
 
 
 SmartPointer<MariaDB::EventDB> App::getDBConnection() {
+  // TODO Limit the total number of active connections
+
   SmartPointer<MariaDB::EventDB> db = new MariaDB::EventDB(base);
 
   // Configure
@@ -96,7 +98,7 @@ SmartPointer<MariaDB::EventDB> App::getDBConnection() {
   db->enableNonBlocking();
 
   // Connect
-  db->connect(dbHost, dbUser, dbPass, dbName, dbPort);
+  db->connectNB(dbHost, dbUser, dbPass, dbName, dbPort);
 
   return db;
 }
