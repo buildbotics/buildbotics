@@ -31,7 +31,9 @@ conf.Finish()
 
 # Make resources
 from subprocess import call
-call(['make', '-C', str(Dir('#'))])
+make = ['make', '-C', str(Dir('#'))]
+if env.GetOption('clean'): make.append('clean')
+call(make)
 
 # Program
 Export('env name')
