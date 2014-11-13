@@ -153,8 +153,11 @@ function body_controller($scope, $http, $modal, $cookies) {
         modalInstance.result.then(function (name) {
             $http.put('/api/name/register/' + name)
                 .success(function (data) {
-                    if (data == 'ok') load_user();
-                    else logged_out();
+                    if (data == 'ok') {
+                        load_user();
+                        // TODO Go to profile view
+
+                    } else logged_out();
                 }).error(logged_out);
         }, logged_out);
     };

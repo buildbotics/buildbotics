@@ -14,17 +14,17 @@ html
 
   body(ng-controller='BodyCtrl')
     #header.navbar.navbar-default(ng-switch on='authenticated')
-      include ./include/navbar.jade
+      include ./navbar.jade
 
     #content(ng-controller='ContentCtrl' ng-cloak)
       div(ng-switch on='page')
         .home-page(ng-switch-when='home')
-          include ./include/home.jade
+          include ./home.jade
 
         .explore-page(ng-switch-when='explore')
           h2 Explore
           hr
-          include ./include/projects.jade
+          include ./projects.jade
 
         .create-page(ng-switch-when='create')
           h2 Create
@@ -39,16 +39,16 @@ html
           hr
 
         .user-page(ng-switch-when='user')
-          include ./include/user.jade
+          include ./user.jade
 
         .project-page(ng-switch-when='project')
-          include ./include/project.jade
+          include ./project.jade
 
         .settings-page(ng-switch-when='404')
           h2 Page not found
 
     #dialogs
-      include ./dialogs/register.jade
+      include ./register.jade
 
     - var cdn = '//cdnjs.cloudflare.com/ajax/libs'
     script(src=cdn + '/jquery/1.11.1/jquery.js')
