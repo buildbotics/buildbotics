@@ -42,6 +42,8 @@
 #include <cbang/util/DefaultCatch.h>
 #include <cbang/db/maria/EventDB.h>
 
+#include <mysql/mysqld_error.h>
+
 using namespace std;
 using namespace cb;
 using namespace BuildBotics;
@@ -54,11 +56,11 @@ Transaction::Transaction(App &app, evhttp_request *req) :
 void Transaction::lookupUser(bool skipAuthCheck) {
   if (!user.isNull()) return;
 
-  // Get session ID
-  string sid = findCookie(app.getSessionCookieName());
-  if (sid.empty()) return;
+  // Get session
+  string session = findCookie(app.getSessionCookieName());
+  if (session.empty()) return;
 
-  // Check Authorization header matches first 32 bytes of session ID
+  // Check Authorization header matches first 32 bytes of session
   if (!skipAuthCheck) {
     if (!inHas("Authorization")) return;
 
@@ -66,11 +68,11 @@ void Transaction::lookupUser(bool skipAuthCheck) {
     unsigned len = auth.length();
 
     if (len < 38 || auth.compare(0, 6, "Token ") ||
-        sid.compare(0, len - 6, auth.c_str() + 6)) return;
+        session.compare(0, len - 6, auth.c_str() + 6)) return;
   }
 
   // Get user
-  user = app.getUserManager().get(sid);
+  user = app.getUserManager().get(session);
 
   // Check if we have a user and it's not expired
   if (user.isNull() || user->hasExpired()) {
@@ -81,19 +83,20 @@ void Transaction::lookupUser(bool skipAuthCheck) {
 
   // Check if the user auth is expiring soon
   if (user->isExpiring()) {
-    app.getUserManager().updateID(user);
+    app.getUserManager().updateSession(user);
     user->setCookie(*this);
   }
 }
 
 
-void Transaction::query(event_db_member_functor_t member, const string &s) {
+void Transaction::query(event_db_member_functor_t member, const string &s,
+                        const SmartPointer<JSON::Value> &dict) {
   if (db.isNull()) db = app.getDBConnection();
-  db->query(this, member, s);
+  db->query(this, member, s, dict);
 }
 
 
-void Transaction::apiError(int code, const string &msg) {
+void Transaction::apiError(int status, int code, const string &msg) {
   LOG_ERROR(msg);
 
   // Reset output
@@ -102,40 +105,55 @@ void Transaction::apiError(int code, const string &msg) {
 
   // Error message
   writer = getJSONWriter();
-  writer->beginDict();
+  writer->beginList();
+  writer->appendDict();
   writer->insert("message", msg);
   writer->insert("code", code);
   writer->endDict();
+  writer->endList();
 
   // Send it
   writer.release();
   setContentType("application/json");
-  reply(code);
+  reply(status);
+}
+
+
+bool Transaction::pleaseLogin() {
+  apiError(HTTP_OK, HTTP_UNAUTHORIZED, "Not authorized, please login");
+  return true;
 }
 
 
 void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
   if (!profile.isNull())
     try {
-      // Update user
-      user->setProfile(profile);
-      app.getUserManager().updateID(user);
-      user->setCookie(*this);
+      // Authenticate user
+      user->authenticate(profile->getString("provider"),
+                         profile->getString("id"));
+      app.getUserManager().updateSession(user);
 
-      // TODO Save user data to DB
+      query(&Transaction::login, "CALL Login(%(provider)s, %(id)s, %(name)s, "
+            "%(email)s, %(avatar)s);", profile);
 
+      return;
     } CATCH_ERROR;
 
-  // Redirect
   redirect("/");
 }
 
 
-bool Transaction::apiAuthUser(const JSON::ValuePtr &msg, JSON::Sync &sync) {
+bool Transaction::apiAuthUser() {
   lookupUser();
 
-  if (!user.isNull() && user->isAuthenticated()) user->write(sync);
-  else sync.writeNull();
+  if (!user.isNull() && user->isAuthenticated()) {
+    SmartPointer<JSON::Dict> dict = new JSON::Dict;
+    dict->insert("provider", user->getProvider());
+    dict->insert("id", user->getID());
+
+    query(&Transaction::returnJSON, "CALL GetUser(%(provider)s, %(id)s)", dict);
+
+  } else pleaseLogin();
 
   return true;
 }
@@ -176,6 +194,46 @@ bool Transaction::apiAuthLogout() {
 }
 
 
+bool Transaction::apiNameRegister() {
+  lookupUser();
+  if (user.isNull()) return pleaseLogin();
+
+  SmartPointer<JSON::Dict> dict = new JSON::Dict;
+  dict->insert("name", getPathArg(0));
+  dict->insert("provider", user->getProvider());
+  dict->insert("id", user->getID());
+
+  // TODO validate name
+  query(&Transaction::returnOK,
+        "CALL Register(%(name)s, %(provider)s, %(id)s)", dict);
+  return true;
+}
+
+
+bool Transaction::apiNameAvailable() {
+  SmartPointer<JSON::Dict> dict = new JSON::Dict;
+  dict->insert("name", getPathArg(0));
+
+  query(&Transaction::returnBool, "CALL Available(%(name)s)", dict);
+  return true;
+}
+
+
+bool Transaction::apiNameSuggest() {
+  lookupUser();
+  if (user.isNull()) return pleaseLogin();
+
+  SmartPointer<JSON::Dict> dict = new JSON::Dict;
+  dict->insert("provider", user->getProvider());
+  dict->insert("id", user->getID());
+
+  query(&Transaction::returnList, "CALL Suggest(%(provider)s, %(id)s, 5)",
+        dict);
+
+  return true;
+}
+
+
 bool Transaction::apiProjects() {
   query(&Transaction::returnList,
         "CALL FindThings(null, null, null, null, null, null)");
@@ -204,8 +262,34 @@ bool Transaction::apiDeleteTag() {
 
 
 bool Transaction::apiNotFound() {
-  apiError(HTTP_NOT_FOUND, "Invalid API method " + getURI().getPath());
+  apiError(HTTP_OK, HTTP_NOT_FOUND, "Invalid API method " + getURI().getPath());
   return true;
+}
+
+
+void Transaction::login(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_DONE:
+    user->setCookie(*this);
+
+    getJSONWriter()->write("ok");
+    setContentType("application/json");
+    redirect("/");
+   break;
+
+  default: returnOK(state); return;
+  }
+}
+
+
+void Transaction::getUser(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    // TODO
+    return;
+
+  default: returnJSON(state); return;
+  }
 }
 
 
@@ -220,7 +304,7 @@ void Transaction::returnOK(MariaDB::EventDBCallback::state_t state) {
   case MariaDB::EventDBCallback::EVENTDB_ERROR: return returnJSON(state);
 
   default:
-    apiError(HTTP_INTERNAL_SERVER_ERROR, "Unexpected DB response");
+    apiError(HTTP_INTERNAL_SERVER_ERROR, 0, "Unexpected DB response");
     return;
   }
 
@@ -228,7 +312,7 @@ void Transaction::returnOK(MariaDB::EventDBCallback::state_t state) {
 
 
 void Transaction::returnList(MariaDB::EventDBCallback::state_t state) {
-  returnJSON(state);
+  if (state != MariaDB::EventDBCallback::EVENTDB_ROW) returnJSON(state);
 
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_ROW:
@@ -251,17 +335,42 @@ void Transaction::returnList(MariaDB::EventDBCallback::state_t state) {
 }
 
 
+void Transaction::returnBool(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    writer->writeBoolean(db->getBoolean(0));
+    break;
+
+  default: return returnJSON(state);
+  }
+}
+
+
 void Transaction::returnJSON(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    if (db->getFieldCount() == 1) db->writeField(*writer, 0);
+    else db->writeRowDict(*writer, "id");
+    break;
+
   case MariaDB::EventDBCallback::EVENTDB_DONE:
     writer.release();
     setContentType("application/json");
     reply();
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_ERROR:
-    apiError(HTTP_INTERNAL_SERVER_ERROR, "DB: " + db->getError());
+  case MariaDB::EventDBCallback::EVENTDB_ERROR: {
+    int error = HTTP_INTERNAL_SERVER_ERROR;
+
+    switch (db->getErrorNumber()) {
+    case ER_SIGNAL_NOT_FOUND: error = HTTP_NOT_FOUND; break;
+    default: break;
+    }
+
+    apiError(HTTP_OK, error,
+             SSTR("DB:" << db->getErrorNumber() << ": " << db->getError()));
     break;
+  }
 
   case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
     if (writer.isNull()) writer = getJSONWriter();

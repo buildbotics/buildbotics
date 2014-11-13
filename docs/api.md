@@ -178,8 +178,8 @@ More details about an error may be returned as JSON data defined as follows:
 
 <error> = {
   message: <string>
-  code: <name>
-  field: <name> # The particular field for which there was an error.
+  code: <integer>
+  field: <name> # (Optional) The name of the field in error.
 }
 ```
 

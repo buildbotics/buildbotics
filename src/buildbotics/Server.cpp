@@ -82,6 +82,10 @@ void Server::init() {
          apiAuthLogin);
   ADD_TM(HTTP_GET, "/api/auth/logout", apiAuthLogout);
 
+  ADD_TM(HTTP_PUT, "/api/name/register/([\\w_.]+)", apiNameRegister);
+  ADD_TM(HTTP_GET, "/api/name/available/([\\w_.]+)", apiNameAvailable);
+  ADD_TM(HTTP_GET, "/api/name/suggestions", apiNameSuggest);
+
   ADD_TM(HTTP_GET, "/api/projects", apiProjects);
 
   ADD_TM(HTTP_GET, "/api/tags", apiGetTags);

@@ -19,10 +19,10 @@
             .user-points
               span.points(title='Your points.')
                 span.fa.fa-certificate
-                | 1,234
+                | {{user.points}}
               span.badges(title='Your badges.')
                 span.fa.fa-shield
-                | 12
+                | {{user.badges}}
         ul.dropdown-menu(role='menu')
           li: a.profile(href='/{{user.name}}')
             span.fa.fa-user

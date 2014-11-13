@@ -30,9 +30,14 @@
 \******************************************************************************/
 
 #include <cbang/ApplicationMain.h>
+#include <cbang/event/Event.h>
 
 #include <buildbotics/App.h>
 
 int main(int argc, char *argv[]) {
+#ifdef DEBUG
+  cb::Event::Event::enableDebugMode();
+#endif
+
   return cb::doApplication<BuildBotics::App>(argc, argv);
 }

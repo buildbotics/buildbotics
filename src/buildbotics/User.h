@@ -45,33 +45,33 @@ namespace cb {
 namespace BuildBotics {
   class App;
 
-  class User : public cb::JSON::Dict {
+  class User {
     App &app;
 
-    std::string id;
+    std::string session;
     uint64_t expires;
-    bool authenticated;
+    std::string provider;
+    std::string id;
 
   public:
     User(App &app);
-    User(App &app, const std::string &id);
+    User(App &app, const std::string &session);
 
-    void setID(const std::string &id) {this->id = id;}
-    const std::string &getID() const {return id;}
-    std::string getToken() const {return id.substr(0, 32);}
+    void setSession(const std::string &session) {this->session = session;}
+    const std::string &getSession() const {return session;}
+    std::string getToken() const {return session.substr(0, 32);}
 
-    std::string updateID();
-    void decodeID(const std::string &id);
-
-    std::string getName() const {return has("name") ? getString("name") : "";}
+    std::string updateSession();
+    void decodeSession(const std::string &session);
 
     bool hasExpired() const;
     bool isExpiring() const;
 
-    bool isAuthenticated() const {return authenticated;}
-    void setAuthenticated(bool x) {authenticated = x;}
+    const std::string &getProvider() const {return provider;}
+    const std::string &getID() const {return id;}
 
-    void setProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
+    bool isAuthenticated() const {return !provider.empty() && !id.empty();}
+    void authenticate(const std::string &provider, const std::string &id);
 
     void setCookie(cb::Event::Request &req) const;
   };

@@ -51,18 +51,18 @@ using namespace cb;
 using namespace BuildBotics;
 
 
-User::User(App &app) : app(app), expires(0), authenticated(false) {
-  updateID();
+User::User(App &app) : app(app), expires(0) {
+  updateSession();
 }
 
 
-User::User(App &app, const string &id) :
-  app(app), id(id), authenticated(false) {
-  decodeID(id);
+User::User(App &app, const string &session) :
+  app(app), session(session) {
+  decodeSession(session);
 }
 
 
-string User::updateID() {
+string User::updateSession() {
   const KeyPair &key = app.getPrivateKey();
   JSON::BufferWriter buf;
   expires = Time::now() + app.getAuthTimeout();
@@ -70,8 +70,8 @@ string User::updateID() {
   buf.beginDict();
   buf.insert("nonce", lrand48());
   buf.insert("expires", Time(expires).toString());
-  if (has("name")) buf.insert("name", getString("name"));
-  if (has("auth")) buf.insert("auth", getString("auth"));
+  if (!provider.empty()) buf.insert("provider", provider);
+  if (!id.empty()) buf.insert("id", id);
   buf.endDict();
   buf.flush();
 
@@ -84,28 +84,25 @@ string User::updateID() {
   ctx.signInit();
   ctx.setRSAPadding(KeyContext::NO_PADDING);
 
-  return id = Base64('=', '-', '_', 0).encode(ctx.sign(state));
+  return session = Base64('=', '-', '_', 0).encode(ctx.sign(state));
 }
 
 
-void User::decodeID(const string &id) {
+void User::decodeSession(const string &session) {
   KeyContext ctx(app.getPrivateKey());
 
   ctx.verifyRecoverInit();
   ctx.setRSAPadding(KeyContext::NO_PADDING);
 
-  string state = ctx.verifyRecover(Base64('=', '-', '_', 0).decode(id));
+  string state = ctx.verifyRecover(Base64('=', '-', '_', 0).decode(session));
   LOG_DEBUG(5, "state = " << String::trim(state));
   JSON::ValuePtr data = JSON::Reader(StringInputSource(state)).parse();
 
   data->getNumber("nonce");
   expires = Time::parse(data->getString("expires"));
   if (hasExpired()) THROW("User auth expired");
-  if (data->has("name")) insert("name", data->getString("name"));
-  if (data->has("auth")) {
-    insert("auth", data->getString("auth"));
-    authenticated = true;
-  }
+  provider = data->getString("provider");
+  id = data->getString("id");
 }
 
 
@@ -119,18 +116,12 @@ bool User::isExpiring() const {
 }
 
 
-void User::setProfile(const SmartPointer<JSON::Value> &profile) {
-  LOG_DEBUG(3, "profile = " << *profile);
-
-  insert("name", profile->getString("name"));
-  insert("avatar", profile->getString("avatar"));
-  insert("email", profile->getString("email"));
-  insert("auth",
-         profile->getString("provider") + ":" + profile->getString("id"));
-  setAuthenticated(true);
+void User::authenticate(const string &provider, const string &id) {
+  this->provider = provider;
+  this->id = id;
 }
 
 
 void User::setCookie(Event::Request &req) const {
-  req.setCookie(app.getSessionCookieName(), getID(), "", "/");
+  req.setCookie(app.getSessionCookieName(), getSession(), "", "/");
 }

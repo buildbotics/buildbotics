@@ -44,6 +44,7 @@
 #include <cbang/db/maria/EventDB.h>
 
 #include <stdlib.h>
+#include <unistd.h>
 
 using namespace BuildBotics;
 using namespace cb;
@@ -71,6 +72,11 @@ App::App() :
   options.add("document-root", "Serve files from this directory.");
   options.popCategory();
 
+  options.pushCategory("Debugging");
+  options.add("debug-libevent", "Enable verbose libevent debugging"
+              )->setDefault(false);
+  options.popCategory();
+
   options.pushCategory("Database");
   options.addTarget("db-host", dbHost, "DB host name");
   options.addTarget("db-user", dbUser, "DB user name");
@@ -82,6 +88,9 @@ App::App() :
 
   // Seed random number generator
   srand48(Time::now());
+
+  // Enable libevent logging
+  Event::Event::enableLogging(3);
 }
 
 
@@ -107,6 +116,9 @@ SmartPointer<MariaDB::EventDB> App::getDBConnection() {
 int App::init(int argc, char *argv[]) {
   int i = Application::init(argc, argv);
   if (i == -1) return -1;
+
+  // Libevent debugging
+  if (options["debug-libevent"].toBoolean()) Event::Event::enableDebugLogging();
 
   LOG_DEBUG(3, "MySQL client version: " << MariaDB::DB::getClientInfo());
   MariaDB::DB::libraryInit();

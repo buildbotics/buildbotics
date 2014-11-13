@@ -89,6 +89,195 @@ function user_get_avatar(user) {
 }
 
 
+// App Config ******************************************************************
+function http_request_interceptor($cookies) {
+    return {
+        request: function ($config) {
+            var sid = $cookies['buildbotics.sid'];
+            console.log($config.url + ': ' + sid);
+
+            if (sid) {
+                var auth = 'Token ' + sid.substr(0, 32);
+                $config.headers['Authorization'] = auth;
+            }
+
+            return $config;
+        }
+    };
+}
+
+
+function module_config($routeProvider, $locationProvider, $httpProvider) {
+    $routeProvider
+        .when('/_=_', {redirectTo: '/'}) // Fix facebook URL hash cruft
+        .when('/', {page: 'home'})
+        .when('/explore', {page: 'explore'})
+        .when('/create', {page: 'create'})
+        .when('/build', {page: 'build'})
+        .when('/settings', {page: 'settings'})
+        .when('/:user', {page: 'user'})
+        .when('/:user/:project', {page: 'project'})
+        .otherwise({page: '404'});
+
+    $locationProvider.html5Mode(true);
+
+    $httpProvider.interceptors.push('httpRequestInterceptor');
+}
+
+
+// Body Controller *************************************************************
+function body_controller($scope, $http, $modal, $cookies) {
+    $scope.users = users;
+    $scope.authenticated = false;
+
+    function logged_out() {
+        delete $cookies['buildbotics.sid'];
+        $scope.user = undefined;
+        $scope.authenticated = false;
+    }
+
+    $scope.logout = function ($event) {
+        $http.get('/api/auth/logout').success(logged_out);
+    }
+
+    $scope.register = function (suggestions) {
+        var modalInstance = $modal.open({
+            templateUrl: 'register.html',
+            controller: 'RegisterDialogCtrl',
+            resolve: {
+                name: function () {return name;},
+                suggestions: function () {return suggestions;}
+            }
+        });
+
+        modalInstance.result.then(function (name) {
+            $http.put('/api/name/register/' + name)
+                .success(function (data) {
+                    if (data == 'ok') load_user();
+                    else logged_out();
+                }).error(logged_out);
+        }, logged_out);
+    };
+
+
+    function load_user() {
+        $http.get('/api/auth/user').success(function (data) {
+            if (typeof data.joined != 'undefined') {
+                $scope.user = data;
+                $scope.authenticated = true;
+
+            } else if (typeof data.name != 'undefined') {
+                // Authenticated but we need to register
+
+                // Suggest name
+                if (data.name.match(/\W/) && data.email)
+                    data.name = data.email.replace(/@.*/, '');
+
+                data.name = data.name.toLowerCase().replace(/\W/g, '_');
+
+                $http.get('/api/name/suggestions')
+                    .success(function (suggestions) {
+                        // TODO check for errors
+                        $scope.register(suggestions);
+
+                    }).error(logged_out);
+            } else logged_out();
+        });
+    }
+
+    load_user();
+}
+
+
+function username_directive($q, $http) {
+    return {
+        require: 'ngModel',
+        link: function (scope, elm, attrs, ctrl) {
+            ctrl.$asyncValidators.username = function (username) {
+                if (ctrl.$isEmpty(username)) return $q.when(false);
+
+                var def = $q.defer();
+
+                $http.get('/api/name/available/' + username)
+                    .success(function (result) {
+                        if (result) def.resolve();
+                        else def.reject();
+                    }).error(function () {def.reject();});
+
+                return def.promise;
+            };
+        }
+    };
+}
+
+
+// Content Controller **********************************************************
+function content_controller($scope, $route, $routeParams, $location) {
+    $scope.$on(
+        '$routeChangeSuccess',
+        function ($currentRoute, $previousRoute) {
+            if ($location.path().indexOf('/api/auth') == 0)
+                window.location.href = $location.path();
+
+            else {
+                console.log($currentRoute);
+                $scope.page = $route.current.page;
+
+                var user = $routeParams.user;
+                var project = $routeParams.project;
+
+                if (typeof user != 'undefined') {
+                    $scope.user = user_get(user);
+                    if (typeof $scope.user == 'undefined')
+                        $scope.page = '404';
+
+                    else if (typeof project != 'undefined') {
+                        $scope.project = project_get(user, project);
+                        if (typeof $scope.project == 'undefined')
+                            $scope.page = '404';
+                    }
+                }
+            }
+        });
+}
+
+
+// Register Dialog Controller **************************************************
+function register_dialog_controller($scope, $modalInstance, suggestions) {
+    $scope.user = {};
+    $scope.user.name = suggestions.length ? suggestions[0] : '';
+    $scope.user.suggestions = suggestions;
+    $scope.ok = function () {$modalInstance.close($scope.user.name);};
+    $scope.cancel = function () {$modalInstance.dismiss('cancel');};
+
+    $scope.hitEnter = function(e) {
+        if (angular.equals(e.keyCode,13) &&
+            !(angular.equals($scope.user.name, null) ||
+              angular.equals($scope.user.name, '')))
+            $scope.ok();
+    };
+}
+
+
+// User Controller *************************************************************
+function user_controller($scope, $routeParams) {
+    $scope.projects = user_get_projects($routeParams.user);
+}
+
+
+// Project List Controller *****************************************************
+function project_list_controller($scope, $routeParams) {
+    if ($routeParams.user)
+        $scope.projects = user_get_projects($routeParams.user);
+    else $scope.projects = projects;
+}
+
+
+// Project Controller **********************************************************
+function project_controller($scope, $routeParams) {
+}
+
+
 // Main ************************************************************************
 $(function() {
     $.each(projects, function (name, project) {
@@ -107,119 +296,19 @@ $(function() {
         });
     });
 
-    // Angular
-    var app = angular
-        .module('buildbotics', ['ngRoute', 'ngCookies', 'ui.bootstrap'])
-        .factory('httpRequestInterceptor', function ($cookies) {
-            return {
-                request: function ($config) {
-                    var sid = $cookies['buildbotics.sid'];
-                    if (sid) {
-                        var auth = 'Token ' + sid.substr(0, 32);
-                        $config.headers['Authorization'] = auth;
-                    }
+    // Angular setup
+    deps = ['ngRoute', 'ngCookies', 'ui.bootstrap', 'ui.bootstrap.modal'];
+    angular
+        .module('buildbotics', deps)
+        .factory('httpRequestInterceptor', http_request_interceptor)
+        .config(module_config)
+        .directive('username', username_directive)
+        .controller('BodyCtrl', body_controller)
+        .controller('ContentCtrl', content_controller)
+        .controller('RegisterDialogCtrl', register_dialog_controller)
+        .controller('UserCtrl', user_controller)
+        .controller('ProjectListCtrl',  project_list_controller)
+        .controller('ProjectCtrl', project_controller);
 
-                    return $config;
-                }
-            };
-        });
-
-    // Routing
-    app.config(function($routeProvider, $locationProvider, $httpProvider) {
-        $routeProvider
-            .when('/', {page: 'home'})
-            .when('/explore', {page: 'explore'})
-            .when('/create', {page: 'create'})
-            .when('/build', {page: 'build'})
-            .when('/settings', {page: 'settings'})
-            .when('/:user', {page: 'user'})
-            .when('/:user/:project', {page: 'project'})
-            .otherwise({page: '404'});
-
-        $locationProvider.html5Mode(true);
-
-        $httpProvider.interceptors.push('httpRequestInterceptor');
-    });
-
-    // Body
-    app.controller(
-        'BodyCtrl',
-        function ($scope, $http) {
-            $scope.users = users;
-            $scope.authenticated = false;
-
-            function load_user() {
-                $http.get('/api/auth/user').success(function (user) {
-                    if (!user || user == 'null') return;
-                    $scope.user = user;
-                    $scope.authenticated = true;
-                });
-            }
-
-            $scope.logout = function ($event) {
-                $http.get('/api/auth/logout').success(function () {
-                    $scope.user = undefined;
-                    $scope.authenticated = false;
-                });
-            }
-
-            load_user();
-        });
-
-    // Content
-    app.controller(
-        'ContentCtrl',
-        function ($scope, $route, $routeParams, $location) {
-            $scope.$on(
-                "$routeChangeSuccess",
-                function($currentRoute, $previousRoute) {
-                    if ($location.path().indexOf('/api/auth') == 0)
-                        window.location.href = $location.path();
-
-                    else {
-                        console.log($currentRoute);
-                        $scope.page = $route.current.page;
-
-                        var user = $routeParams.user;
-                        var project = $routeParams.project;
-
-                        if (typeof user != 'undefined') {
-                            $scope.user = user_get(user);
-                            if (typeof $scope.user == 'undefined')
-                                $scope.page = '404';
-
-                            else if (typeof project != 'undefined') {
-                                $scope.project = project_get(user, project);
-                                if (typeof $scope.project == 'undefined')
-                                    $scope.page = '404';
-                            }
-                        }
-                    }
-                });
-        });
-
-    // User
-    app.controller(
-        'UserCtrl',
-        function ($scope, $routeParams) {
-            $scope.projects = user_get_projects($routeParams.user);
-        })
-
-    // Project List
-    app.controller(
-        'ProjectListCtrl',
-        function ($scope, $routeParams) {
-            if ($routeParams.user)
-                $scope.projects = user_get_projects($routeParams.user);
-            else $scope.projects = projects;
-        });
-
-    // Project
-    app.controller(
-        'ProjectCtrl',
-        function ($scope, $routeParams) {
-        });
-
-    // Bootstrap
     angular.bootstrap(document.documentElement, ['buildbotics']);
 })

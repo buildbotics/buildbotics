@@ -1,7 +1,247 @@
 DELETE FROM mysql.proc WHERE db = "buildbotics";
 
 
+-- Associations
+CREATE PROCEDURE Associate(IN _provider VARCHAR(16), IN _id VARCHAR(64),
+  IN _name VARCHAR(256), IN _email VARCHAR(256), IN _avatar VARCHAR(256),
+  IN _profile VARCHAR(64))
+BEGIN
+  IF _profile IS NOT null THEN
+    CALL GetProfileID(_profile);
+  END IF;
+
+  INSERT INTO associations (provider, id, name, email, avatar, profile_id)
+    VALUES (_provider, _id, _name, _email, _avatar, _profile)
+    ON DUPLICATE KEY UPDATE name = _name, email = _email, avatar = _avatar;
+END;
+
+
+CREATE PROCEDURE GetAssociation(IN _provider VARCHAR(16), IN _id VARCHAR(64))
+BEGIN
+  SELECT name, email, avatar, profile_id FROM associations
+    WHERE provider = _provider AND id = _id;
+END;
+
+
+CREATE PROCEDURE Login(IN _provider VARCHAR(16), IN _id VARCHAR(64),
+  IN _name VARCHAR(256), IN _email VARCHAR(256), IN _avatar VARCHAR(256))
+BEGIN
+  SELECT profile_id INTO @profile_id FROM associations
+    WHERE provider = _provider AND id = _id;
+
+  CALL Associate(_provider, _id, _name, _email, _avatar, null);
+
+  UPDATE profiles SET lastlog = NOW() WHERE id = @profile_id;
+END;
+
+
+-- Names
+CREATE PROCEDURE Register(IN _name VARCHAR(64), _provider VARCHAR(16),
+  _id VARCHAR(256))
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION ROLLBACK;
+
+  START TRANSACTION;
+
+  IF NOT NameAllowed(_name) THEN
+    SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+      SET MESSAGE_TEXT = 'Name take or invalid';
+  END IF;
+
+  SET @name = _name;
+
+  INSERT INTO profiles (name, avatar, email)
+    (SELECT @name, avatar, email FROM associations
+     WHERE provider = _provider AND id = _id);
+
+  UPDATE associations SET profile_id = LAST_INSERT_ID()
+    WHERE provider = _provider AND id = _id;
+
+  IF ROW_COUNT() != 1 THEN
+    SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
+      SET MESSAGE_TEXT = 'Association not found';
+  END IF;
+
+  COMMIT;
+END;
+
+
+CREATE FUNCTION NameAllowed(_name VARCHAR(64))
+RETURNS BOOL
+NOT DETERMINISTIC
+BEGIN
+  IF CHAR_LENGTH(_name) < 3 OR _name  REGEXP '[^[:alnum:]_.]' THEN
+    RETURN false;
+  END IF;
+
+  IF (SELECT id FROM profiles WHERE name = _name) THEN
+    RETURN false;
+  END IF;
+
+  RETURN true;
+END;
+
+
+CREATE FUNCTION CleanName(_name VARCHAR(64))
+RETURNS VARCHAR(64)
+NOT DETERMINISTIC
+BEGIN
+  SET @remove = '!#$%&*+-/=?^`{|}~ \''; -- '
+  SET @i = LENGTH(@remove);
+
+  WHILE @i DO
+    SET _name = REPLACE(_name, SUBSTR(@remove, @i, 1), '.');
+    SET @i = @i - 1;
+  END WHILE;
+
+  SET @last = 0;
+  WHILE @last != LENGTH(_name) DO
+    SET @last = LENGTH(_name);
+    SET _name = REPLACE(_name, '..', '.');
+  END WHILE;
+
+  SET _name = TRIM('.' FROM _name);
+
+  IF @last = 0 THEN
+    RETURN null;
+  END IF;
+
+  RETURN _name;
+END;
+
+
+CREATE FUNCTION NameSetAdd(_set VARCHAR(256), _name VARCHAR(64))
+RETURNS VARCHAR(256)
+NOT DETERMINISTIC
+BEGIN
+  SET _name = CleanName(_name);
+
+  IF _name IS null OR FIND_IN_SET(_name, _set) != 0 THEN
+    RETURN _set;
+  END IF;
+
+  RETURN CONCAT_WS(',', _set, _name);
+END;
+
+
+CREATE PROCEDURE Available(IN _name VARCHAR(64))
+BEGIN
+  SELECT NameAllowed(_name);
+END;
+
+
+CREATE PROCEDURE Suggest(IN _provider VARCHAR(16), IN _id VARCHAR(256),
+  IN _total INT)
+BEGIN
+  DECLARE i INT;
+  DECLARE j INT;
+  DECLARE r INT;
+  DECLARE n INT;
+  DECLARE count INT;
+  DECLARE candidate VARCHAR(64);
+  DECLARE suggest VARCHAR(256);
+  DECLARE first VARCHAR(64);
+  DECLARE last VARCHAR(64);
+  DECLARE _name VARCHAR(64);
+  DECLARE _email VARCHAR(256);
+
+  IF _total IS null THEN
+    SET _total = 5;
+  END IF;
+
+  -- Lookup association
+  SELECT a.name, a.email FROM associations AS a
+    WHERE provider = _provider AND id = _id
+    INTO _name, _email;
+
+  -- Suggestions from email
+  SET _email = REPLACE(LCASE(SUBSTRING_INDEX(TRIM(_email), '@', 1)), ',', ' ');
+  SET suggest = NameSetAdd(suggest, _email);
+
+  -- Suggestions from name
+  SET _name = REPLACE(TRIM(LCASE(_name)), ',', ' ');
+
+  IF LOCATE(' ', _name) != 0 THEN
+    SET first = SUBSTRING_INDEX(_name, ' ', 1);
+    SET last = SUBSTRING_INDEX(_name, ' ', -1);
+
+    SET suggest = NameSetAdd(suggest, CONCAT(first, '.', last));
+    SET suggest = NameSetAdd(suggest, CONCAT(last, '.', first));
+    SET suggest = NameSetAdd(suggest, CONCAT(LEFT(first, 1), last));
+    SET suggest = NameSetAdd(suggest, CONCAT(first, last));
+    SET suggest = NameSetAdd(suggest, CONCAT(last, first));
+
+  ELSE
+    SET suggest = NameSetAdd(suggest, _name);
+  END IF;
+
+  -- Get number of suggestions
+  SET n = LENGTH(suggest) - LENGTH(REPLACE(suggest, ',', '')) + 1;
+
+  -- Create temporary table
+  DROP TABLE IF EXISTS suggestions;
+  CREATE TEMPORARY TABLE suggestions (
+    name VARCHAR(64) NOT NULL UNIQUE
+  ) ENGINE=memory;
+
+  -- Look up suggestions
+  SET i = 0;
+  SET j = 0;
+  SET r = 0;
+  SET count = 0;
+
+  WHILE count < _total AND i < 100 DO
+    SET candidate =
+      SUBSTRING_INDEX(SUBSTRING_INDEX(suggest, ',', j + 1), ',', -1);
+
+    IF r != 0 THEN
+      SET candidate = CONCAT(candidate, r);
+    END IF;
+
+    IF NameAllowed(candidate) THEN
+      INSERT INTO suggestions VALUES (candidate)
+        ON DUPLICATE KEY UPDATE name = name;
+      SET count = count + ROW_COUNT();
+    END IF;
+
+    SET i = i + 1;
+    SET j = j + 1;
+
+    IF j = n THEN
+      SET j = 0;
+      SET r = CEIL(RAND() * 99);
+    END IF;
+  END WHILE;
+
+  -- Return results
+  SELECT * FROM suggestions;
+
+  -- Drop table
+  DROP TABLE suggestions;
+END;
+
+
 -- Profile
+CREATE PROCEDURE GetUser(IN _provider VARCHAR(16), IN _id VARCHAR(64))
+BEGIN
+  SELECT profile_id INTO @profile_id FROM associations
+    WHERE provider = _provider AND id = _id;
+
+  SELECT * FROM profiles
+    WHERE id = @profile_id AND NOT disabled AND NOT redirect;
+
+  IF FOUND_ROWS() != 1 THEN
+    SELECT name, email, avatar FROM associations
+      WHERE provider = _provider AND id = _id;
+
+    IF FOUND_ROWS() != 1 THEN
+      SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
+        SET MESSAGE_TEXT = 'User not found';
+    END IF;
+  END IF;
+END;
+
+
 CREATE PROCEDURE GetProfileID(INOUT _name VARCHAR(64))
 BEGIN
   SELECT id FROM profiles

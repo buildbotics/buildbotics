@@ -32,7 +32,7 @@ dev: public/api.html public/css/api.css
 node_modules:
 	npm install
 
-public/%.html: views/%.jade $(wildcard views/include/*.jade) node_modules
+public/%.html: views/%.jade $(wildcard views/include/*.jade) $(wildcard views/dialogs/*.jade) node_modules
 	$(JADE) $< >$@ || rm $@
 
 public/css/%.css: styles/%.styl public/css node_modules

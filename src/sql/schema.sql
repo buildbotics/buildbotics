@@ -9,24 +9,69 @@ CREATE TABLE IF NOT EXISTS config (
 );
 
 
+CREATE TABLE IF NOT EXISTS notifications (
+  id INT AUTO_INCREMENT,
+  name VARCHAR(64),
+  PRIMARY KEY (id)
+) AUTO_INCREMENT = 0;
+
+
+CREATE TABLE IF NOT EXISTS authorizations (
+  id INT AUTO_INCREMENT,
+  name VARCHAR(64),
+  PRIMARY KEY (id)
+) AUTO_INCREMENT = 0;
+
+
 CREATE TABLE IF NOT EXISTS profiles (
-  `id`            INT AUTO_INCREMENT,
-  `name`          VARCHAR(64) NOT NULL UNIQUE,
-  `joined`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `disabled`      BOOL DEFAULT false,
-  `redirect`      BOOL DEFAULT false,
-  `profile`       MEDIUMTEXT,
-  `associations`  BLOB,
-  `emails`        BLOB,
-  `notifications` BLOB,
-  `points`        INT NOT NULL DEFAULT 0,
-  `followers`     INT NOT NULL DEFAULT 0,
-  `following`     INT NOT NULL DEFAULT 0,
-  `stars`         INT NOT NULL DEFAULT 0,
-  `badges`        INT NOT NULL DEFAULT 0,
+  `id`             INT AUTO_INCREMENT,
+  `name`           VARCHAR(64) NOT NULL UNIQUE,
+  `joined`         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `lastlog`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `disabled`       BOOL NOT NULL DEFAULT false,
+  `redirect`       BOOL NOT NULL DEFAULT false,
+  `fullname`       VARCHAR(256),
+  `location`       VARCHAR(256),
+  `avatar`         VARCHAR(256),
+  `email`          VARCHAR(256),
+  `url`            VARCHAR(256),
+  `bio`            TEXT,
+  `authorizations` BIT(64) NOT NULL DEFAULT 0,
+  `notifications`  BIT(64) NOT NULL DEFAULT 0,
+  `points`         INT NOT NULL DEFAULT 0,
+  `followers`      INT NOT NULL DEFAULT 0,
+  `following`      INT NOT NULL DEFAULT 0,
+  `stars`          INT NOT NULL DEFAULT 0,
+  `badges`         INT NOT NULL DEFAULT 0,
 
   PRIMARY KEY (`id`),
-  FULLTEXT KEY `text` (`name`, `profile`)
+  FULLTEXT KEY `text` (`name`, `fullname`, `location`, `bio`)
+);
+
+
+CREATE TABLE IF NOT EXISTS providers (
+  name VARCHAR(16),
+  PRIMARY KEY (name)
+);
+
+
+INSERT INTO providers
+  VALUES ('google'), ('github'), ('facebook'), ('twitter')
+  ON DUPLICATE KEY UPDATE name = name;
+
+
+
+CREATE TABLE IF NOT EXISTS associations (
+  provider   VARCHAR(16) NOT NULL,
+  id         VARCHAR(64) NOT NULL,
+  name       VARCHAR(256) NOT NULL,
+  email      VARCHAR(256) NOT NULL,
+  avatar     VARCHAR(256) NOT NULL,
+  profile_id INT,
+
+  PRIMARY KEY (provider, id),
+  FOREIGN KEY (provider) REFERENCES providers(name) ON DELETE CASCADE,
+  FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
 
 

@@ -38,12 +38,15 @@
 #include <cbang/event/OAuth2Login.h>
 #include <cbang/db/maria/EventDBCallback.h>
 
-#include <cbang/json/JSON.h>
 
 namespace cb {
   class OAuth2Login;
   namespace MariaDB {class EventDB;}
-  namespace JSON {class Writer;}
+  namespace JSON {
+    class Sync;
+    class Writer;
+    class Value;
+  }
 }
 
 
@@ -63,17 +66,24 @@ namespace BuildBotics {
     void lookupUser(bool skipAuthCheck = false);
     typedef typename cb::MariaDB::EventDBMemberFunctor<Transaction>::member_t
     event_db_member_functor_t;
-    void query(event_db_member_functor_t member, const std::string &s);
+    void query(event_db_member_functor_t member, const std::string &s,
+               const cb::SmartPointer<cb::JSON::Value> &dict = 0);
 
-    void apiError(int code, const std::string &msg);
+    void apiError(int status, int code, const std::string &msg);
+    bool pleaseLogin();
 
     // From cb::Event::OAuth2Login
     void processProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
 
     // Event::WebServer request callbacks
-    bool apiAuthUser(const cb::JSON::ValuePtr &msg, cb::JSON::Sync &sync);
+    bool apiAuthUser();
     bool apiAuthLogin();
     bool apiAuthLogout();
+
+    bool apiNameRegister();
+    bool apiNameAvailable();
+    bool apiNameSuggest();
+
     bool apiProjects();
 
     bool apiGetTags();
@@ -83,8 +93,11 @@ namespace BuildBotics {
     bool apiNotFound();
 
     // MariaDB::EventDB callbacks
+    void login(cb::MariaDB::EventDBCallback::state_t state);
+    void getUser(cb::MariaDB::EventDBCallback::state_t state);
     void returnOK(cb::MariaDB::EventDBCallback::state_t state);
     void returnList(cb::MariaDB::EventDBCallback::state_t state);
+    void returnBool(cb::MariaDB::EventDBCallback::state_t state);
     void returnJSON(cb::MariaDB::EventDBCallback::state_t state);
   };
 }

@@ -52,25 +52,25 @@ void UserManager::cleanup() {
 SmartPointer<User> UserManager::create() {
   SmartPointer<User> user = new User(app);
 
-  if (!users.insert(users_t::value_type(user->getID(), user)).second)
-    THROWS("User ID already exists: " << user->getID());
+  if (!users.insert(users_t::value_type(user->getSession(), user)).second)
+    THROWS("User session already exists: " << user->getSession());
 
   return user;
 }
 
 
-SmartPointer<User> UserManager::get(const string &id) {
-  users_t::iterator it = users.find(id);
+SmartPointer<User> UserManager::get(const string &session) {
+  users_t::iterator it = users.find(session);
   if (it != users.end()) return it->second;
 
-  // Decode ID and create user if valid
+  // Decode session and create user if valid
   try {
-    SmartPointer<User> user = new User(app, id);
+    SmartPointer<User> user = new User(app, session);
 
     // TODO look up user profile in DB
 
     // Add user
-    return users.insert(users_t::value_type(id, user)).first->second;
+    return users.insert(users_t::value_type(session, user)).first->second;
 
   } CATCH_ERROR;
 
@@ -78,14 +78,14 @@ SmartPointer<User> UserManager::get(const string &id) {
 }
 
 
-void UserManager::updateID(const SmartPointer<User> &user) {
-  string oldID = user->getID();
-  string newID = user->updateID();
+void UserManager::updateSession(const SmartPointer<User> &user) {
+  string oldSession = user->getSession();
+  string newSession = user->updateSession();
 
-  // Insert user under new ID
-  if (!users.insert(users_t::value_type(newID, user)).second)
-    THROWS("User ID already exists " << newID);
+  // Insert user under new session
+  if (!users.insert(users_t::value_type(newSession, user)).second)
+    THROWS("User session already exists " << newSession);
 
-  // Remove user under old ID
-  users.erase(oldID);
+  // Remove user under old Session
+  users.erase(oldSession);
 }
