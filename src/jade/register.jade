@@ -6,7 +6,7 @@ script(type='text/ng-template', id='register.html')
     .modal-body
       ng-form(name='username', novalidate, role='form')
         .form-group.input-group-lg
-          label.control-label(for='course') User name:
+          label.control-label User name:
           input.form-control(type='text' name='username' ng-model='user.name'
             required username ng-keyup='hitEnter($event)'
             ng-model-options='{debounce: 1000}')

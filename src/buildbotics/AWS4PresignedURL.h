@@ -29,34 +29,40 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_SERVER_H
-#define BUILDBOTICS_SERVER_H
+#ifndef BUILDBOTICS_AWS4_PRESIGNED_URL_H
+#define BUILDBOTICS_AWS4_PRESIGNED_URL_H
 
-#include <cbang/event/WebServer.h>
+#include "AWS4Signature.h"
+
+#include <cbang/net/URI.h>
+#include <cbang/http/RequestMethod.h>
+
+#include <map>
 
 
-namespace BuildBotics {
-  class App;
-  class User;
+namespace Buildbotics {
+  class AWS4PresignedURL : public AWS4Signature, public cb::URI {
+    cb::HTTP::RequestMethod method;
 
-  class Server : public cb::Event::WebServer {
-    App &app;
+    typedef std::map<std::string, std::string> signed_headers_t;
+    signed_headers_t signedHeaders;
 
   public:
-    Server(App &app);
+    AWS4PresignedURL(const cb::URI &resource, cb::HTTP::RequestMethod method,
+                     unsigned expires, uint64_t ts = cb::Time::now(),
+                     const std::string &service = "s3",
+                     const std::string &region = "us-east-1");
 
-    void init();
+    void setMethod(cb::HTTP::RequestMethod method) {this->method = method;}
+    cb::HTTP::RequestMethod getMethod() const {return method;}
 
+    void clearSignedHeaders();
+    void setSignedHeader(const std::string &name, const std::string &value);
+    const std::string &getSignedHeader(const std::string &name) const;
 
-    // From cb::Event::HTTPHandlerGroup
-    using cb::Event::WebServer::addHandler;
-    void addHandler(unsigned methods, const std::string &pattern,
-                    const cb::SmartPointer<HTTPHandler> &handler);
-
-    // From cb::Event::HTTPHandler
-    cb::Event::Request *createRequest(evhttp_request *req);
+    void sign(const std::string &id, const std::string &secret);
   };
 }
 
-#endif // BUILDBOTICS_SERVER_H
+#endif // BUILDBOTICS_AWS4_PRESIGNED_URL_H
 

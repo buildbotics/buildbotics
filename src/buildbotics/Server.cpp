@@ -32,6 +32,8 @@
 #include "Server.h"
 #include "App.h"
 #include "Transaction.h"
+#include "HTTPRE2Matcher.h"
+#include "HTTPHandlerFactory.h"
 
 #include <cbang/security/SSLContext.h>
 
@@ -56,7 +58,8 @@ namespace BuildBotics {
 
 
 Server::Server(App &app) :
-  Event::WebServer(app.getOptions(), app.getEventBase(), new SSLContext),
+  Event::WebServer(app.getOptions(), app.getEventBase(), new SSLContext,
+                   new HTTPHandlerFactory),
   app(app) {
 }
 
@@ -76,22 +79,35 @@ void Server::init() {
 #define ADD_TM(METHODS, PATTERN, FUNC) \
   api.addMember<Transaction> (METHODS, PATTERN, &Transaction::FUNC)
 
+  // Auth
   ADD_TM(HTTP_GET, "/api/auth/user", apiAuthUser);
   ADD_TM(HTTP_GET | HTTP_POST,
-         "/api/auth/((google)|(github)|(twitter)|(facebook))(/callback)?",
-         apiAuthLogin);
+         "/api/auth/(?P<provider>(google)|(github)|(twitter)|(facebook))"
+         "(/callback)?", apiAuthLogin);
   ADD_TM(HTTP_GET, "/api/auth/logout", apiAuthLogout);
 
-  ADD_TM(HTTP_PUT, "/api/name/register/([\\w_.]+)", apiNameRegister);
-  ADD_TM(HTTP_GET, "/api/name/available/([\\w_.]+)", apiNameAvailable);
+  // Names
+  ADD_TM(HTTP_PUT, "/api/name/register/(?P<name>[\\w_.]+)", apiNameRegister);
+  ADD_TM(HTTP_GET, "/api/name/available/(?P<name>[\\w_.]+)", apiNameAvailable);
   ADD_TM(HTTP_GET, "/api/name/suggestions", apiNameSuggest);
 
+  // Projects
   ADD_TM(HTTP_GET, "/api/projects", apiProjects);
 
-  ADD_TM(HTTP_GET, "/api/tags", apiGetTags);
-  ADD_TM(HTTP_PUT, "/api/tags/(\\w+)", apiAddTag);
-  ADD_TM(HTTP_DELETE, "/api/tags/(\\w+)", apiDeleteTag);
+  // Files
+  const char *filePattern =
+    "/api/profiles/(?P<profile>[\\w_.]+)/"
+    "(?P<type>(projects)|(machines)|(tools))/"
+    "(?P<thing>[\\w_.]+)/files/(?P<file>[\\w_.]+)";
+  ADD_TM(HTTP_PUT, filePattern, apiPutFile);
+  ADD_TM(HTTP_DELETE, filePattern, apiDeleteFile);
 
+  // Tags
+  ADD_TM(HTTP_GET, "/api/tags", apiGetTags);
+  ADD_TM(HTTP_PUT, "/api/tags/(?P<tag>\\w+)", apiAddTag);
+  ADD_TM(HTTP_DELETE, "/api/tags/(?P<tag>\\w+)", apiDeleteTag);
+
+  // Not found
   ADD_TM(HTTP_ANY, "", apiNotFound);
 
   if (app.getOptions()["document-root"].hasValue()) {
@@ -104,6 +120,12 @@ void Server::init() {
     addHandler(*resource0.find("http"));
     addHandler(*resource0.find("http/index.html"));
   }
+}
+
+
+void Server::addHandler(unsigned methods, const string &pattern,
+                        const SmartPointer<HTTPHandler> &handler) {
+  addHandler(new HTTPRE2Matcher(methods, pattern, handler));
 }
 
 

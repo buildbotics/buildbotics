@@ -86,6 +86,12 @@ App::App() :
   options.addTarget("db-timeout", dbTimeout, "DB timeout");
   options.popCategory();
 
+  options.pushCategory("Amazon Web Services");
+  options.add("aws-access-key-id", "AWS access key ID");
+  options.add("aws-secret-access-key", "AWS secret access key");
+  options.add("aws-bucket", "AWS bucket name");
+  options.popCategory();
+
   // Seed random number generator
   srand48(Time::now());
 

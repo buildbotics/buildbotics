@@ -33,11 +33,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   `fullname`       VARCHAR(256),
   `location`       VARCHAR(256),
   `avatar`         VARCHAR(256),
-  `email`          VARCHAR(256),
   `url`            VARCHAR(256),
   `bio`            TEXT,
-  `authorizations` BIT(64) NOT NULL DEFAULT 0,
-  `notifications`  BIT(64) NOT NULL DEFAULT 0,
   `points`         INT NOT NULL DEFAULT 0,
   `followers`      INT NOT NULL DEFAULT 0,
   `following`      INT NOT NULL DEFAULT 0,
@@ -46,6 +43,17 @@ CREATE TABLE IF NOT EXISTS profiles (
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`name`, `fullname`, `location`, `bio`)
+);
+
+
+CREATE TABLE IF NOT EXISTS settings (
+  id             INT,
+  email          VARCHAR(256),
+  authorizations BIT(64) NOT NULL DEFAULT 0,
+  notifications  BIT(64) NOT NULL DEFAULT 0,
+
+  PRIMARY KEY (id),
+  FOREIGN KEY (id) REFERENCES profiles(id) ON DELETE CASCADE
 );
 
 
@@ -85,45 +93,80 @@ CREATE TABLE IF NOT EXISTS followers (
 );
 
 
+CREATE TABLE IF NOT EXISTS licenses (
+  `name`           VARCHAR(64),
+  `url`            VARCHAR(256),
+  `brief`          TEXT,
+  `description`    MEDIUMTEXT,
+  `shareable`      BOOL NOT NULL DEFAULT true,
+  `commercial_use` BOOL NOT NULL DEFAULT true,
+  `attribution`    BOOL NOT NULL DEFAULT false,
+
+  PRIMARY KEY (`name`)
+);
+
+
 CREATE TABLE IF NOT EXISTS thing_type (
   `name` CHAR(8) PRIMARY KEY
 );
 
 
 INSERT INTO thing_type
-  VALUES ('project'), ('machine'), ('tool'), ('step')
+  VALUES ('project'), ('machine'), ('tool')
   ON DUPLICATE KEY UPDATE name = name;
 
 
 CREATE TABLE IF NOT EXISTS things (
-  `id`        INT NOT NULL AUTO_INCREMENT,
-  `owner_id`  INT NOT NULL,
-  `parent_id` INT,
-  `name`      VARCHAR(64) NOT NULL,
-  `type`      CHAR(8),
-  `published` BOOL DEFAULT false,
-  `redirect`  BOOL DEFAULT false,
-  `created`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `modified`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `brief`     VARCHAR(256) DEFAULT '',
-  `text`      TEXT DEFAULT '',
-  `tags`      TEXT DEFAULT '',
-  `comments`  INT NOT NULL DEFAULT 0,
-  `stars`     INT NOT NULL DEFAULT 0,
-  `value`     MEDIUMBLOB,
+  `id`         INT NOT NULL AUTO_INCREMENT,
+  `owner_id`   INT NOT NULL,
+  `parent_id`  INT,
+  `name`       VARCHAR(64) NOT NULL,
+  `type`       CHAR(8),
+  `published`  BOOL DEFAULT false,
+  `redirect`   BOOL DEFAULT false,
+  `created`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `modified`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `brief`      VARCHAR(256) DEFAULT '',
+  `url`        VARCHAR(256) DEFAULT '',
+  `text`       TEXT DEFAULT '',
+  `tags`       TEXT DEFAULT '',
+  `comments`   INT NOT NULL DEFAULT 0,
+  `stars`      INT NOT NULL DEFAULT 0,
+  `children`   INT NOT NULL DEFAULT 0,
+  `license`    VARCHAR(64),
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`name`, `brief`, `text`, `tags`),
   UNIQUE (`owner_id`, `type`, `name`),
-  FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`),
-  FOREIGN KEY (`parent_id`) REFERENCES things(`id`),
-  FOREIGN KEY (`type`) REFERENCES thing_type(`name`)
+  FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`parent_id`) REFERENCES things(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`type`) REFERENCES thing_type(`name`) ON DELETE SET NULL,
+  FOREIGN KEY (`license`) REFERENCES licenses(`name`) ON DELETE SET NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS steps (
+  `id`         INT NOT NULL AUTO_INCREMENT,
+  `owner_id`   INT NOT NULL,
+  `thing_id`   INT NOT NULL,
+  `name`       VARCHAR(64) NOT NULL,
+  `created`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `modified`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `position`   INT DEFAULT 0,
+  `text`       TEXT DEFAULT '',
+
+  PRIMARY KEY (`id`),
+  FULLTEXT KEY `text` (`name`, `text`),
+  UNIQUE (`thing_id`, `name`),
+  FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`thing_id`) REFERENCES things(`id`) ON DELETE CASCADE
 );
 
 
 CREATE TABLE IF NOT EXISTS stars (
   `profile_id` INT NOT NULL,
-  `thing_id` INT NOT NULL,
+  `thing_id`   INT NOT NULL,
+  `created`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`profile_id`, `thing_id`),
   FOREIGN KEY (`profile_id`) REFERENCES profiles(id) ON DELETE CASCADE,
@@ -135,13 +178,18 @@ CREATE TABLE IF NOT EXISTS comments (
   `id`        INT NOT NULL AUTO_INCREMENT,
   `owner_id`  INT NOT NULL,
   `thing_id`  INT NOT NULL,
+  `step_id`   INT,
   `creation`  TIMESTAMP NOT NULL,
   `modified`  TIMESTAMP NOT NULL,
   `ref`       INT,
   `text`      TEXT DEFAULT '',
 
   PRIMARY KEY (`id`),
-  FULLTEXT KEY `text` (`text`)
+  FULLTEXT KEY `text` (`text`),
+  FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`thing_id`) REFERENCES things(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`step_id`) REFERENCES steps(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`ref`) REFERENCES comments(`id`) ON DELETE SET NULL
 );
 
 
@@ -154,19 +202,12 @@ CREATE TABLE IF NOT EXISTS tags (
 );
 
 
-CREATE TABLE IF NOT EXISTS licenses (
-  `name`  VARCHAR(64),
-  `value` BLOB,
-
-  PRIMARY KEY (`name`)
-);
-
-
 CREATE TABLE IF NOT EXISTS badges (
-  `id`     INT NOT NULL AUTO_INCREMENT,
-  `name`   VARCHAR(64) NOT NULL UNIQUE,
-  `issued` INT DEFAULT 0,
-  `value`  BLOB,
+  `id`          INT NOT NULL AUTO_INCREMENT,
+  `name`        VARCHAR(64) NOT NULL UNIQUE,
+  `issued`      INT DEFAULT 0,
+  `points`      INT DEFAULT 0,
+  `description` VARCHAR(256),
 
   PRIMARY KEY (`id`)
 );
@@ -178,15 +219,27 @@ CREATE TABLE IF NOT EXISTS profile_badges (
 
   PRIMARY KEY (`profile_id`, `badge_id`),
   FOREIGN KEY (`profile_id`) REFERENCES profiles(id) ON DELETE CASCADE,
-  FOREIGN KEY (`badge_id`)   REFERENCES tags(id) ON DELETE CASCADE
+  FOREIGN KEY (`badge_id`) REFERENCES badges(id) ON DELETE CASCADE
 );
 
 
 CREATE TABLE IF NOT EXISTS files (
-  `id`    INT NOT NULL AUTO_INCREMENT,
-  `value` BLOB,
+  `id`        INT NOT NULL AUTO_INCREMENT,
+  `thing_id`  INT NOT NULL,
+  `step_id`   INT,
+  `name`      VARCHAR(256) NOT NULL,
+  `type`      VARCHAR(64) NOT NULL,
+  `url`       VARCHAR(256) NOT NULL,
+  `caption`   VARCHAR(256) NOT NULL,
+  `display`   BOOL NOT NULL DEFAULT true,
+  `creation`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `downloads` INT NOT NULL DEFAULT 0,
+  `position`  INT DEFAULT 0,
 
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE (`thing_id`, `name`),
+  FOREIGN KEY (`thing_id`) REFERENCES things(id) ON DELETE CASCADE,
+  FOREIGN KEY (`step_id`) REFERENCES steps(id) ON DELETE CASCADE
 );
 
 
@@ -200,7 +253,7 @@ CREATE TABLE IF NOT EXISTS events (
   target_owner_id INT,
   url       VARCHAR(256),
   points    INT,
-  ts        TIMESTAMP NOT NULL,
+  ts        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   summary   VARCHAR(256),
 
   PRIMARY KEY (id, owner_id)

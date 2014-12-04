@@ -1,8 +1,90 @@
 #project(ng-controller='ProjectCtrl')
-  h2 {{project.title}}
-  h3 Created by&nbsp;
-    a(href='/{{project.author}}') {{project.author}}
+  .header
+    include ./likes.jade
 
-  img(src='{{project.image}}')
+    .path
+      a(href='/{{project.owner}}') {{project.owner}}
+      | &nbsp;/&nbsp;
+      a(href='/{{project.owner}}/{{project.name}}') {{project.name}}
 
-  include ./likes.jade
+  hr
+
+  .title
+    .title-view.edit-row(ng-show='!edit.title')
+      button.btn(ng-show='is_owner' ng-click="edit('title')") Edit
+      h1 {{project.title}}
+
+    ng-form.title-edit.input-group(ng-show='edit.title')
+      input.form-control(type='text' name='title' ng-model='project.title')
+      span.input-group-btn
+        button.btn.btn-primary(ng-click="save('title')") Save
+        button.btn(ng-click="cancel('title')") Cancel
+
+  hr
+
+  .content
+    .images
+      .edit-row
+        button.btn(ng-show='is_owner' ng-click="edit('images')") Edit
+        h3 Images
+      carousel(ng-show='project.images.length' interval='5000')
+        slide(ng-repeat='image in project.images')
+          img(ng-src='{{image.url}}')
+          .carousel-caption {{image.caption}}
+
+    ng-form(name='description' role='form')
+      .edit-row
+        button.btn(ng-show='edit.description'
+          ng-click="cancel('description')") Cancel
+        button.btn.btn-primary(ng-show='edit.description'
+          ng-click="save('description')") Save
+        button.btn(ng-show='!edit.description && is_owner'
+          ng-click="edit('description')") Edit
+        h3 Description
+      markdowneditor(ng-show='edit.description' ng-model='project.description')
+      markdown(ng-show='!edit.description' ng-model='project.description')
+
+    .files
+      .edit-row
+        button.btn(ng-show='is_owner' ng-click="edit('files')") Edit
+        h3 Files
+
+  .sidebar
+    button.btn.btn-primary(ng-show='is_owner' ng-click='publish()') Publish
+
+    .license
+      div(ng-class='{edit: is_owner}' ng-click="edit('license', true)")
+        span.fa.fa-gear(ng-show='is_owner')
+        h3 License
+
+      bb-modal(title='Set license' ng-show='edit.license'
+        on-close="save('license')")
+        select.form-control(ng-model='project.license'
+          on-enter="save('license')")
+          option(ng-repeat='license in licenses' value='{{license.name}}')
+            | {{license.name}}
+
+      div {{project.license}}
+
+
+    hr
+
+    .link
+      div(ng-class='{edit: is_owner}' ng-click="edit('link', true)")
+        span.fa.fa-gear(ng-show='is_owner')
+        h3 Link
+
+      bb-modal(title='Set link' ng-show='edit.link' on-close="save('link')")
+        input.form-control(type='text' ng-model='project.url'
+          on-enter="save('link')")
+
+      a(href='{{project.url}}') {{project.url}}
+
+    hr
+
+    .tags
+      div(ng-class='{edit: is_owner}' ng-click="edit('tags', true)")
+        span.fa.fa-gear(ng-show='is_owner')
+        h3 Tags
+      button.btn.btn-default.tag(ng-repeat='tag in project.tags') {{tag}}
+

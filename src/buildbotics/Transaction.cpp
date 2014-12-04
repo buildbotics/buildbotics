@@ -100,8 +100,14 @@ void Transaction::apiError(int status, int code, const string &msg) {
   LOG_ERROR(msg);
 
   // Reset output
-  if (!writer.isNull()) writer->reset();
+  if (!writer.isNull()) {
+    writer->reset();
+    writer.release();
+  }
   getOutputBuffer().clear();
+
+  // Drop DB connection
+  if (!db.isNull()) db->close();
 
   // Error message
   writer = getJSONWriter();
@@ -151,7 +157,7 @@ bool Transaction::apiAuthUser() {
     dict->insert("provider", user->getProvider());
     dict->insert("id", user->getID());
 
-    query(&Transaction::returnJSON, "CALL GetUser(%(provider)s, %(id)s)", dict);
+    query(&Transaction::profile, "CALL GetUser(%(provider)s, %(id)s)", dict);
 
   } else pleaseLogin();
 
@@ -199,11 +205,10 @@ bool Transaction::apiNameRegister() {
   if (user.isNull()) return pleaseLogin();
 
   SmartPointer<JSON::Dict> dict = new JSON::Dict;
-  dict->insert("name", getPathArg(0));
+  dict->insert("name", getArg("name"));
   dict->insert("provider", user->getProvider());
   dict->insert("id", user->getID());
 
-  // TODO validate name
   query(&Transaction::returnOK,
         "CALL Register(%(name)s, %(provider)s, %(id)s)", dict);
   return true;
@@ -211,10 +216,7 @@ bool Transaction::apiNameRegister() {
 
 
 bool Transaction::apiNameAvailable() {
-  SmartPointer<JSON::Dict> dict = new JSON::Dict;
-  dict->insert("name", getPathArg(0));
-
-  query(&Transaction::returnBool, "CALL Available(%(name)s)", dict);
+  query(&Transaction::returnBool, "CALL Available(%(name)s)", getArgs().copy());
   return true;
 }
 
@@ -241,6 +243,31 @@ bool Transaction::apiProjects() {
 }
 
 
+bool Transaction::apiPutFile() {
+  // Create URL
+  string url = "http://example.com/";
+
+  // Create policy
+
+  // Encode policy
+
+  // Write to DB
+  JSON::ValuePtr args = getArgs().copy();
+  args->insert("url", url);
+
+  query(&Transaction::returnList,
+        "CALL CreateFile(%(profile)s, %(thing)s, %(type)s, null, %(file)s, "
+        "%(type)s, %(url)s, %(caption)s, %(display)b)", args);
+
+  return true;
+}
+
+
+bool Transaction::apiDeleteFile() {
+  return true;
+}
+
+
 bool Transaction::apiGetTags() {
   query(&Transaction::returnList, "CALL GetTags()");
   return true;
@@ -248,14 +275,14 @@ bool Transaction::apiGetTags() {
 
 
 bool Transaction::apiAddTag() {
-  string tag = getPathArg(0);
+  string tag = getArg("tag");
   query(&Transaction::returnOK, "CALL AddTag('" + tag + "')");
   return true;
 }
 
 
 bool Transaction::apiDeleteTag() {
-  string tag = getPathArg(0);
+  string tag = getArg("tag");
   query(&Transaction::returnOK, "CALL DeleteTag('" + tag + "')");
   return true;
 }
@@ -282,13 +309,46 @@ void Transaction::login(MariaDB::EventDBCallback::state_t state) {
 }
 
 
-void Transaction::getUser(MariaDB::EventDBCallback::state_t state) {
+void Transaction::profile(MariaDB::EventDBCallback::state_t state) {
+  string fieldName;
+  if (db->haveResult() && db->getFieldCount())
+    fieldName = db->getField(0).getName();
+
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_ROW:
-    // TODO
-    return;
+    if (fieldName == "name") {
+      writer->insertDict("profile");
+      db->insertRow(*writer);
+      writer->endDict();
 
-  default: returnJSON(state); return;
+    } else {
+      writer->beginAppend();
+      db->writeRowList(*writer);
+    }
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
+    if (writer.isNull()) {
+      writer = getJSONWriter();
+      writer->beginDict();
+    }
+
+    if (fieldName == "follower") writer->insertList("followers");
+    else if (fieldName == "followed") writer->insertList("following");
+    else if (fieldName == "thing") writer->insertList("starred");
+    else if (fieldName == "badge") writer->insertList("badges");
+    else if (fieldName != "name") THROWS("Unexpected result set " << fieldName);
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+    if (writer->inList()) writer->endList();
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_DONE:
+    writer->endDict();
+    // Fall through
+
+  default: return returnJSON(state);
   }
 }
 
@@ -350,7 +410,7 @@ void Transaction::returnJSON(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_ROW:
     if (db->getFieldCount() == 1) db->writeField(*writer, 0);
-    else db->writeRowDict(*writer, "id");
+    else db->writeRowDict(*writer);
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_DONE:

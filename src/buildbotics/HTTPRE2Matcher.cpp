@@ -29,34 +29,52 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_SERVER_H
-#define BUILDBOTICS_SERVER_H
+#include "HTTPRE2Matcher.h"
 
-#include <cbang/event/WebServer.h>
+#include <cbang/Exception.h>
+#include <cbang/event/Request.h>
 
+#include <vector>
 
-namespace BuildBotics {
-  class App;
-  class User;
-
-  class Server : public cb::Event::WebServer {
-    App &app;
-
-  public:
-    Server(App &app);
-
-    void init();
+using namespace std;
+using namespace cb;
+using namespace BuildBotics;
 
 
-    // From cb::Event::HTTPHandlerGroup
-    using cb::Event::WebServer::addHandler;
-    void addHandler(unsigned methods, const std::string &pattern,
-                    const cb::SmartPointer<HTTPHandler> &handler);
-
-    // From cb::Event::HTTPHandler
-    cb::Event::Request *createRequest(evhttp_request *req);
-  };
+HTTPRE2Matcher::HTTPRE2Matcher(unsigned methods, const string &pattern,
+                               const SmartPointer<Event::HTTPHandler> &child) :
+  methods(methods), matchAll(pattern.empty()), regex(pattern), child(child) {
+  if (regex.error_code()) THROWS("Failed to compile RE2: " << regex.error());
 }
 
-#endif // BUILDBOTICS_SERVER_H
 
+bool HTTPRE2Matcher::operator()(Event::Request &req) {
+  if (!(methods & req.getMethod())) return false;
+
+  if (!matchAll) {
+    int n = regex.NumberOfCapturingGroups();
+    vector<RE2::Arg> args(n);
+    vector<RE2::Arg *> argPtrs(n);
+    vector<string> results(n);
+
+    // Connect args
+    for (int i = 0; i < n; i++) {
+      args[i] = &results[i];
+      argPtrs[i] = &args[i];
+    }
+
+    // Attempt match
+    re2::StringPiece piece(req.getURI().getPath());
+    if (!RE2::FindAndConsumeN(&piece, regex, argPtrs.data(), n))
+      return false;
+
+    // Store results
+    const map<int, string> &names = regex.CapturingGroupNames();
+    for (int i = 0; i < n; i++)
+      if (names.find(i + 1) != names.end())
+        req.insertArg(names.at(i + 1), results[i]);
+      else req.insertArg(results[i]);
+  }
+
+  return (*child)(req);
+}

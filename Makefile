@@ -7,7 +7,7 @@ AP        := $(NODE_MODS)/autoprefixer/autoprefixer
 
 HTTP_DIR := build/public/http
 
-HTML   := api index notfound
+HTML   := api index notfound markdown-editor
 HTML   := $(patsubst %,$(HTTP_DIR)/%.html,$(HTML))
 CSS    := $(wildcard src/stylus/*.styl)
 CSS    := $(patsubst src/stylus/%.styl,$(HTTP_DIR)/css/%.css,$(CSS))

@@ -27,6 +27,9 @@ if not env.GetOption('clean') and not 'package' in COMMAND_LINE_TARGETS:
     conf.CBConfig('cbang')
     env.CBDefine('USING_CBANG') # Using CBANG macro namespace
 
+    conf.CBRequireLib('re2')
+    conf.CBRequireCXXHeader('re2/re2.h')
+
 conf.Finish()
 
 # Make resources

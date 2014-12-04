@@ -29,34 +29,56 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_SERVER_H
-#define BUILDBOTICS_SERVER_H
+#ifndef BUILDBOTICS_AWS4_POST_H
+#define BUILDBOTICS_AWS4_POST_H
 
-#include <cbang/event/WebServer.h>
+#include "AWS4Signature.h"
+
+#include <cbang/String.h>
+#include <cbang/json/Dict.h>
 
 
-namespace BuildBotics {
-  class App;
-  class User;
+namespace cb {namespace JSON {class Writer;}}
 
-  class Server : public cb::Event::WebServer {
-    App &app;
+
+namespace Buildbotics {
+  class AWS4Post : public AWS4Signature, public cb::JSON::Dict {
+    int minLength;
+    int maxLength;
+
+    struct Condition {
+      std::string name;
+      std::string value;
+      std::string op;
+
+      Condition(const std::string &name, const std::string &value,
+                const std::string &op = "eq") :
+        name(cb::String::toLower(name)), value(value), op(op) {}
+
+      void write(cb::JSON::Writer &writer) const;
+    };
+
+    std::vector<Condition> conditions;
 
   public:
-    Server(App &app);
+    AWS4Post(const std::string &bucket, const std::string &key,
+             unsigned expires, uint64_t ts = cb::Time::now(),
+             const std::string &service = "s3",
+             const std::string &region = "us-east-1");
 
-    void init();
+    void setLengthRange(int minLength, int maxLength);
 
+    void insert(const std::string &name, const std::string &value,
+                bool withCondition = true);
 
-    // From cb::Event::HTTPHandlerGroup
-    using cb::Event::WebServer::addHandler;
-    void addHandler(unsigned methods, const std::string &pattern,
-                    const cb::SmartPointer<HTTPHandler> &handler);
+    void clearConditions();
+    void addCondition(const std::string &name, const std::string &value,
+                      const std::string &op = "eq");
 
-    // From cb::Event::HTTPHandler
-    cb::Event::Request *createRequest(evhttp_request *req);
+    std::string getPolicy(const std::string &id) const;
+    void sign(const std::string &id, const std::string &secret);
   };
 }
 
-#endif // BUILDBOTICS_SERVER_H
+#endif // BUILDBOTICS_AWS4_POST_H
 

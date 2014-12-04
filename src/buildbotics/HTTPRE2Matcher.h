@@ -29,34 +29,29 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_SERVER_H
-#define BUILDBOTICS_SERVER_H
+#ifndef BUILDBOTICS_HTTPRE2_MATCHER_H
+#define BUILDBOTICS_HTTPRE2_MATCHER_H
 
-#include <cbang/event/WebServer.h>
+#include <cbang/event/HTTPHandler.h>
+
+#include <re2/re2.h>
 
 
 namespace BuildBotics {
-  class App;
-  class User;
-
-  class Server : public cb::Event::WebServer {
-    App &app;
+  class HTTPRE2Matcher : public cb::Event::HTTPHandler {
+    unsigned methods;
+    bool matchAll;
+    RE2 regex;
+    cb::SmartPointer<cb::Event::HTTPHandler> child;
 
   public:
-    Server(App &app);
-
-    void init();
-
-
-    // From cb::Event::HTTPHandlerGroup
-    using cb::Event::WebServer::addHandler;
-    void addHandler(unsigned methods, const std::string &pattern,
-                    const cb::SmartPointer<HTTPHandler> &handler);
+    HTTPRE2Matcher(unsigned methods, const std::string &pattern,
+                   const cb::SmartPointer<cb::Event::HTTPHandler> &child);
 
     // From cb::Event::HTTPHandler
-    cb::Event::Request *createRequest(evhttp_request *req);
+    bool operator()(cb::Event::Request &req);
   };
 }
 
-#endif // BUILDBOTICS_SERVER_H
+#endif // BUILDBOTICS_HTTPRE2_MATCHER_H
 

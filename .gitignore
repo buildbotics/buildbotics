@@ -9,7 +9,6 @@
 .sconsign.dblite
 
 # Misc
-buildbotics
 node_modules
 api
 build

@@ -7,7 +7,7 @@ CREATE PROCEDURE Associate(IN _provider VARCHAR(16), IN _id VARCHAR(64),
   IN _profile VARCHAR(64))
 BEGIN
   IF _profile IS NOT null THEN
-    CALL GetProfileID(_profile);
+    SET _profile = GetProfileID(_profile);
   END IF;
 
   INSERT INTO associations (provider, id, name, email, avatar, profile_id)
@@ -39,24 +39,36 @@ END;
 CREATE PROCEDURE Register(IN _name VARCHAR(64), _provider VARCHAR(16),
   _id VARCHAR(256))
 BEGIN
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION ROLLBACK;
+  DECLARE profile_id INT;
+  DECLARE avatar VARCHAR(256);
+  DECLARE email VARCHAR(256);
+
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION ROLLBACK;
 
   START TRANSACTION;
 
   IF NOT NameAllowed(_name) THEN
     SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
-      SET MESSAGE_TEXT = 'Name take or invalid';
+      SET MESSAGE_TEXT = 'Name taken or invalid';
   END IF;
 
-  SET @name = _name;
+  -- Look up association
+  SELECT a.avatar, a.email FROM associations a
+    WHERE a.provider = _provider AND a.id = _id
+    INTO avatar, email;
 
-  INSERT INTO profiles (name, avatar, email)
-    (SELECT @name, avatar, email FROM associations
-     WHERE provider = _provider AND id = _id);
+  -- Create profile
+  INSERT INTO profiles (name, avatar) VALUES (_name, avatar);
+  SET profile_id = LAST_INSERT_ID();
 
-  UPDATE associations SET profile_id = LAST_INSERT_ID()
-    WHERE provider = _provider AND id = _id;
+  -- Create settings
+  INSERT INTO settings (id, email) VALUES (profile_id, email);
 
+  -- Update association
+  UPDATE associations a SET a.profile_id = profile_id
+    WHERE a.provider = _provider AND a.id = _id;
+
+  -- Check for errors
   IF ROW_COUNT() != 1 THEN
     SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
       SET MESSAGE_TEXT = 'Association not found';
@@ -222,37 +234,64 @@ END;
 
 
 -- Profile
+CREATE FUNCTION GetProfileID(_name VARCHAR(64))
+RETURNS INT
+NOT DETERMINISTIC
+BEGIN
+  DECLARE profile_id INT;
+
+  SELECT id FROM profiles
+    WHERE name = _name AND NOT disabled AND NOT redirect INTO profile_id;
+
+  RETURN profile_id;
+END;
+
+
 CREATE PROCEDURE GetUser(IN _provider VARCHAR(16), IN _id VARCHAR(64))
 BEGIN
-  SELECT profile_id INTO @profile_id FROM associations
-    WHERE provider = _provider AND id = _id;
+  DECLARE profile_id INT;
 
-  SELECT * FROM profiles
-    WHERE id = @profile_id AND NOT disabled AND NOT redirect;
-
-  IF FOUND_ROWS() != 1 THEN
-    SELECT name, email, avatar FROM associations
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION, NOT FOUND
+  BEGIN
+    SELECT name, avatar FROM associations
       WHERE provider = _provider AND id = _id;
 
     IF FOUND_ROWS() != 1 THEN
       SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
         SET MESSAGE_TEXT = 'User not found';
     END IF;
+  END;
+
+  SELECT a.profile_id FROM associations a
+    WHERE a.provider = _provider AND a.id = _id
+    INTO profile_id;
+
+  CALL GetProfileByID(profile_id);
+END;
+
+
+CREATE PROCEDURE GetProfileByID(IN _profile_id INT)
+BEGIN
+  SELECT name, joined, lastlog, fullname, location, avatar, url, bio, points,
+    followers, following, stars, badges FROM profiles
+    WHERE id = _profile_id AND NOT disabled AND NOT redirect;
+
+  IF FOUND_ROWS() != 1 THEN
+    SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
+      SET MESSAGE_TEXT = 'Profile not found';
   END IF;
+
+  CALL GetFollowersByID(_profile_id);
+  CALL GetFollowingByID(_profile_id);
+  CALL GetStarredThingsByID(_profile_id);
+  CALL GetBadgesByID(_profile_id);
 END;
 
 
-CREATE PROCEDURE GetProfileID(INOUT _name VARCHAR(64))
+CREATE PROCEDURE GetProfile(IN _profile VARCHAR(64))
 BEGIN
-  SELECT id FROM profiles
-    WHERE name = _name AND NOT disabled AND NOT redirect INTO _name;
-END;
-
-
-CREATE PROCEDURE GetProfile(IN _name VARCHAR(64))
-BEGIN
-  SELECT * FROM profiles
-    WHERE name = _name AND NOT disabled AND NOT redirect;
+  SET _profile = GetProfileID(_profile);
+  CALL GetProfileByID(_profile);
 END;
 
 
@@ -265,91 +304,106 @@ END;
 
 
 -- Follow
+CREATE PROCEDURE GetFollowingByID(IN _profile_id INT)
+BEGIN
+  SELECT name AS followed, avatar
+    FROM profiles
+    INNER JOIN followers f ON id = f.followed_id
+    WHERE f.follower_id = _profile_id;
+END;
+
+
 CREATE PROCEDURE GetFollowing(IN _profile VARCHAR(64))
 BEGIN
-  CALL GetProfileID(_profile);
+  CALL GetFollowingByID(GetProfileID(_profile));
+END;
 
-  SELECT p.*
-    FROM profiles p
-    INNER JOIN followers f ON p.id = f.followed_id
-    WHERE f.follower_id = _profile;
+
+CREATE PROCEDURE GetFollowersByID(IN _profile_id INT)
+BEGIN
+  SELECT name as follower, avatar
+    FROM profiles
+    INNER JOIN followers f ON id = f.follower_id
+    WHERE f.followed_id = _profile_id;
 END;
 
 
 CREATE PROCEDURE GetFollowers(IN _profile VARCHAR(64))
 BEGIN
-  CALL GetProfileID(_profile);
-
-  SELECT p.*
-    FROM profiles p
-    INNER JOIN followers f ON p.id = f.follower_id
-    WHERE f.followed_id = _profile;
+  CALL GetFollowersByID(GetProfileID(_profile));
 END;
 
 
 CREATE PROCEDURE Follow(IN follower VARCHAR(64), IN followed VARCHAR(64))
 BEGIN
-  CALL GetProfileID(follower);
-  CALL GetProfileID(followed);
+  SET follower = GetProfileID(follower);
+  SET followed = GetProfileID(followed);
   INSERT INTO followers VALUES (follower, followed);
 END;
 
 
 CREATE PROCEDURE Unfollow(IN follower VARCHAR(64), IN followed VARCHAR(64))
 BEGIN
-  CALL GetProfileID(follower);
-  CALL GetProfileID(followed);
+  SET follower = GetProfileID(follower);
+  SET followed = GetProfileID(followed);
   DELETE FROM followers
     WHERE follower_id = follower AND followed_id = followed;
 END;
 
 
 -- Stars
+CREATE PROCEDURE GetStarredThingsByID(IN _profile_id INT)
+BEGIN
+  -- TODO select thing picture
+  SELECT t.name AS thing, p.name AS owner, comments, t.stars AS stars
+    FROM things t
+    INNER JOIN stars s ON id = s.thing_id
+    INNER JOIN profiles p ON owner_id = p.id
+    WHERE s.profile_id = _profile_id;
+END;
+
+
 CREATE PROCEDURE GetStarredThings(IN _profile VARCHAR(64))
 BEGIN
-  CALL GetProfileID(_profile);
-  SELECT t.*
-    FROM things t
-    INNER JOIN stars s ON t.id = s.thing_id
-    WHERE s.profile_id = _profile;
+    CALL GetStarredThingsByID(GetProfileID(_profile));
 END;
 
 
 CREATE PROCEDURE StarThing(IN _profile VARCHAR(64), IN _thing VARCHAR(64),
   IN _owner VARCHAR(64), IN _type CHAR(8))
 BEGIN
-
-  CALL GetProfileID(_profile);
-  CALL GetThingID(_thing, _owner, _type);
-
-  INSERT INTO stars VALUES (_profile, _thing);
+  SET _thing = GetThingID(_thing, _owner, _type);
+  INSERT INTO stars VALUES (GetProfileID(_profile), _thing);
 END;
 
 
 -- Badges
+CREATE PROCEDURE GetBadgesByID(IN _profile_id INT)
+BEGIN
+  SELECT name AS badge, description
+    FROM badges
+    INNER JOIN profile_badges pb ON id = pb.badge_id
+    WHERE pb.profile_id = _profile_id;
+END;
+
+
 CREATE PROCEDURE GetBadges(IN _profile VARCHAR(64))
 BEGIN
-  CALL GetProfileID(_profile);
-  SELECT b.*
-    FROM badges b
-    INNER JOIN profile_badges pb ON b.id = pb.badge_id
-    WHERE pb.profile_id = _profile;
+    CALL GetBadgesByID(GetProfileID(_profile));
 END;
 
 
 CREATE PROCEDURE GrantBadge(IN _profile VARCHAR(64), IN _badge VARCHAR(64))
 BEGIN
-  CALL GetProfileID(_profile);
-  INSERT INTO profile_badges VALUES (_profile,
+  INSERT INTO profile_badges VALUES (GetProfileID(_profile),
     (SELECT id FROM badges WHERE name = _badge));
 END;
 
 
 CREATE PROCEDURE RevokeBadge(IN _profile VARCHAR(64), IN _badge VARCHAR(64))
 BEGIN
-  CALL GetProfileID(_profile);
   DELETE FROM profile_badges
-    WHERE profile_id = _profile AND
+    WHERE profile_id = GetProfileID(_profile) AND
       badge_id IN (SELECT id FROM badges WHERE name = _badge);
 END;
 
@@ -374,56 +428,154 @@ END;
 
 
 -- Things
-CREATE PROCEDURE GetThingID(INOUT _thing VARCHAR(64), IN _owner VARCHAR(64),
-  IN _type CHAR(8))
+CREATE FUNCTION GetThingIDByID(_owner_id VARCHAR(64), _name VARCHAR(64),
+  _type CHAR(8))
+RETURNS INT
+NOT DETERMINISTIC
 BEGIN
-  CALL GetProfileID(_owner);
+  DECLARE thing_id INT;
+
   SELECT id FROM things
-    WHERE name = _thing AND owner_id = _owner AND
-      type = _type AND NOT redirect INTO _thing;
+    WHERE name = _name AND owner_id = _owner_id AND
+      type = _type AND NOT redirect INTO thing_id;
+
+  RETURN thing_id;
 END;
 
 
-CREATE PROCEDURE GetThings(IN _profile VARCHAR(64), IN _type CHAR(8),
-  IN _unpublished BOOL)
+CREATE FUNCTION GetThingID(_owner VARCHAR(64), _name VARCHAR(64),
+  _type CHAR(8))
+RETURNS INT
+NOT DETERMINISTIC
 BEGIN
-  CALL GetProfileID(_profile);
+  RETURN GetThingIDByID(GetProfileID(_owner), _name, _type);
+END;
 
-  IF _type IS null THEN
-    SELECT * FROM things
-      WHERE owner_id = _profile AND
-        NOT redirect AND (_unpublished OR published);
 
-  ELSE
-    SELECT * FROM things
-      WHERE owner_id = _profile AND
-        type = _type AND NOT redirect AND (_unpublished OR published);
+CREATE PROCEDURE GetThingsByID(IN _owner_id VARCHAR(64), IN _name VARCHAR(64),
+  IN _type CHAR(8), IN _unpublished BOOL)
+BEGIN
+  SELECT t.name AS name, t.type AS type, t.published AS published,
+    t.created AS created, t.modified AS modified, t.url AS url, t.text AS text,
+    t.tags AS tags, t.comments AS comments, t.stars AS stars,
+    t.children AS children, t.license AS license, parent.name AS parent,
+    p.name AS parent_owner
+    FROM things AS t
+    LEFT JOIN things AS parent ON parent.id = t.parent_id
+    LEFT JOIN profiles AS p ON p.id = parent.owner_id
+    WHERE t.owner_id = _owner_id AND
+      (_name IS null OR t.name = _name) AND
+      (_type IS null OR t.type = _type) AND
+      (_unpublished OR t.published) AND
+      NOT t.redirect;
+END;
+
+
+CREATE PROCEDURE GetThings(IN _owner VARCHAR(64), IN _name VARCHAR(64),
+  IN _type CHAR(8), IN _unpublished BOOL)
+BEGIN
+  CALL GetThingsByID(GetProfileID(_owner), _name, _type, _unpublished);
+END;
+
+
+CREATE PROCEDURE GetThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
+  IN _type CHAR(8), IN _unpublished BOOL)
+BEGIN
+  DECLARE _thing_id INT;
+
+  SET _owner = GetProfileID(_owner);
+  SET _thing_id = GetThingIDByID(_owner, _name, _type);
+
+  IF _thing_id IS NOT null THEN
+    CALL GetThingsByID(_owner, _name, _type, _unpublished);
+
+    -- Steps
+    SELECT id AS step, name, created, modified, text FROM steps
+      WHERE owner_id = _owner AND thing_id = _thing_id
+      ORDER BY position;
+
+    -- Files
+    SELECT name AS file, type, creation, url, downloads, caption, display
+      FROM files
+      LEFT JOIN steps ON steps.id = step_id
+      WHERE thing_id = _thing_id
+      ORDER BY position, creation;
+
+    -- Comments
+    SELECT c.id AS comment, s.name AS step, p.name AS owner, ref, creation,
+      modified, text FROM comments AS c
+      LEFT JOIN profiles AS p ON p.id = owner_id
+      LEFT JOIN steps AS s ON s.id = step_id
+      WHERE thing_id = _thing_id
+      ORDER BY creation;
+
+    -- Stars
+    SELECT p.name AS profile, p.avatar AS avatar FROM stars
+      INNER JOIN profiles AS p ON p.id = profile_id
+      WHERE thing_id = _thing_id
+      ORDER BY created;
   END IF;
 END;
 
 
-CREATE PROCEDURE RenameThing(IN _oldName VARCHAR(64), IN _newName VARCHAR(64))
+CREATE PROCEDURE RenameThing(IN _owner VARCHAR(64), IN _oldName VARCHAR(64),
+  IN _newName VARCHAR(64))
 BEGIN
   DECLARE EXIT HANDLER FOR SQLEXCEPTION ROLLBACK;
 
+  SET _owner = GetProfileID(_owner);
+
   START TRANSACTION;
 
-  UPDATE things SET name = _newName WHERE name = _oldName;
-  INSERT INTO things (name, redirect) VALUES (_oldName, true);
+  UPDATE things SET name = _newName
+    WHERE owner_id = _owner AND name = _oldName;
+  INSERT INTO things (owner_id, name, redirect) VALUES (_owner, _oldName, true);
 
   COMMIT;
 END;
 
 
-CREATE PROCEDURE CreateThing(IN _name VARCHAR(64), IN _owner VARCHAR(64),
-  IN  _parent VARCHAR(64), IN  _parent_owner VARCHAR(64), IN _type CHAR(8))
+CREATE PROCEDURE CreateThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
+  IN _type CHAR(8))
 BEGIN
-  CALL GetThingID(_parent, _parent_owner, _type);
-  CALL GetProfileID(_owner);
+  INSERT INTO things (owner_id, name, type)
+    VALUES (GetProfileID(_owner), _name, _type);
+END;
+
+
+CREATE PROCEDURE DuplicateThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
+  IN  _parent_owner VARCHAR(64), IN  _parent VARCHAR(64), IN _type CHAR(8))
+BEGIN
+  SET _parent = GetThingID(_parent_owner, _parent, _type);
 
   INSERT INTO things
-    (owner_id, parent_id, name, type, value) VALUES
-      (_owner, _parent, _name, _type, '{}');
+    (owner_id, parent_id, name, type)
+    VALUES (GetProfileID(_owner), _parent, _name, _type);
+
+  -- TODO Copy thing fields and steps
+END;
+
+-- Steps
+CREATE FUNCTION GetStepIDByID(_thing_id VARCHAR(64), _name VARCHAR(64))
+RETURNS INT
+NOT DETERMINISTIC
+BEGIN
+  DECLARE step_id INT;
+
+  SELECT id FROM steps
+    WHERE name = _name AND thing_id = _thing_id
+    INTO step_id;
+
+  RETURN step_id;
+END;
+
+
+CREATE FUNCTION GetStepID(_owner VARCHAR(64), _thing VARCHAR(64),
+  _name VARCHAR(64))
+RETURNS INT
+NOT DETERMINISTIC
+BEGIN
+  RETURN GetStepIDByID(GetThingID(_owner, _thing), _name);
 END;
 
 
@@ -463,7 +615,7 @@ BEGIN
 
   START TRANSACTION;
 
-  CALL GetProfileID(_owner);
+  SET _owner = GetProfileID(_owner);
 
   UPDATE tags SET count = count + 1 WHERE name = _tag;
 
@@ -483,7 +635,7 @@ BEGIN
 
   START TRANSACTION;
 
-  CALL GetProfileID(_owner);
+  SET _owner = GetProfileID(_owner);
 
   UPDATE tags SET count = count - 1 WHERE name = _tag;
 
@@ -492,6 +644,20 @@ BEGIN
     WHERE name = _thing AND owner_id = _owner;
 
   COMMIT;
+END;
+
+
+-- Files
+CREATE PROCEDURE CreateFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  _type CHAR(8), IN _step VARCHAR(64), IN _name VARCHAR(256),
+  IN _type VARCHAR(64), IN _url VARCHAR(256), IN _caption VARCHAR(256),
+  IN _display BOOL)
+BEGIN
+  SET _thing = GetThingID(_owner, _thing, _type);
+  SET _step = GetStepIDByID(_thing, _step);
+
+  INSERT INTO files (thing_id, step_id, name, type, url, caption, display)
+    VALUES (_thing, _step, _name, _type, _url, _caption, _display);
 END;
 
 

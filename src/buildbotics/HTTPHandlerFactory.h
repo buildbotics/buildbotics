@@ -29,34 +29,22 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_SERVER_H
-#define BUILDBOTICS_SERVER_H
+#ifndef BUILDBOTICS_HTTPHANDLER_FACTORY_H
+#define BUILDBOTICS_HTTPHANDLER_FACTORY_H
 
-#include <cbang/event/WebServer.h>
+#include <cbang/event/HTTPHandlerFactory.h>
 
 
 namespace BuildBotics {
-  class App;
-  class User;
-
-  class Server : public cb::Event::WebServer {
-    App &app;
-
+  class HTTPHandlerFactory : public cb::Event::HTTPHandlerFactory {
   public:
-    Server(App &app);
-
-    void init();
-
-
-    // From cb::Event::HTTPHandlerGroup
-    using cb::Event::WebServer::addHandler;
-    void addHandler(unsigned methods, const std::string &pattern,
-                    const cb::SmartPointer<HTTPHandler> &handler);
-
-    // From cb::Event::HTTPHandler
-    cb::Event::Request *createRequest(evhttp_request *req);
+    // From cb::Event::HTTPHandlerFactory
+    cb::SmartPointer<cb::Event::HTTPHandler>
+    createMatcher(unsigned methods, const std::string &pattern,
+                  const cb::SmartPointer<cb::Event::HTTPHandler> &child);
+    
   };
 }
 
-#endif // BUILDBOTICS_SERVER_H
+#endif // BUILDBOTICS_HTTPHANDLER_FACTORY_H
 

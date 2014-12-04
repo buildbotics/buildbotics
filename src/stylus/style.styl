@@ -1,5 +1,4 @@
 page_width = 960px
-header_height = 48px
 header_button_size = 32px
 nav_padding = 8px
 
@@ -7,7 +6,7 @@ highlight_color = #fdaa4d
 link_color = #e5aa3d
 header_color = #ddd
 header_bg = #666
-header_hover_color = #333
+header_hover_color = #222
 header_hover_bg = #ddd
 header_border_color = #888
 page_color = #fafafa
@@ -15,6 +14,8 @@ text_color = #444
 text_color = #344
 light_text_color = #888
 border_color = #aaa
+
+pane_shadow = 0 0 5px 0 rgba(50, 50, 50, 0.2)
 
 [ng\:cloak], [ng-cloak], .ng-cloak
   display: none !important
@@ -30,11 +31,21 @@ body
   background-color: page_color
   overflow-y: scroll
 
+#modal-overlay
+  display: none
+  height: 100%
+  width: 100%
+  position: fixed
+  left: 0
+  top: 0
+  z-index: 5
+
 #header
   background-color: header_bg
-  box-shadow: 0 0 5px 0 rgba(50, 50, 50, 0.8)
+  box-shadow: pane_shadow
   border: 0
   border-radius: 0
+  padding: 1em
 
   .banner
     height: 52px
@@ -58,13 +69,16 @@ body
   .nav, .navbar-nav
     margin-left: 0
 
+    .open > a:focus, .open > a
+      background-color: inherit
+
   .navbar-header > li > a
     border-radius: 4px
 
   .navbar-nav, .navbar-header
     > li > a:hover
       color: header_hover_color
-      background-color: header_hover_bg
+      background-color: inherit
 
   .nav-pills > li > a
     line-height: 1em
@@ -83,7 +97,7 @@ body
     color: header_hover_color
 
   .navbar-header
-    font-size: 18pt
+    font-size: 14pt
 
   .navbar-right li > a.icon
     padding-top: 8px
@@ -137,11 +151,8 @@ body
     .badges .fa, .points .fa
       color: highlight_color
 
-  .dropdown-menu
-    background-color: header_hover_bg
-
   .dropdown-menu > li > a:hover
-    background-color: page_color
+    background-color: header_hover_bg
 
   .login-dropdown
     font-weight: bold
@@ -156,6 +167,7 @@ body
     .fa
       font-size: 24pt
       margin-left: 6px
+      vertical-align: middle
 
     a.login
       margin-top: 6px
@@ -178,7 +190,7 @@ body
 
   .form-control
     border-radius: 20px
-    height: header_height - 18
+    height: 30px
 
   .avatar
     display: inline-block
@@ -257,14 +269,14 @@ project_width = 300px
     .info
       margin: 0 0.2em
 
-    .author
+    .owner
       white-space: nowrap
       color: text_color
 
       span
         color: link_color
 
-    .title, .author, .likes, .comments
+    .title, .owner, .likes, .comments
       display: block
       white-space: nowrap
 
@@ -279,7 +291,7 @@ project_width = 300px
     .fa
       font-size: 11pt
 
-    .author
+    .owner
       font-size: 12pt
       float: left
 
@@ -293,6 +305,127 @@ project_width = 300px
       margin: 0 0.2em
       clear: both
       color: text_color
+
+#project
+  .path
+    font-size: 18pt
+
+  .edit-row
+    height: 2.5em
+    margin: 1em 0
+
+    h3
+      font-size: 16pt
+      margin: none
+
+    .btn
+      float: right
+
+  h3
+    font-size: 14pt
+
+  .title
+    margin-bottom: 1em
+    height: 2em
+
+    h1
+      margin: 0
+      font-size: 22pt
+
+  .likes
+    margin-top: 0.5em
+    float: right
+
+  .owner
+    margin: 1em 0
+
+  .content
+    float: left
+    width: 720px
+
+  .sidebar
+    position: relative
+    border-radius: 5px
+    box-shadow: pane_shadow
+    padding: 1em
+    float: right
+    width: 230px
+    color: #888
+
+    .edit
+      cursor: pointer
+      color: #666
+
+      &:hover
+        color: #428bca
+
+    .fa
+      float: right
+      font-size: 14pt
+
+    h3
+      font-size: 12pt
+      font-weight: bold
+
+    .bb-modal
+      position: absolute
+      z-index: 10
+      right: -1px
+      box-shadow: pane_shadow
+      border-radius: 3px
+      border: 1px solid #ccc
+      background: #fff
+      width: 300px
+
+      .header, .body
+        padding: 0.5em 1em
+
+      .header
+        border-bottom: 1px solid #ddd
+
+      .fa-close
+        cursor: pointer
+
+      h3
+        margin: 0
+
+    .link a
+      display: block
+      white-space: nowrap
+      text-overflow: ellipsis
+      overflow: hidden
+
+    .tags
+      .btn
+        margin: 3px
+        color: #888
+
+  .carousel
+    border-radius: 5px
+    box-shadow: pane_shadow
+    overflow: hidden
+    height: 370px
+    width: 600px
+    margin: auto
+
+    img
+      height: 370px
+      width: 600px
+
+  .input-group
+    margin: 1em 0
+    width: 100%
+
+    .input-group-addon
+      text-align: left
+      width: 6em
+
+  .brief .CodeMirror
+    height: 6em
+
+  .description .CodeMirror
+    height: 20em
+
 
 #register
   .suggestion
@@ -312,3 +445,29 @@ project_width = 300px
 
 #dialogs
   display: none
+
+
+.markdowneditor
+  border: 1px solid #ccc
+  border-radius: 4px
+  box-shadow: pane_shadow
+  overflow: hidden
+
+  .editor-toolbar
+    background-color: #eee
+
+  .editor-preview
+    padding: 6px 12px
+    background-color: #fafafa
+
+  .CodeMirror
+    padding: 6px 12px
+    background-color: #fff
+    border: 1px solid #fff
+    resize: vertical;
+
+  .CodeMirror-focused
+    border: 1px solid rgba(82, 168, 236, 0.8)
+    box-shadow: 0 0 8px rgba(82, 168, 236, 0.6)
+    outline: thin dotted \9
+

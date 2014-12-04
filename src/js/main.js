@@ -1,28 +1,31 @@
 // Fake data *******************************************************************
 var projects = {
     'projectA':
-    {title: 'A test project', author: 'fred', likes: 5, comments: 2,
-     userLikes: true, image: 'images/project1.jpg'},
+    {title: 'A test project', owner: 'fred', likes: 5, comments: 2,
+     userLikes: true, image: 'images/project1.jpg', license: 'GPL',
+     url: 'http://example.com/this/is/a/long/url/no/i/mean/it/really',
+     tags: ['cnc', 'laser', '3D printing', 'wooden', 'fun'],
+     images: [{url: 'images/project1.jpg', caption: 'A caption'}]},
 
     'projectB':
-    {title: 'Another project', author: 'alice', likes: 5450, comments: 2344,
-     image: 'images/project2.jpg'},
+    {title: 'Another project', owner: 'alice', likes: 5450, comments: 2344,
+     image: 'images/project2.jpg', license: 'GPL'},
 
     'projectC':
-    {title: 'Cool project', author: 'bob', likes: 23, comments: 35,
-     image: 'images/project3.jpg'},
+    {title: 'Cool project', owner: 'bob', likes: 23, comments: 35,
+     image: 'images/project3.jpg', license: 'GPL'},
 
     'projectD':
-    {title: 'Another project', author: 'alice', likes: 5450, comments: 2344,
-     image: 'images/project4.jpg'},
+    {title: 'Another project', owner: 'alice', likes: 5450, comments: 2344,
+     image: 'images/project4.jpg', license: 'GPL'},
 
     'projectE':
-    {title: 'Cool project', author: 'bob', likes: 23, comments: 35,
-     image: 'images/project5.jpg'},
+    {title: 'Cool project', owner: 'bob', likes: 23, comments: 35,
+     image: 'images/project5.jpg', license: 'GPL'},
 
     'projectF':
-    {title: 'A test project', author: 'fred', likes: 5, comments: 2,
-     image: 'images/project6.jpg'}
+    {title: 'A test project', owner: 'fred', likes: 5, comments: 2,
+     image: 'images/project6.jpg', license: 'GPL'}
 };
 
 
@@ -62,7 +65,7 @@ function user_get_projects(name) {
     var user_projects = {};
 
     for (var project in projects)
-        if (projects[project].author == name)
+        if (projects[project].owner == name)
             user_projects[project] = projects[project];
 
     return user_projects;
@@ -125,6 +128,22 @@ function module_config($routeProvider, $locationProvider, $httpProvider) {
 }
 
 
+// Modal Dialog ****************************************************************
+function open_modal(cb) {
+    $('#modal-overlay').on('click', function () {
+        if (typeof cb != 'undefined') cb();
+        close_modal();
+        $scope.$apply();
+
+    }).show()
+}
+
+
+function close_modal() {
+    $('#modal-overlay').hide().unbind();
+}
+
+
 // Body Controller *************************************************************
 function body_controller($scope, $http, $modal, $cookies) {
     $scope.users = users;
@@ -141,16 +160,15 @@ function body_controller($scope, $http, $modal, $cookies) {
     }
 
     $scope.register = function (suggestions) {
-        var modalInstance = $modal.open({
+        $modal.open({
             templateUrl: 'register.html',
             controller: 'RegisterDialogCtrl',
             resolve: {
                 name: function () {return name;},
                 suggestions: function () {return suggestions;}
             }
-        });
 
-        modalInstance.result.then(function (name) {
+        }).result.then(function (name) {
             $http.put('/api/name/register/' + name)
                 .success(function (data) {
                     if (data == 'ok') {
@@ -165,26 +183,26 @@ function body_controller($scope, $http, $modal, $cookies) {
 
     function load_user() {
         $http.get('/api/auth/user').success(function (data) {
-            if (typeof data.joined != 'undefined') {
-                $scope.user = data;
-                $scope.authenticated = true;
+            if (typeof data.profile != 'undefined') {
+                if (typeof data.profile.lastlog != 'undefined') {
+                    $scope.user = data.profile;
+                    $scope.authenticated = true;
+                    return;
 
-            } else if (typeof data.name != 'undefined') {
-                // Authenticated but we need to register
+                } else if (typeof data.profile.name != 'undefined') {
+                    // Authenticated but we need to register
+                    $http.get('/api/name/suggestions')
+                        .success(function (suggestions) {
+                            // TODO check for errors
+                            $scope.register(suggestions);
 
-                // Suggest name
-                if (data.name.match(/\W/) && data.email)
-                    data.name = data.email.replace(/@.*/, '');
+                        }).error(logged_out);
 
-                data.name = data.name.toLowerCase().replace(/\W/g, '_');
+                    return;
+                }
+            }
 
-                $http.get('/api/name/suggestions')
-                    .success(function (suggestions) {
-                        // TODO check for errors
-                        $scope.register(suggestions);
-
-                    }).error(logged_out);
-            } else logged_out();
+            logged_out();
         });
     }
 
@@ -192,10 +210,11 @@ function body_controller($scope, $http, $modal, $cookies) {
 }
 
 
+// Directives ******************************************************************
 function username_directive($q, $http) {
     return {
         require: 'ngModel',
-        link: function (scope, elm, attrs, ctrl) {
+        link: function (scope, element, attrs, ctrl) {
             ctrl.$asyncValidators.username = function (username) {
                 if (ctrl.$isEmpty(username)) return $q.when(false);
 
@@ -210,7 +229,49 @@ function username_directive($q, $http) {
                 return def.promise;
             };
         }
-    };
+    }
+}
+
+
+function bb_modal_directive() {
+    return {
+        restrict: 'E',
+        transclude: true,
+        templateUrl: 'modal.html',
+        scope: {
+            title: '@title',
+            close: '&onClose'
+        }
+    }
+}
+
+
+function on_keypress_directive() {
+    return function (scope, element, attrs) {
+        function applyKeypress() {
+            scope.$apply(attrs.onKeypress);
+        };           
+        
+        var allowedKeys = scope.$eval(attrs.keys);
+
+        element.bind('keyup', function(e) {
+            // If no key restriction specified, always fire
+            if (!allowedKeys || allowedKeys.length == 0) applyKeypress();
+            else
+                angular.forEach(allowedKeys, function(key) {
+                    if (key == e.which) applyKeypress();
+                })
+        })
+    }
+}
+
+
+function on_enter_directive() {
+    return function (scope, element, attrs) {
+        element.bind('keyup', function(e) {
+            if (e.which == 13) scope.$apply(attrs.onEnter);
+        })
+    }
 }
 
 
@@ -278,6 +339,28 @@ function project_list_controller($scope, $routeParams) {
 
 // Project Controller **********************************************************
 function project_controller($scope, $routeParams) {
+    $scope.edit = {};
+    $scope.old = {};
+    $scope.is_owner = true; // TODO
+    $scope.licenses = [{name: 'GPL'}, {name: 'MIT'}]; // TODO
+
+    $scope.edit = function (field, modal) {
+        if (modal) open_modal(function () {$scope.save(field)});
+
+        $scope.old[field] = $scope.project[field];
+        $scope.edit[field] = true;
+    };
+
+    $scope.save = function (field) {
+        $scope.edit[field] = false;
+        close_modal();
+    };
+
+    $scope.cancel = function (field) {
+        $scope.project[field] = $scope.old[field];
+        $scope.edit[field] = false;
+        close_modal();
+    };
 }
 
 
@@ -300,12 +383,16 @@ $(function() {
     });
 
     // Angular setup
-    deps = ['ngRoute', 'ngCookies', 'ui.bootstrap', 'ui.bootstrap.modal'];
+    deps = ['ngRoute', 'ngCookies', 'ui.bootstrap', 'ui.bootstrap.modal',
+            'buildbotics.markdown'];
     angular
         .module('buildbotics', deps)
         .factory('httpRequestInterceptor', http_request_interceptor)
         .config(module_config)
         .directive('username', username_directive)
+        .directive('bbModal', bb_modal_directive)
+        .directive('onKeypress', on_keypress_directive)
+        .directive('onEnter', on_enter_directive)
         .controller('BodyCtrl', body_controller)
         .controller('ContentCtrl', content_controller)
         .controller('RegisterDialogCtrl', register_dialog_controller)

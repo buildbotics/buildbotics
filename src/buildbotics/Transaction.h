@@ -86,6 +86,9 @@ namespace BuildBotics {
 
     bool apiProjects();
 
+    bool apiPutFile();
+    bool apiDeleteFile();
+
     bool apiGetTags();
     bool apiAddTag();
     bool apiDeleteTag();
@@ -94,7 +97,7 @@ namespace BuildBotics {
 
     // MariaDB::EventDB callbacks
     void login(cb::MariaDB::EventDBCallback::state_t state);
-    void getUser(cb::MariaDB::EventDBCallback::state_t state);
+    void profile(cb::MariaDB::EventDBCallback::state_t state);
     void returnOK(cb::MariaDB::EventDBCallback::state_t state);
     void returnList(cb::MariaDB::EventDBCallback::state_t state);
     void returnBool(cb::MariaDB::EventDBCallback::state_t state);
