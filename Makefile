@@ -16,6 +16,8 @@ JS     := $(patsubst src/js/%.js,$(HTTP_DIR)/js/%.js,$(JS))
 STATIC := $(shell find src/resources -type f \! -name *~)
 STATIC := $(patsubst src/resources/%,$(HTTP_DIR)/%,$(STATIC))
 
+WATCH  := src/jade src/js src/resources src/stylus Makefile
+
 all: build api node_modules
 
 build: dirs html css js static
@@ -54,6 +56,14 @@ dirs:
 	@mkdir -p $(HTTP_DIR)/css
 
 $(HTTP_DIR)/api.html: docs/api.md
+
+watch:
+	@clear
+	@while inotifywait -qr -e modify -e create -e delete \
+	  --exclude .*~ --exclude \#.* $(WATCH); do \
+	  clear; \
+	  $(MAKE); \
+	done
 
 tidy:
 	rm -f $(shell find "$(DIR)" -name \*~)

@@ -1,17 +1,21 @@
 DELETE FROM mysql.proc WHERE db = "buildbotics";
 
+-- Functions
+CREATE FUNCTION FormatTS(_ts TIMESTAMP)
+RETURNS VARCHAR(32)
+DETERMINISTIC
+BEGIN
+  RETURN
+    DATE_FORMAT(CONVERT_TZ(_ts, @@session.time_zone, '+00:00'), '%Y-%m-%dT%TZ');
+END;
+
 
 -- Associations
 CREATE PROCEDURE Associate(IN _provider VARCHAR(16), IN _id VARCHAR(64),
-  IN _name VARCHAR(256), IN _email VARCHAR(256), IN _avatar VARCHAR(256),
-  IN _profile VARCHAR(64))
+  IN _name VARCHAR(256), IN _email VARCHAR(256), IN _avatar VARCHAR(256))
 BEGIN
-  IF _profile IS NOT null THEN
-    SET _profile = GetProfileID(_profile);
-  END IF;
-
-  INSERT INTO associations (provider, id, name, email, avatar, profile_id)
-    VALUES (_provider, _id, _name, _email, _avatar, _profile)
+  INSERT INTO associations (provider, id, name, email, avatar)
+    VALUES (_provider, _id, _name, _email, _avatar)
     ON DUPLICATE KEY UPDATE name = _name, email = _email, avatar = _avatar;
 END;
 
@@ -26,12 +30,17 @@ END;
 CREATE PROCEDURE Login(IN _provider VARCHAR(16), IN _id VARCHAR(64),
   IN _name VARCHAR(256), IN _email VARCHAR(256), IN _avatar VARCHAR(256))
 BEGIN
-  SELECT profile_id INTO @profile_id FROM associations
-    WHERE provider = _provider AND id = _id;
+  DECLARE _profile_id INT;
 
-  CALL Associate(_provider, _id, _name, _email, _avatar, null);
+  SELECT profile_id FROM associations
+    WHERE provider = _provider AND id = _id
+    INTO _profile_id;
 
-  UPDATE profiles SET lastlog = NOW() WHERE id = @profile_id;
+  CALL Associate(_provider, _id, _name, _email, _avatar);
+
+  UPDATE profiles SET lastlog = NOW() WHERE id = _profile_id;
+
+  SELECT name, auth FROM profiles WHERE id = _profile_id;
 END;
 
 
@@ -78,11 +87,23 @@ BEGIN
 END;
 
 
+CREATE FUNCTION ValidName(_name VARCHAR(64))
+RETURNS BOOL
+NOT DETERMINISTIC
+BEGIN
+  IF CHAR_LENGTH(_name) < 2 OR _name  REGEXP '[^[:alnum:]_.]' THEN
+    RETURN false;
+  END IF;
+
+  RETURN true;
+END;
+
+
 CREATE FUNCTION NameAllowed(_name VARCHAR(64))
 RETURNS BOOL
 NOT DETERMINISTIC
 BEGIN
-  IF CHAR_LENGTH(_name) < 3 OR _name  REGEXP '[^[:alnum:]_.]' THEN
+  IF NOT ValidName(_name) THEN
     RETURN false;
   END IF;
 
@@ -266,11 +287,11 @@ BEGIN
     WHERE a.provider = _provider AND a.id = _id
     INTO profile_id;
 
-  CALL GetProfileByID(profile_id);
+  CALL GetProfileByID(profile_id, true);
 END;
 
 
-CREATE PROCEDURE GetProfileByID(IN _profile_id INT)
+CREATE PROCEDURE GetProfileByID(IN _profile_id INT, IN _unpublished BOOL)
 BEGIN
   SELECT name, joined, lastlog, fullname, location, avatar, url, bio, points,
     followers, following, stars, badges FROM profiles
@@ -281,6 +302,7 @@ BEGIN
       SET MESSAGE_TEXT = 'Profile not found';
   END IF;
 
+  CALL GetThingsByID(_profile_id, null, null, _unpublished, null);
   CALL GetFollowersByID(_profile_id);
   CALL GetFollowingByID(_profile_id);
   CALL GetStarredThingsByID(_profile_id);
@@ -288,10 +310,10 @@ BEGIN
 END;
 
 
-CREATE PROCEDURE GetProfile(IN _profile VARCHAR(64))
+CREATE PROCEDURE GetProfile(IN _profile VARCHAR(64), IN _unpublished BOOL)
 BEGIN
   SET _profile = GetProfileID(_profile);
-  CALL GetProfileByID(_profile);
+  CALL GetProfileByID(_profile, _unpublished);
 END;
 
 
@@ -355,7 +377,8 @@ END;
 CREATE PROCEDURE GetStarredThingsByID(IN _profile_id INT)
 BEGIN
   -- TODO select thing picture
-  SELECT t.name AS thing, p.name AS owner, comments, t.stars AS stars
+  -- TODO match with GetThings()
+  SELECT t.name AS starred, p.name AS owner, comments, t.stars AS stars
     FROM things t
     INNER JOIN stars s ON id = s.thing_id
     INNER JOIN profiles p ON owner_id = p.id
@@ -369,11 +392,34 @@ BEGIN
 END;
 
 
-CREATE PROCEDURE StarThing(IN _profile VARCHAR(64), IN _thing VARCHAR(64),
-  IN _owner VARCHAR(64), IN _type CHAR(8))
+CREATE PROCEDURE GetThingStarsByID(IN _thing_id INT)
 BEGIN
-  SET _thing = GetThingID(_thing, _owner, _type);
-  INSERT INTO stars VALUES (GetProfileID(_profile), _thing);
+    SELECT p.name profile, p.avatar FROM stars s
+      INNER JOIN profiles p ON p.id = profile_id
+      WHERE s.thing_id = _thing_id
+      ORDER BY s.created;
+END;
+
+
+CREATE PROCEDURE StarThing(IN _profile VARCHAR(64), IN _owner VARCHAR(64),
+  IN _thing VARCHAR(64))
+BEGIN
+  SET _profile = GetProfileID(_profile);
+  SET _thing = GetThingID(_owner, _thing);
+
+  INSERT INTO stars (profile_id, thing_id) VALUES (_profile, _thing)
+    ON DUPLICATE KEY UPDATE profile_id = profile_id;
+END;
+
+
+CREATE PROCEDURE UnstarThing(IN _profile VARCHAR(64), IN _owner VARCHAR(64),
+  IN _thing VARCHAR(64))
+BEGIN
+  SET _profile = GetProfileID(_profile);
+  SET _thing = GetThingID(_owner, _thing);
+
+  DELETE FROM stars
+    WHERE profile_id = _profile AND thing_id = _thing;
 END;
 
 
@@ -428,8 +474,7 @@ END;
 
 
 -- Things
-CREATE FUNCTION GetThingIDByID(_owner_id VARCHAR(64), _name VARCHAR(64),
-  _type CHAR(8))
+CREATE FUNCTION GetThingIDByID(_owner_id VARCHAR(64), _name VARCHAR(64))
 RETURNS INT
 NOT DETERMINISTIC
 BEGIN
@@ -437,33 +482,36 @@ BEGIN
 
   SELECT id FROM things
     WHERE name = _name AND owner_id = _owner_id AND
-      type = _type AND NOT redirect INTO thing_id;
+      NOT redirect INTO thing_id;
 
   RETURN thing_id;
 END;
 
 
-CREATE FUNCTION GetThingID(_owner VARCHAR(64), _name VARCHAR(64),
-  _type CHAR(8))
+CREATE FUNCTION GetThingID(_owner VARCHAR(64), _name VARCHAR(64))
 RETURNS INT
 NOT DETERMINISTIC
 BEGIN
-  RETURN GetThingIDByID(GetProfileID(_owner), _name, _type);
+  RETURN GetThingIDByID(GetProfileID(_owner), _name);
 END;
 
 
-CREATE PROCEDURE GetThingsByID(IN _owner_id VARCHAR(64), IN _name VARCHAR(64),
-  IN _type CHAR(8), IN _unpublished BOOL)
+CREATE PROCEDURE GetThingsByID(IN _owner_id INT, IN _name VARCHAR(64),
+  IN _type CHAR(8), IN _unpublished BOOL, IN _owner VARCHAR(64))
 BEGIN
-  SELECT t.name AS name, t.type AS type, t.published AS published,
-    t.created AS created, t.modified AS modified, t.url AS url, t.text AS text,
-    t.tags AS tags, t.comments AS comments, t.stars AS stars,
-    t.children AS children, t.license AS license, parent.name AS parent,
-    p.name AS parent_owner
-    FROM things AS t
-    LEFT JOIN things AS parent ON parent.id = t.parent_id
-    LEFT JOIN profiles AS p ON p.id = parent.owner_id
-    WHERE t.owner_id = _owner_id AND
+  IF _owner IS null THEN
+    SELECT name FROM profiles WHERE id = _owner_id INTO _owner;
+  END IF;
+
+  SELECT t.name thing, _owner owner, t.type type, title, published,
+    FormatTS(t.created) created, FormatTS(t.modified) modified, comments, stars,
+    children, GetFileURL(_owner, t.name, f1.name) image
+    FROM things t
+    LEFT JOIN files f1 ON f1.id =
+      (SELECT f2.id FROM files f2
+         WHERE f2.thing_id = t.id AND f2.display
+         ORDER BY f2.position LIMIT 1)
+    WHERE owner_id = _owner_id AND
       (_name IS null OR t.name = _name) AND
       (_type IS null OR t.type = _type) AND
       (_unpublished OR t.published) AND
@@ -474,46 +522,68 @@ END;
 CREATE PROCEDURE GetThings(IN _owner VARCHAR(64), IN _name VARCHAR(64),
   IN _type CHAR(8), IN _unpublished BOOL)
 BEGIN
-  CALL GetThingsByID(GetProfileID(_owner), _name, _type, _unpublished);
+  CALL GetThingsByID(GetProfileID(_owner), _name, _type, _unpublished, _owner);
+END;
+
+
+CREATE PROCEDURE ThingAvailable(IN _owner VARCHAR(64), IN _name VARCHAR(64))
+BEGIN
+  SET _owner = GetProfileID(_owner);
+
+  IF _owner IS null OR
+    (SELECT id FROM things WHERE name = _name AND owner_id = _owner) THEN
+    SELECT false;
+  ELSE
+    SELECT ValidName(_name);
+  END IF;
 END;
 
 
 CREATE PROCEDURE GetThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
-  IN _type CHAR(8), IN _unpublished BOOL)
+  IN _unpublished BOOL)
 BEGIN
+  DECLARE _owner_id INT;
   DECLARE _thing_id INT;
 
-  SET _owner = GetProfileID(_owner);
-  SET _thing_id = GetThingIDByID(_owner, _name, _type);
+  SET _owner_id = GetProfileID(_owner);
+  SET _thing_id = GetThingIDByID(_owner_id, _name);
 
   IF _thing_id IS NOT null THEN
-    CALL GetThingsByID(_owner, _name, _type, _unpublished);
+    SELECT t.name name, _owner owner, t.type, t.title,
+      t.published, FormatTS(t.created) created, FormatTS(t.modified) modified,
+      t.url, t.description, t.tags, t.comments, t.stars, t.children, t.license,
+      l.url license_url, CONCAT(p.name, '/', parent.name) parent
+      FROM things t
+      LEFT JOIN things parent ON parent.id = t.parent_id
+      LEFT JOIN profiles p ON p.id = parent.owner_id
+      LEFT JOIN licenses l ON l.name = t.license
+      WHERE t.owner_id = _owner_id AND t.name = _name AND
+        (_unpublished OR t.published) AND NOT t.redirect;
+
+    IF FOUND_ROWS() != 1 THEN
+      SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
+       SET MESSAGE_TEXT = 'Thing not found';
+    END IF;
 
     -- Steps
-    SELECT id AS step, name, created, modified, text FROM steps
-      WHERE owner_id = _owner AND thing_id = _thing_id
+    SELECT id step, name, FormatTS(created) created,
+      FormatTS(modified) modified, description FROM steps
+      WHERE thing_id = _thing_id
       ORDER BY position;
 
     -- Files
-    SELECT name AS file, type, creation, url, downloads, caption, display
-      FROM files
+    SELECT f.name file, type, FormatTS(f.created) created, downloads, caption,
+      display, space size, GetFileURL(_owner, _name, f.name) url
+      FROM files f
       LEFT JOIN steps ON steps.id = step_id
-      WHERE thing_id = _thing_id
-      ORDER BY position, creation;
+      WHERE f.thing_id = _thing_id
+      ORDER BY f.display, f.position, f.created;
 
     -- Comments
-    SELECT c.id AS comment, s.name AS step, p.name AS owner, ref, creation,
-      modified, text FROM comments AS c
-      LEFT JOIN profiles AS p ON p.id = owner_id
-      LEFT JOIN steps AS s ON s.id = step_id
-      WHERE thing_id = _thing_id
-      ORDER BY creation;
+    CALL GetCommentsByID(_thing_id);
 
     -- Stars
-    SELECT p.name AS profile, p.avatar AS avatar FROM stars
-      INNER JOIN profiles AS p ON p.id = profile_id
-      WHERE thing_id = _thing_id
-      ORDER BY created;
+    CALL GetThingStarsByID(_thing_id);
   END IF;
 END;
 
@@ -535,22 +605,39 @@ BEGIN
 END;
 
 
-CREATE PROCEDURE CreateThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
-  IN _type CHAR(8))
+CREATE PROCEDURE PutThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
+  IN _type CHAR(8), IN _title VARCHAR(256), IN _url VARCHAR(256),
+  IN _description TEXT, IN _license VARCHAR(64), IN _published BOOL)
 BEGIN
-  INSERT INTO things (owner_id, name, type)
-    VALUES (GetProfileID(_owner), _name, _type);
+  SET _owner = GetProfileID(_owner);
+
+  IF NOT ValidName(_name) THEN
+    SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+      SET MESSAGE_TEXT = 'Thing name invalid';
+  END IF;
+
+  INSERT INTO things
+      (owner_id, name, type, title, url, description, license, published)
+    VALUES
+      (_owner, _name, _type, _title, _url, _description, _license, _published)
+    ON DUPLICATE KEY UPDATE
+      title       = IFNULL(_title, title),
+      url         = IFNULL(_url, url),
+      description = IFNULL(_description, description),
+      license     = IFNULL(_license, license),
+      published   = IFNULL(_published, published),
+      modified    = CURRENT_TIMESTAMP;
 END;
 
 
 CREATE PROCEDURE DuplicateThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
-  IN  _parent_owner VARCHAR(64), IN  _parent VARCHAR(64), IN _type CHAR(8))
+  IN  _parent_owner VARCHAR(64), IN  _parent VARCHAR(64))
 BEGIN
-  SET _parent = GetThingID(_parent_owner, _parent, _type);
+  SET _parent = GetThingID(_parent_owner, _parent);
 
   INSERT INTO things
-    (owner_id, parent_id, name, type)
-    VALUES (GetProfileID(_owner), _parent, _name, _type);
+    (owner_id, parent_id, name)
+    VALUES (GetProfileID(_owner), _parent, _name);
 
   -- TODO Copy thing fields and steps
 END;
@@ -582,7 +669,7 @@ END;
 -- Tags
 CREATE PROCEDURE GetTags()
 BEGIN
-  SELECT name, count FROM tags ORDER BY count DESC;
+  SELECT name, count FROM tags WHERE 0 < count ORDER BY count DESC;
 END;
 
 
@@ -608,21 +695,68 @@ BEGIN
 END;
 
 
+CREATE PROCEDURE ParseTags(IN _tags VARCHAR(256))
+BEGIN
+  DECLARE i INT;
+  DECLARE _tag VARCHAR(64);
+
+  DROP TEMPORARY TABLE IF EXISTS parsedTags;
+  CREATE TEMPORARY TABLE parsedTags (`tag` VARCHAR(64) NOT NULL UNIQUE);
+
+  REPEAT
+    SET i = LOCATE(',', _tags);
+
+    IF i = 0 THEN
+      SET _tag = TRIM(_tags);
+
+    ELSE
+      SET _tag = TRIM(LEFT(_tags, i - 1));
+      SET _tags = RIGHT(_tags, CHAR_LENGTH(_tags) - i);
+    END IF;
+
+    IF CHAR_LENGTH(_tag) THEN
+      INSERT INTO parsedTags VALUES(_tag) ON DUPLICATE KEY UPDATE tag = tag;
+    END IF;
+
+  UNTIL i = 0
+  END REPEAT;
+END;
+
+
 CREATE PROCEDURE TagThing(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _tag VARCHAR(64))
 BEGIN
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION ROLLBACK;
+  INSERT INTO tags (name, count) VALUES (_tag, 0)
+    ON DUPLICATE KEY UPDATE name = name;
+
+  SELECT id INTO _tag FROM tags WHERE name = _tag;
+
+  INSERT INTO thing_tags VALUES (GetThingID(_owner, _thing), _tag)
+    ON DUPLICATE KEY UPDATE thing_id = thing_id;
+END;
+
+
+CREATE PROCEDURE MultiTagThing(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _tags VARCHAR(256))
+BEGIN
+  DECLARE done BOOLEAN DEFAULT FALSE;
+  DECLARE _tag VARCHAR(64);
+  DECLARE cur CURSOR FOR SELECT tag FROM parsedTags;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done := TRUE;
 
   START TRANSACTION;
 
-  SET _owner = GetProfileID(_owner);
+  CALL ParseTags(_tags);
 
-  UPDATE tags SET count = count + 1 WHERE name = _tag;
+  OPEN cur;
 
-  UPDATE things
-    SET tags = CONCAT_WS(',', _tag, tags)
-    WHERE name = _thing AND owner_id = _owner AND
-      (tags IS NULL OR NOT FIND_IN_SET(_tag, tags));
+  REPEAT
+    FETCH cur INTO _tag;
+    IF NOT done THEN
+      CALL TagThing(_owner, _thing, _tag);
+    END IF;
+    UNTIL done
+  END REPEAT;
 
   COMMIT;
 END;
@@ -631,33 +765,185 @@ END;
 CREATE PROCEDURE UntagThing(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _tag VARCHAR(64))
 BEGIN
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION ROLLBACK;
+  SELECT id INTO _tag FROM tags WHERE name = _tag;
+
+  DELETE FROM thing_tags
+    WHERE thing_id = GetThingID(_owner, _thing) AND tag_id = _tag;
+END;
+
+
+CREATE PROCEDURE MultiUntagThing(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _tags VARCHAR(256))
+BEGIN
+  DECLARE done BOOLEAN DEFAULT FALSE;
+  DECLARE _tag VARCHAR(64);
+  DECLARE cur CURSOR FOR SELECT tag FROM parsedTags;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done := TRUE;
 
   START TRANSACTION;
 
-  SET _owner = GetProfileID(_owner);
+  CALL ParseTags(_tags);
 
-  UPDATE tags SET count = count - 1 WHERE name = _tag;
+  OPEN cur;
 
-  UPDATE things
-    SET tags = REPLACE(REPLACE(tags, CONCAT(_tag, ','), ''), _tag, '')
-    WHERE name = _thing AND owner_id = _owner;
+  REPEAT
+    FETCH cur INTO _tag;
+    IF NOT done THEN
+      CALL UntagThing(_owner, _thing, _tag);
+    END IF;
+    UNTIL done
+  END REPEAT;
 
   COMMIT;
 END;
 
 
+-- Comments
+CREATE PROCEDURE GetCommentsByID(IN _thing_id INT)
+BEGIN
+    SELECT c.id comment, s.name step, p.name owner, p.avatar, ref,
+      FormatTS(c.created) created, FormatTS(c.modified) modified, c.text
+      FROM comments c
+      LEFT JOIN profiles p ON p.id = owner_id
+      LEFT JOIN steps s ON s.id = step_id
+      WHERE c.thing_id = _thing_id
+      ORDER BY c.created;
+END;
+
+
+CREATE PROCEDURE PostComment(IN _owner VARCHAR(64), IN _thing_owner VARCHAR(64),
+  IN _thing VARCHAR(64), IN _step INT, IN _ref INT, IN _text TEXT)
+BEGIN
+  INSERT INTO comments (owner_id, thing_id, step_id, ref, text)
+    VALUES (GetProfileID(_owner), GetThingID(_thing_owner, _thing), _step, _ref,
+      _text);
+
+  SELECT LAST_INSERT_ID() id;
+END;
+
+
+CREATE PROCEDURE UpdateComment(IN _owner VARCHAR(64), IN _comment INT,
+  IN _text TEXT)
+BEGIN
+  UPDATE comments
+    SET text = _text, modified = CURRENT_TIMESTAMP
+    WHERE id = _comment AND owner_id = GetProfileID(_owner);
+END;
+
+
+CREATE PROCEDURE DeleteComment(IN _owner VARCHAR(64), IN _comment INT)
+BEGIN
+  DELETE FROM comments
+    WHERE id = _comment AND owner_id = GetProfileID(_owner);
+END;
+
+
 -- Files
-CREATE PROCEDURE CreateFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
-  _type CHAR(8), IN _step VARCHAR(64), IN _name VARCHAR(256),
-  IN _type VARCHAR(64), IN _url VARCHAR(256), IN _caption VARCHAR(256),
+CREATE FUNCTION GetFileURL(_owner VARCHAR(64), _thing VARCHAR(64),
+  _name VARCHAR(64))
+RETURNS VARCHAR(256)
+DETERMINISTIC
+BEGIN
+  RETURN CONCAT('/', _owner, '/', _thing, '/', _name);
+END;
+
+
+CREATE PROCEDURE PutFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _name VARCHAR(256), IN _step VARCHAR(64), IN _type VARCHAR(64),
+  IN _space INT, IN _url VARCHAR(256), IN _caption VARCHAR(256),
   IN _display BOOL)
 BEGIN
-  SET _thing = GetThingID(_owner, _thing, _type);
+  SET _thing = GetThingID(_owner, _thing);
   SET _step = GetStepIDByID(_thing, _step);
 
-  INSERT INTO files (thing_id, step_id, name, type, url, caption, display)
-    VALUES (_thing, _step, _name, _type, _url, _caption, _display);
+  INSERT INTO files
+    (thing_id, step_id, name, type, space, url, caption, display)
+    VALUES (_thing, _step, _name, _type, _space, _url, _caption, _display)
+    ON DUPLICATE KEY UPDATE
+      step_id = IFNULL(_step, step_id),
+      url     = IFNULL(_url, url),
+      caption = IFNULL(_caption, caption),
+      display = IFNULL(_display, display);
+END;
+
+
+CREATE PROCEDURE GetFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _name VARCHAR(256))
+BEGIN
+  SELECT f.name AS name, s.name step, type, space, url, caption, display,
+    FormatTS(f.created) created, downloads, f.position position FROM files f
+    LEFT JOIN steps s ON s.id = step_id
+    WHERE f.thing_id = GetThingID(_owner, _thing) AND f.name = _name;
+END;
+
+
+CREATE PROCEDURE DownloadFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _name VARCHAR(256))
+BEGIN
+  DECLARE _file_id INT;
+  DECLARE _url VARCHAR(256);
+
+  SELECT id, url INTO _file_id, _url FROM files
+    WHERE thing_id = GetThingID(_owner, _thing) AND name = _name
+    FOR UPDATE;
+
+  UPDATE files SET downloads = downloads + 1
+    WHERE id = _file_id;
+
+  IF _url IS null THEN
+    SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
+      SET MESSAGE_TEXT = 'File not found';
+  ELSE
+    SELECT _url url;
+  END IF;
+END;
+
+
+CREATE PROCEDURE RenameFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _oldName VARCHAR(256), IN _newName VARCHAR(256))
+BEGIN
+  UPDATE files SET name = _newName
+    WHERE thing_id = GetThingID(_owner, _thing) AND name = _oldName;
+END;
+
+
+CREATE PROCEDURE DeleteFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _name VARCHAR(256))
+BEGIN
+  DELETE FROM files
+    WHERE thing_id = GetThingID(_owner, _thing) AND name = _name;
+END;
+
+
+CREATE PROCEDURE DuplicateFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _name VARCHAR(256), IN _new_owner VARCHAR(64), IN _new_thing VARCHAR(64))
+BEGIN
+  CREATE TEMPORARY TABLE duplicateFileTable
+    SELECT * FROM files
+      WHERE thing_id = GetThingID(_owner, _thing) AND name = _name;
+
+  UPDATE duplicateFileTable
+    SET id = NULL, thing_id = GetThingID(_new_owner, _new_thing);
+
+  INSERT INTO files SELECT * FROM duplicateFileTable;
+
+  DROP TEMPORARY TABLE IF EXISTS duplicateFileTable;
+END;
+
+
+CREATE PROCEDURE ConfirmFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _name VARCHAR(256), IN _type VARCHAR(64), IN _space INT)
+BEGIN
+  UPDATE files
+    SET type = _type, space = _space, confirmed = true
+    WHERE thing_id = GetThingID(_owner, _thing) AND name = _name;
+END;
+
+
+-- Licenses
+CREATE PROCEDURE GetLicenses()
+BEGIN
+  SELECT name, url FROM licenses;
 END;
 
 
@@ -687,7 +973,7 @@ BEGIN
   END IF;
 
   SET @s = CONCAT('SELECT *,
-    MATCH(text) AGAINST(? IN BOOLEAN MODE) AS score
+    MATCH(name, fullname, location, bio) AGAINST(? IN BOOLEAN MODE) AS score
     FROM profiles WHERE NOT disabled AND NOT redirect HAVING 0 < score
     ORDER BY ', _orderBy, ' ', @dir, ', score LIMIT ? OFFSET ?');
 
@@ -702,7 +988,7 @@ END;
 
 
 CREATE PROCEDURE FindThings(IN _query VARCHAR(256), IN _license VARCHAR(64),
-  IN _orderBy ENUM('stars', 'creation', 'modifed', 'score'), IN _limit INT,
+  IN _orderBy ENUM('stars', 'created', 'modified', 'score'), IN _limit INT,
   IN _offset INT, IN _accend BOOL)
 BEGIN
   IF _orderBy IS null THEN
@@ -732,7 +1018,7 @@ BEGIN
   SET @s = 'SELECT *';
 
   IF _query IS NOT null THEN
-    SET @s = CONCAT(@s, ', MATCH(name, brief, text, tags) AGAINST(',
+    SET @s = CONCAT(@s, ', MATCH(name, title, description, tags) AGAINST(',
       QUOTE(_query), ' IN BOOLEAN MODE) AS score');
   END IF;
 
@@ -764,7 +1050,7 @@ END;
 
 
 CREATE PROCEDURE FindThingsByTags(IN _tags VARCHAR(256),
-  IN _orderBy ENUM('stars', 'creation', 'modifed', 'score'), IN _limit INT,
+  IN _orderBy ENUM('stars', 'created', 'modifed', 'score'), IN _limit INT,
   IN _offset INT, IN _accend BOOL)
 BEGIN
   IF _orderBy IS null THEN

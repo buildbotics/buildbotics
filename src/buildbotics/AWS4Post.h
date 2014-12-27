@@ -41,7 +41,7 @@
 namespace cb {namespace JSON {class Writer;}}
 
 
-namespace Buildbotics {
+namespace BuildBotics {
   class AWS4Post : public AWS4Signature, public cb::JSON::Dict {
     int minLength;
     int maxLength;
@@ -56,6 +56,7 @@ namespace Buildbotics {
         name(cb::String::toLower(name)), value(value), op(op) {}
 
       void write(cb::JSON::Writer &writer) const;
+      void append(cb::JSON::Writer &writer) const;
     };
 
     std::vector<Condition> conditions;

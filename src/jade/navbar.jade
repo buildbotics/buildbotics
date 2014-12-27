@@ -10,8 +10,8 @@
 
   .navbar-collapse.navbar-right
     ul.nav.navbar-nav
-      li.dropdown(ng-switch-when='true')
-        a.dropdown-toggle(data-toggle='dropdown')
+      li.dropdown(ng-switch-when='true' dropdown)
+        a.dropdown-toggle(dropdown-toggle)
           .marker.fa.fa-caret-down
           img.avatar(ng-src='{{user.avatar}}')
           .user-info
@@ -29,8 +29,8 @@
             | View Profile
           li: a.settings.icon(href='/create')
             span.fa.fa-plus-circle
-            | New Project
-          li: a.activity.icon(href="/{{user.name}}#activity")
+            | New Thing
+          li: a.activity.icon(href='/{{user.name}}#activity')
             span.fa.fa-bar-chart
             | Recent Activity
           li: a.settings.icon(href='/settings')
@@ -40,8 +40,8 @@
             span.fa.fa-sign-out
             | Sign out
 
-      li.dropdown.login-dropdown(ng-switch-when='false')
-        a.dropdown-toggle(data-toggle='dropdown')
+      li.dropdown.login-dropdown(ng-switch-default dropdown)
+        a.dropdown-toggle(dropdown-toggle)
           .marker.fa.fa-caret-down
           | Login or register
 

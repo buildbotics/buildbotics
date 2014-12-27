@@ -38,7 +38,7 @@
 
 using namespace std;
 using namespace cb;
-using namespace Buildbotics;
+using namespace BuildBotics;
 
 
 AWS4Signature::AWS4Signature(unsigned expires, uint64_t ts,

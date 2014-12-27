@@ -51,7 +51,7 @@ using namespace cb;
 using namespace BuildBotics;
 
 
-User::User(App &app) : app(app), expires(0) {
+User::User(App &app) : app(app), expires(0), auth(0) {
   updateSession();
 }
 
@@ -72,6 +72,8 @@ string User::updateSession() {
   buf.insert("expires", Time(expires).toString());
   if (!provider.empty()) buf.insert("provider", provider);
   if (!id.empty()) buf.insert("id", id);
+  if (!name.empty()) buf.insert("name", name);
+  buf.insert("auth", auth);
   buf.endDict();
   buf.flush();
 
@@ -84,7 +86,9 @@ string User::updateSession() {
   ctx.signInit();
   ctx.setRSAPadding(KeyContext::NO_PADDING);
 
-  return session = Base64('=', '-', '_', 0).encode(ctx.sign(state));
+  session = Base64('=', '-', '_', 0).encode(ctx.sign(state));
+
+  return getToken();
 }
 
 
@@ -103,6 +107,8 @@ void User::decodeSession(const string &session) {
   if (hasExpired()) THROW("User auth expired");
   provider = data->getString("provider");
   id = data->getString("id");
+  name = data->getString("name", "");
+  auth = data->getNumber("auth", 0);
 }
 
 

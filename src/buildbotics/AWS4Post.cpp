@@ -36,23 +36,30 @@
 
 using namespace std;
 using namespace cb;
-using namespace Buildbotics;
+using namespace BuildBotics;
 
 
 void AWS4Post::Condition::write(JSON::Writer &writer) const {
   if (op == "eq") {
-    writer.appendDict();
+    writer.beginDict();
     writer.insert(name, value);
     writer.endDict();
 
   } else {
-    writer.appendList();
+    writer.beginList();
     writer.append(op);
     writer.append("$" + name);
     writer.append(value);
     writer.endList();
   }
 }
+
+
+void AWS4Post::Condition::append(JSON::Writer &writer) const {
+  writer.beginAppend();
+  write(writer);
+}
+
 
 
 AWS4Post::AWS4Post(const string &bucket, const string &key, unsigned expires,
@@ -123,21 +130,22 @@ string AWS4Post::getPolicy(const string &id) const {
   }
 
   // Required conditions
-  Condition("x-amz-algorithm", getAlgorithm()).write(writer);
-  Condition("x-amz-credential", getCredential(id)).write(writer);
-  Condition("x-amz-date", getDateTime()).write(writer);
+  Condition("x-amz-algorithm", getAlgorithm()).append(writer);
+  Condition("x-amz-credential", getCredential(id)).append(writer);
+  Condition("x-amz-date", getDateTime()).append(writer);
 
   writer.endList();
   writer.endDict();
+  writer.flush();
 
-  return Base64('=', '+', '/', 0).encode(writer.toString());
+  return writer.toString();
 }
 
 
 void AWS4Post::sign(const std::string &id, const std::string &secret) {
   if (!hasString("key")) THROW("Missing required field 'key'");
 
-  string policy = getPolicy(id);
+  string policy = Base64('=', '+', '/', 0).encode(getPolicy(id));
 
   insert("policy", policy, false);
   insert("x-amz-algorithm", getAlgorithm(), false);

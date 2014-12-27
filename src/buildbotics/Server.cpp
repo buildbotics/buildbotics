@@ -76,39 +76,72 @@ void Server::init() {
     api.addHandler(HTTP_ANY, "/api/auth/.*", new Event::RedirectSecure(port));
   }
 
-#define ADD_TM(METHODS, PATTERN, FUNC) \
-  api.addMember<Transaction> (METHODS, PATTERN, &Transaction::FUNC)
+#define ADD_TM(GROUP, METHODS, PATTERN, FUNC)                           \
+  (GROUP).addMember<Transaction>(METHODS, PATTERN, &Transaction::FUNC)
+
+#define NAME_RE "[\\w_.]+"
+#define FILENAME_RE ".+"
+#define TAG_RE "[\\w. -]+"
+#define PROFILE_RE "/api/profiles/(?P<profile>" NAME_RE ")"
+#define THING_RE PROFILE_RE "/things/(?P<thing>" NAME_RE ")"
+#define STAR_RE THING_RE "/star"
+#define COMMENTS_RE THING_RE "/comments"
+#define COMMENT_RE COMMENTS_RE "/(?P<comment>\\d+)"
+#define FILE_RE THING_RE "/files/(?P<file>" FILENAME_RE ")"
+#define THING_TAGS_RE THING_RE "/tags/(?P<tags>" TAG_RE "(," TAG_RE ")*)"
+#define TAGS_RE "/api/tags"
+#define TAG_PATH_RE "/(?P<tag>" TAG_RE ")"
+#define FILE_URL_RE \
+  "/(?P<profile>" NAME_RE ")/(?P<thing>" NAME_RE ")/(?P<file>" FILENAME_RE ")"
 
   // Auth
-  ADD_TM(HTTP_GET, "/api/auth/user", apiAuthUser);
-  ADD_TM(HTTP_GET | HTTP_POST,
+  ADD_TM(api, HTTP_GET, "/api/auth/user", apiAuthUser);
+  ADD_TM(api, HTTP_GET | HTTP_POST,
          "/api/auth/(?P<provider>(google)|(github)|(twitter)|(facebook))"
          "(/callback)?", apiAuthLogin);
-  ADD_TM(HTTP_GET, "/api/auth/logout", apiAuthLogout);
+  ADD_TM(api, HTTP_GET, "/api/auth/logout", apiAuthLogout);
 
-  // Names
-  ADD_TM(HTTP_PUT, "/api/name/register/(?P<name>[\\w_.]+)", apiNameRegister);
-  ADD_TM(HTTP_GET, "/api/name/available/(?P<name>[\\w_.]+)", apiNameAvailable);
-  ADD_TM(HTTP_GET, "/api/name/suggestions", apiNameSuggest);
+  // Profiles
+  ADD_TM(api, HTTP_PUT, PROFILE_RE "/register", apiProfileRegister);
+  ADD_TM(api, HTTP_GET, PROFILE_RE "/available", apiProfileAvailable);
+  ADD_TM(api, HTTP_GET, "/api/suggest", apiProfileSuggest);
+  ADD_TM(api, HTTP_PUT, PROFILE_RE, apiPutProfile);
+  ADD_TM(api, HTTP_GET, PROFILE_RE, apiGetProfile);
 
-  // Projects
-  ADD_TM(HTTP_GET, "/api/projects", apiProjects);
+  // Things
+  ADD_TM(api, HTTP_GET, "/api/things", apiGetThings);
+  ADD_TM(api, HTTP_GET, THING_RE "/available", apiThingAvailable);
+  ADD_TM(api, HTTP_GET, THING_RE, apiGetThing);
+  ADD_TM(api, HTTP_PUT, THING_RE, apiPutThing);
+  ADD_TM(api, HTTP_DELETE, THING_RE, apiDeleteThing);
+
+  // Stars
+  ADD_TM(api, HTTP_PUT, STAR_RE, apiStarThing);
+  ADD_TM(api, HTTP_DELETE, STAR_RE, apiUnstarThing);
+
+  // Comments
+  ADD_TM(api, HTTP_POST, COMMENTS_RE, apiPostComment);
+  ADD_TM(api, HTTP_PUT, COMMENT_RE, apiUpdateComment);
+  ADD_TM(api, HTTP_DELETE, COMMENT_RE, apiDeleteComment);
 
   // Files
-  const char *filePattern =
-    "/api/profiles/(?P<profile>[\\w_.]+)/"
-    "(?P<type>(projects)|(machines)|(tools))/"
-    "(?P<thing>[\\w_.]+)/files/(?P<file>[\\w_.]+)";
-  ADD_TM(HTTP_PUT, filePattern, apiPutFile);
-  ADD_TM(HTTP_DELETE, filePattern, apiDeleteFile);
+  ADD_TM(*this, HTTP_GET, FILE_URL_RE, apiDownloadFile);
+  ADD_TM(api, HTTP_GET, FILE_RE, apiGetFile);
+  ADD_TM(api, HTTP_PUT, FILE_RE, apiPutFile);
+  ADD_TM(api, HTTP_DELETE, FILE_RE, apiDeleteFile);
 
   // Tags
-  ADD_TM(HTTP_GET, "/api/tags", apiGetTags);
-  ADD_TM(HTTP_PUT, "/api/tags/(?P<tag>\\w+)", apiAddTag);
-  ADD_TM(HTTP_DELETE, "/api/tags/(?P<tag>\\w+)", apiDeleteTag);
+  ADD_TM(api, HTTP_GET, TAGS_RE, apiGetTags);
+  ADD_TM(api, HTTP_PUT, TAG_PATH_RE, apiAddTag);
+  ADD_TM(api, HTTP_DELETE, TAG_PATH_RE, apiDeleteTag);
+  ADD_TM(api, HTTP_PUT, THING_TAGS_RE, apiTagThing);
+  ADD_TM(api, HTTP_DELETE, THING_TAGS_RE, apiUntagThing);
+
+  // Licenses
+  ADD_TM(api, HTTP_GET, "/api/licenses", apiGetLicenses);
 
   // Not found
-  ADD_TM(HTTP_ANY, "", apiNotFound);
+  ADD_TM(api, HTTP_ANY, "", apiNotFound);
 
   if (app.getOptions()["document-root"].hasValue()) {
     string root = app.getOptions()["document-root"];

@@ -35,7 +35,7 @@
 
 using namespace std;
 using namespace cb;
-using namespace Buildbotics;
+using namespace BuildBotics;
 
 
 AWS4PresignedURL::AWS4PresignedURL(const URI &resource,

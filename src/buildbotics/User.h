@@ -52,6 +52,8 @@ namespace BuildBotics {
     uint64_t expires;
     std::string provider;
     std::string id;
+    std::string name;
+    uint64_t auth;
 
   public:
     User(App &app);
@@ -69,6 +71,12 @@ namespace BuildBotics {
 
     const std::string &getProvider() const {return provider;}
     const std::string &getID() const {return id;}
+
+    void setName(const std::string &name) {this->name = name;}
+    const std::string &getName() const {return name;}
+
+    void setAuth(uint64_t auth) {this->auth = auth;}
+    uint64_t getAuth() const {return auth;}
 
     bool isAuthenticated() const {return !provider.empty() && !id.empty();}
     void authenticate(const std::string &provider, const std::string &id);

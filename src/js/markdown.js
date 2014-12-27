@@ -19,6 +19,9 @@ function markdown_directive($sanitize, $marked) {
     return {
         restrict: 'E',
         require: '?ngModel',
+        replace: true,
+        template: '<div class="markdown" ng-transclude></div>',
+        transclude: true,
 
         link: function (scope, element, attrs, model) {
             function render() {

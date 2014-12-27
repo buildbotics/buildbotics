@@ -7,15 +7,17 @@ html
     base(href='/')
 
     - var cdn = '//maxcdn.bootstrapcdn.com'
-    link(rel='stylesheet' href=cdn + '/bootstrap/3.2.0/css/bootstrap.min.css')
+    link(rel='stylesheet' href=cdn + '/bootstrap/3.3.1/css/bootstrap.min.css')
     link(rel='stylesheet'
       href=cdn + '/font-awesome/4.2.0/css/font-awesome.min.css')
-    link(rel='stylesheet' href='//cdn.jsdelivr.net/editor/0.1.0/editor.css')
+
+    - cdn = '//cdn.jsdelivr.net'
+    link(rel='stylesheet' href=cdn + '/editor/0.1.0/editor.css')
 
     link(rel='stylesheet' href='/css/style.css')
 
   body(ng-controller='BodyCtrl')
-    #header.navbar.navbar-default(ng-switch on='authenticated')
+    #header.navbar.navbar-default(ng-switch on='user.authenticated')
       include ./navbar.jade
 
     #content(ng-controller='ContentCtrl' ng-cloak)
@@ -24,50 +26,70 @@ html
           include ./home.jade
 
         .explore-page(ng-switch-when='explore')
-          h2 Explore
+          h2.page-title Explore
           hr
-          include ./projects.jade
+          include ./things.jade
 
         .create-page(ng-switch-when='create')
-          h2 Create
+          h2.page-title Create a new thing
           hr
+          include ./create.jade
 
         .build-page(ng-switch-when='build')
-          h2 Build
+          h2.page-title Build
           hr
 
         .settings-page(ng-switch-when='settings')
-          h2 Settings
+          h2.page-title Settings
           hr
 
-        .user-page(ng-switch-when='user')
-          include ./user.jade
+        .user-page(ng-switch-when='profile')
+          include ./profile.jade
 
-        .project-page(ng-switch-when='project')
-          include ./project.jade
+        .thing-page(ng-switch-when='thing')
+          include ./thing.jade
 
         .settings-page(ng-switch-when='404')
-          h2 Page not found
-
-    #modal-overlay
+          h2.page-title Page not found
 
     #templates
       include ./register.jade
       include ./modal.jade
+      include ./notify.jade
+      include ./gallery.jade
+      include ./file-manager.jade
+      include ./comments.jade
 
     - var cdn = '//cdnjs.cloudflare.com/ajax/libs'
     script(src=cdn + '/jquery/1.11.1/jquery.js')
     script(src=cdn + '/marked/0.3.2/marked.min.js')
-    script(src=cdn + '/angular.js/1.3.0/angular.js')
-    script(src=cdn + '/angular.js/1.3.0/angular-route.js')
-    script(src=cdn + '/angular.js/1.3.0/angular-cookies.js')
-    script(src=cdn + '/angular.js/1.3.0/angular-sanitize.js')
-    script(src=cdn + '/angular-ui-bootstrap/0.11.2/ui-bootstrap-tpls.js')
+    script(src=cdn + '/moment.js/2.8.4/moment.min.js')
 
-    script(src='//cdn.jsdelivr.net/editor/0.1.0/editor.js')
+    - var ngVersion = '1.3.7'
+    - var ngCDN = cdn + '/angular.js/' + ngVersion
+    script(src=ngCDN + '/angular.js')
+    script(src=ngCDN + '/angular-route.js')
+    script(src=ngCDN + '/angular-cookies.js')
+    script(src=ngCDN + '/angular-sanitize.js')
+    script(src=ngCDN + '/angular-touch.js')
+
+    script(src=cdn + '/angular-ui-bootstrap/0.12.0/ui-bootstrap.min.js')
+    script(src=cdn + '/angular-ui-bootstrap/0.12.0/ui-bootstrap-tpls.min.js')
+
+    - cdn = '//cdn.jsdelivr.net'
+    script(src=cdn + '/editor/0.1.0/editor.js')
 
     script(src='js/modernizr.custom.js')
-    script(src='js/dropzone.js')
+    script(src='js/plupload.full.min.js')
+
+    script(src='js/buildbotics.js')
+    script(src='js/modal.js')
+    script(src='js/gallery.js')
+    script(src='js/upload.js')
     script(src='js/markdown.js')
+    script(src='js/notify.js')
+    script(src='js/file-manager.js')
+    script(src='js/things.js')
+    script(src='js/comments.js')
     script(src='js/main.js')
 

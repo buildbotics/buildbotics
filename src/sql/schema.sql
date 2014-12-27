@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   `following`      INT NOT NULL DEFAULT 0,
   `stars`          INT NOT NULL DEFAULT 0,
   `badges`         INT NOT NULL DEFAULT 0,
+  `space`          BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  `auth`           BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`name`, `fullname`, `location`, `bio`)
@@ -96,14 +98,31 @@ CREATE TABLE IF NOT EXISTS followers (
 CREATE TABLE IF NOT EXISTS licenses (
   `name`           VARCHAR(64),
   `url`            VARCHAR(256),
-  `brief`          TEXT,
-  `description`    MEDIUMTEXT,
-  `shareable`      BOOL NOT NULL DEFAULT true,
-  `commercial_use` BOOL NOT NULL DEFAULT true,
-  `attribution`    BOOL NOT NULL DEFAULT false,
 
   PRIMARY KEY (`name`)
 );
+
+
+INSERT INTO licenses
+  VALUES
+  ('Public domain', 'http://wikipedia.org/wiki/Public_domain'),
+  ('GNU Public License v2.0', 'http://opensource.org/licenses/GPL-2.0'),
+  ('GNU Public License v3.0', 'http://opensource.org/licenses/GPL-3.0'),
+  ('MIT License', 'http://opensource.org/licenses/MIT'),
+  ('BSD License', 'http://opensource.org/licenses/BSD-2-Clause'),
+  ('Creative Commons - Attribution License v4.0',
+  'http://creativecommons.org/licenses/by/4.0/'),
+  ('Creative Commons - Attribution-NoDerivatives License v4.0',
+  'http://creativecommons.org/licenses/by-nd/4.0/'),
+  ('Creative Commons - Attribution-ShareAlike License v4.0',
+  'http://creativecommons.org/licenses/by-sa/4.0/'),
+  ('Creative Commons - Attribution-NonCommercial License v4.0',
+  'http://creativecommons.org/licenses/by-nc/4.0/'),
+  ('Creative Commons - Attribution-NonCommercial-NoDerivatives License v4.0',
+  'http://creativecommons.org/licenses/by-nc-nd/4.0/'),
+  ('Creative Commons - Attribution-NonCommercial-ShareAlike License v4.0',
+  'http://creativecommons.org/licenses/by-nc-sa/4.0/')
+  ON DUPLICATE KEY UPDATE name = name;
 
 
 CREATE TABLE IF NOT EXISTS thing_type (
@@ -117,27 +136,33 @@ INSERT INTO thing_type
 
 
 CREATE TABLE IF NOT EXISTS things (
-  `id`         INT NOT NULL AUTO_INCREMENT,
-  `owner_id`   INT NOT NULL,
-  `parent_id`  INT,
-  `name`       VARCHAR(64) NOT NULL,
-  `type`       CHAR(8),
-  `published`  BOOL DEFAULT false,
-  `redirect`   BOOL DEFAULT false,
-  `created`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `modified`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `brief`      VARCHAR(256) DEFAULT '',
-  `url`        VARCHAR(256) DEFAULT '',
-  `text`       TEXT DEFAULT '',
-  `tags`       TEXT DEFAULT '',
-  `comments`   INT NOT NULL DEFAULT 0,
-  `stars`      INT NOT NULL DEFAULT 0,
-  `children`   INT NOT NULL DEFAULT 0,
-  `license`    VARCHAR(64),
+  `id`          INT NOT NULL AUTO_INCREMENT,
+  `parent_id`   INT,
+
+  `owner_id`    INT NOT NULL,
+  `name`        VARCHAR(64) NOT NULL,
+  `type`        CHAR(8) NOT NULL,
+  `title`       VARCHAR(128),
+  `url`         VARCHAR(256),
+  `description` TEXT,
+  `license`     VARCHAR(64),
+  `tags`        TEXT,
+
+  `published`   BOOL DEFAULT false,
+  `redirect`    BOOL DEFAULT false,
+
+  `created`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `modified`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  `comments`    INT NOT NULL DEFAULT 0,
+  `stars`       INT NOT NULL DEFAULT 0,
+  `children`    INT NOT NULL DEFAULT 0,
+
+  `space`       BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
   PRIMARY KEY (`id`),
-  FULLTEXT KEY `text` (`name`, `brief`, `text`, `tags`),
-  UNIQUE (`owner_id`, `type`, `name`),
+  FULLTEXT KEY `text` (`name`, `title`, `description`, `tags`),
+  UNIQUE (`owner_id`, `name`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`parent_id`) REFERENCES things(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`type`) REFERENCES thing_type(`name`) ON DELETE SET NULL,
@@ -146,17 +171,17 @@ CREATE TABLE IF NOT EXISTS things (
 
 
 CREATE TABLE IF NOT EXISTS steps (
-  `id`         INT NOT NULL AUTO_INCREMENT,
-  `owner_id`   INT NOT NULL,
-  `thing_id`   INT NOT NULL,
-  `name`       VARCHAR(64) NOT NULL,
-  `created`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `modified`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `position`   INT DEFAULT 0,
-  `text`       TEXT DEFAULT '',
+  `id`          INT NOT NULL AUTO_INCREMENT,
+  `owner_id`    INT NOT NULL,
+  `thing_id`    INT NOT NULL,
+  `name`        VARCHAR(64) NOT NULL,
+  `created`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `modified`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `position`    INT DEFAULT 0,
+  `description` TEXT,
 
   PRIMARY KEY (`id`),
-  FULLTEXT KEY `text` (`name`, `text`),
+  FULLTEXT KEY `text` (`name`, `description`),
   UNIQUE (`thing_id`, `name`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`thing_id`) REFERENCES things(`id`) ON DELETE CASCADE
@@ -179,10 +204,10 @@ CREATE TABLE IF NOT EXISTS comments (
   `owner_id`  INT NOT NULL,
   `thing_id`  INT NOT NULL,
   `step_id`   INT,
-  `creation`  TIMESTAMP NOT NULL,
-  `modified`  TIMESTAMP NOT NULL,
+  `created`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `modified`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ref`       INT,
-  `text`      TEXT DEFAULT '',
+  `text`      TEXT,
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`text`),
@@ -198,7 +223,18 @@ CREATE TABLE IF NOT EXISTS tags (
   `name`  VARCHAR(64) NOT NULL UNIQUE,
   `count` INT NOT NULL DEFAULT 0,
 
+  FULLTEXT KEY `tags` (`name`),
   PRIMARY KEY (`id`)
+);
+
+
+CREATE TABLE IF NOT EXISTS thing_tags (
+  `thing_id` INT NOT NULL,
+  `tag_id`   INT NOT NULL,
+
+  PRIMARY KEY (`thing_id`, `tag_id`),
+  FOREIGN KEY (`thing_id`) REFERENCES things(id) ON DELETE CASCADE,
+  FOREIGN KEY (`tag_id`) REFERENCES tags(id) ON DELETE CASCADE
 );
 
 
@@ -208,6 +244,7 @@ CREATE TABLE IF NOT EXISTS badges (
   `issued`      INT DEFAULT 0,
   `points`      INT DEFAULT 0,
   `description` VARCHAR(256),
+  `auth`        BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
   PRIMARY KEY (`id`)
 );
@@ -227,14 +264,16 @@ CREATE TABLE IF NOT EXISTS files (
   `id`        INT NOT NULL AUTO_INCREMENT,
   `thing_id`  INT NOT NULL,
   `step_id`   INT,
-  `name`      VARCHAR(256) NOT NULL,
+  `name`      VARCHAR(80) NOT NULL,
   `type`      VARCHAR(64) NOT NULL,
+  `space`     INT NOT NULL,
   `url`       VARCHAR(256) NOT NULL,
-  `caption`   VARCHAR(256) NOT NULL,
+  `caption`   VARCHAR(256),
   `display`   BOOL NOT NULL DEFAULT true,
-  `creation`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `downloads` INT NOT NULL DEFAULT 0,
-  `position`  INT DEFAULT 0,
+  `created`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `downloads` INT UNSIGNED NOT NULL DEFAULT 0,
+  `position`  INT NOT NULL DEFAULT 0,
+  `confirmed` BOOL NOT NULL DEFAULT false,
 
   PRIMARY KEY (`id`),
   UNIQUE (`thing_id`, `name`),

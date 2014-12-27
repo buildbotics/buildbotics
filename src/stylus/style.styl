@@ -1,21 +1,30 @@
-page_width = 960px
+page_width = 990px
 header_button_size = 32px
 nav_padding = 8px
 
 highlight_color = #fdaa4d
 link_color = #e5aa3d
+link_hover_color = #428bca
 header_color = #ddd
 header_bg = #666
 header_hover_color = #222
 header_hover_bg = #ddd
 header_border_color = #888
 page_color = #fafafa
-text_color = #444
+page_highlight_color = #e9e9e9
+page_hover_color = #d8d8d8
 text_color = #344
+medium_text_color = #666
 light_text_color = #888
 border_color = #aaa
 
+pane_border = 1px solid #ddd
 pane_shadow = 0 0 5px 0 rgba(50, 50, 50, 0.2)
+
+golden_ratio = 1.6180339887498948482
+thing_content_width = 700px
+thing_sidebar_width = 230px
+thing_gallery_width = thing_content_width * 0.8
 
 [ng\:cloak], [ng-cloak], .ng-cloak
   display: none !important
@@ -23,22 +32,33 @@ pane_shadow = 0 0 5px 0 rgba(50, 50, 50, 0.2)
 a, a:visited
   color: link_color
 
+a.fa, a.fa:visited
+  color: light_text_color
+
 a:hover, a:focus
   text-decoration: underline
   text-decoration-color: border_color
 
+a:hover
+  color: link_hover_color !important
+
+a.fa:hover
+  text-decoration: none
+  cursor: pointer
+
+.error
+  color: red
+
+.warning
+  color: #fd0
+
+.weak
+  font-size: 80%
+  color: light_text_color
+
 body
   background-color: page_color
   overflow-y: scroll
-
-#modal-overlay
-  display: none
-  height: 100%
-  width: 100%
-  position: fixed
-  left: 0
-  top: 0
-  z-index: 5
 
 #header
   background-color: header_bg
@@ -56,6 +76,7 @@ body
 
   .navbar-contents
     max-width: page_width
+    padding: 0 15px
     margin: auto
 
   .navbar-text
@@ -73,7 +94,7 @@ body
       background-color: inherit
 
   .navbar-header > li > a
-    border-radius: 4px
+    border-radius: 3px
 
   .navbar-nav, .navbar-header
     > li > a:hover
@@ -204,7 +225,12 @@ body
 
 #content
   max-width: page_width
+  padding: 0 15px
   margin: 0.75em auto auto
+
+.page-title
+  font-size: 22pt
+  color: light_text_color
 
 .home-page
   .actions
@@ -223,44 +249,52 @@ body
       font-weight: bold
       font-size: 150%
 
-a.likes
+a.stars, a.children
   color: light_text_color
   cursor: pointer
 
-.likes .user-likes
+.stars .user-stars
   color: highlight_color
 
 
-project_width = 300px
+thing_width = 300px
 
-.flexbox .projects
+.flexbox .things
   display: flex
   flex-wrap: wrap
   justify-content: space-around
 
-  .project
-    flex: 0 0 project_width
+  .thing
+    flex: 0 0 thing_width
 
-.projects
+.things
   list-style: none
   padding: 0
 
-  .project
+  .thing
     position: relative
     display: inline-block
     margin: 0 8px 1em 8px
-    width: project_width
+    width: thing_width
     overflow: hidden
     cursor: pointer
     font-family: "Times New Roman", Times, serif
     font-size: 18pt
 
     .image
-      min-width: project_width
-      height: ((project_width) / 1.618)
+      width: thing_width
+      height: ((thing_width) / 1.618)
       border-radius: 6px
       padding: 2px
-      border: 1px solid page_color
+      border: 1px solid #ddd
+
+      &.missing
+        background-color: #eee
+        text-align: center
+        padding-top: 50px
+
+        .fa
+          font-size: 64pt
 
     a:hover
       .image
@@ -276,11 +310,11 @@ project_width = 300px
       span
         color: link_color
 
-    .title, .owner, .likes, .comments
+    .title, .owner, .stars, .comments
       display: block
       white-space: nowrap
 
-    .likes, .comments
+    .stars, .comments
       font-size: 12pt
       margin: 0 0.1em 0 0.5em
       color: light_text_color
@@ -295,7 +329,7 @@ project_width = 300px
       font-size: 12pt
       float: left
 
-    .likes
+    .stars
       float: right
 
     .comments
@@ -306,7 +340,7 @@ project_width = 300px
       clear: both
       color: text_color
 
-#project
+#thing
   .path
     font-size: 18pt
 
@@ -318,8 +352,12 @@ project_width = 300px
       font-size: 16pt
       margin: none
 
-    .btn
+    .btn-group
       float: right
+
+    > .fa
+      float: right
+      margin: 1em
 
   h3
     font-size: 14pt
@@ -332,62 +370,54 @@ project_width = 300px
       margin: 0
       font-size: 22pt
 
-  .likes
-    margin-top: 0.5em
-    float: right
+  .header
+    .stars, .children
+      margin-top: 0.5em
+      margin-left: 1em
+      float: right
 
   .owner
     margin: 1em 0
 
   .content
     float: left
-    width: 720px
+    width: 100%
+    max-width: thing_content_width
 
   .sidebar
     position: relative
-    border-radius: 5px
-    box-shadow: pane_shadow
+    border-radius: 3px
+    border: pane_border
     padding: 1em
     float: right
-    width: 230px
+    width: thing_sidebar_width
     color: #888
+    font-size: 80%
 
     .edit
       cursor: pointer
-      color: #666
 
-      &:hover
-        color: #428bca
+      &:hover, &:hover h3, &:hover a
+        color: link_hover_color
 
-    .fa
+    .fa-edit
       float: right
       font-size: 14pt
+
+    h1, h2, h3
+      margin-top: 0
+
+    h2
+      font-size: 16pt
+      color: text_color
 
     h3
       font-size: 12pt
       font-weight: bold
+      color: medium_text_color
 
-    .bb-modal
-      position: absolute
-      z-index: 10
-      right: -1px
-      box-shadow: pane_shadow
-      border-radius: 3px
-      border: 1px solid #ccc
-      background: #fff
-      width: 300px
-
-      .header, .body
-        padding: 0.5em 1em
-
-      .header
-        border-bottom: 1px solid #ddd
-
-      .fa-close
-        cursor: pointer
-
-      h3
-        margin: 0
+    .license .title
+      color: medium_text_color
 
     .link a
       display: block
@@ -395,22 +425,10 @@ project_width = 300px
       text-overflow: ellipsis
       overflow: hidden
 
-    .tags
-      .btn
-        margin: 3px
-        color: #888
-
-  .carousel
-    border-radius: 5px
-    box-shadow: pane_shadow
-    overflow: hidden
-    height: 370px
-    width: 600px
-    margin: auto
-
-    img
-      height: 370px
-      width: 600px
+    .tag .fa
+      vertical-align: super
+      font-size: smaller
+      margin: 2px
 
   .input-group
     margin: 1em 0
@@ -426,6 +444,75 @@ project_width = 300px
   .description .CodeMirror
     height: 20em
 
+.comment
+  margin: 2em 0
+
+  .avatar
+    display: block
+    position: absolute
+    width: header_button_size * 1.25
+    height: header_button_size * 1.25
+
+  .comment-wrapper
+    border-radius: 3px
+    border: pane_border
+    margin-left: header_button_size * 1.75
+    position: relative
+
+    &:before, &:after
+      width: 0
+      height: 0
+      content: ' '
+      display: block
+      border-color: transparent
+      border-style: solid solid outset
+      position: absolute
+      top: 12px
+      left: -16px
+
+    &:before
+      border-right-color: #ddd
+      border-width: 8px
+
+    &:after
+      border-right-color: #f3f3f3
+      border-width: 8px
+      margin-left: 1px
+
+  .markdowneditor
+    box-shadow: none
+    border: none
+    border-radius: 0
+
+    .CodeMirror
+      height: 200px
+
+  .comment-header
+    border-radius: 3px
+    height: 4em
+    padding: 0.5em
+    background: #f3f3f3
+    color: light_text_color
+    font-size: 80%
+
+    .owner
+      color: text_color
+      font-weight: bold
+
+    .actions
+      float: right
+      white-space: nowrap
+
+      .fa
+        margin-left: 0.5em
+        font-size: 12pt
+
+  .comment-content
+    max-height: 150em
+    overflow: auto
+
+    .markdown
+      padding: 0.5em
 
 #register
   .suggestion
@@ -438,23 +525,71 @@ project_width = 300px
   .picture
     width: 200px
     height: 200px
-    border-radius: 5px
+    border-radius: 3px
 
   .name
     font-weight: bold
 
+#create
+  td, th
+    padding: 0.25em 1em 0.25em 0
+
+    h3
+      margin: 0
+
+  h3
+    font-size: 16pt
+
+  p
+    margin: 2em 0
+
+  .name
+    position: relative
+
+    .fa-check
+      color: green
+      position: absolute
+      right: 1.5em
+      top: 1em
+
+    input
+      padding-right: 2em
+
 #dialogs
   display: none
 
+#notify
+  .fa
+    padding: 0.5em
+    vertical-align: middle
+    font-size: 24pt
 
 .markdowneditor
-  border: 1px solid #ccc
-  border-radius: 4px
-  box-shadow: pane_shadow
+  border: pane_border
+  border-radius: 3px
   overflow: hidden
 
   .editor-toolbar
-    background-color: #eee
+    background: #f3f3f3
+    padding: 0.5em 0
+    opacity: inherit
+
+    &:hover
+      background: #f3f3f3
+      opacity: inherit
+      color: inherit
+
+    &:after, &:before
+      height: 0
+      margin: 0
+
+    a
+      color: light_text_color !important
+      border: none
+
+      &:hover
+        background: inherit
+        border: none
 
   .editor-preview
     padding: 6px 12px
@@ -465,9 +600,129 @@ project_width = 300px
     background-color: #fff
     border: 1px solid #fff
     resize: vertical;
+    height: 300px
 
   .CodeMirror-focused
     border: 1px solid rgba(82, 168, 236, 0.8)
     box-shadow: 0 0 8px rgba(82, 168, 236, 0.6)
     outline: thin dotted \9
 
+.bb-modal
+  right: -1px
+  box-shadow: pane_shadow
+  border-radius: 3px
+  border: 1px solid #ccc
+  background: #fff
+  min-width: 300px
+
+  .header, .body
+    padding: 0.5em 1em
+
+  .header
+    border-bottom: 1px solid #ddd
+    color: light_text_color
+    white-space: nowrap
+    padding-right: 3em
+
+    .fa-close
+      float: right
+      cursor: pointer
+      margin-right: -2em
+
+    h3
+      margin: 0
+
+  .footer
+    text-align: right
+
+
+.file-manager
+  border: pane_border
+  border-radius: 3px
+
+  .file-manager-footer
+    padding: 1em
+
+  .preview img
+      width: 32px
+      height: 32px
+      border-radius: 3px
+
+  .progress-bar
+    color: text_color
+
+  .bb-modal .body
+    text-align: right
+
+  td, th
+    text-align: center
+    white-space: nowrap
+    font-size: 10pt
+
+  td.preview .fa
+    font-size: 16pt
+    color: light_text_color
+
+  th.name, td.name
+    width: 100%
+    text-align: left
+
+    a
+      color: text_color
+
+  th.size, td.size
+    min-width: 6em
+    text-align: right
+
+  td.actions
+    a
+      color: light_text_color
+      margin: 0.5em
+
+.table
+  th
+    .fa-caret-up, .fa-caret-down
+      display: none
+
+    .fa
+      width: 1em
+
+  th.st-sort-ascent, th.st-sort-descent
+    .fa-caret-right
+      display: none
+
+  th.st-sort-ascent .fa-caret-up
+    display: inline-block
+
+  th.st-sort-descent .fa-caret-down
+    display: inline-block
+
+.table-striped > tbody
+  > tr:nth-child(odd) > td
+    background-color: page_color
+
+  > tr:nth-child(even) > td
+    background-color: page_highlight_color
+
+  > tr:hover > td
+    background-color: page_hover_color
+
+.tooltip
+  white-space: nowrap
+
+.carousel
+  border: pane_border
+  border-radius: 3px
+  margin: auto
+  overflow: hidden
+  max-width: thing_gallery_width
+  max-height: (thing_gallery_width / 16 * 9)
+  background: header_color
+
+  .item
+    img
+      display: block
+      margin: auto
+      max-width: thing_gallery_width
+      max-height: (thing_gallery_width / 16 * 9)
+      background: white

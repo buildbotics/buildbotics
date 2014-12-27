@@ -57,7 +57,8 @@ App::App() :
   facebookAuth(getOptions()), server(*this), userManager(*this),
   sessionCookieName("buildbotics.sid"), authTimeout(Time::SEC_PER_DAY),
   authGraceperiod(Time::SEC_PER_HOUR), dbHost("localhost"),
-  dbName("buildbotics"), dbPort(3306), dbTimeout(5) {
+  dbName("buildbotics"), dbPort(3306), dbTimeout(5),
+  awsRegion("us-east-1"), awsUploadExpires(Time::SEC_PER_HOUR * 2) {
 
   options.pushCategory("BuildBotics Server");
   options.add("outbound-ip", "IP address for outbound connections.  Defaults "
@@ -87,9 +88,13 @@ App::App() :
   options.popCategory();
 
   options.pushCategory("Amazon Web Services");
-  options.add("aws-access-key-id", "AWS access key ID");
-  options.add("aws-secret-access-key", "AWS secret access key");
-  options.add("aws-bucket", "AWS bucket name");
+  options.addTarget("aws-access-key-id", awsID, "AWS access key ID");
+  options.addTarget("aws-secret-access-key", awsSecret,
+                    "AWS secret access key");
+  options.addTarget("aws-bucket", awsBucket, "AWS bucket name");
+  options.addTarget("aws-region", awsRegion, "AWS region code");
+  options.addTarget("aws-upload-expires", awsUploadExpires,
+                    "Lifetime in seconds of an AWS upload token");
   options.popCategory();
 
   // Seed random number generator

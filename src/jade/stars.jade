@@ -1,0 +1,4 @@
+a.stars(title="{{thing.userStarred ? 'Unstar' : 'Star'}} this thing",
+  ng-click="thing.toggleLike()")
+  span.fa.fa-star(ng-class="thing.userStarred ? 'user-stars' : ''")
+  | &nbsp;{{thing.stars}}

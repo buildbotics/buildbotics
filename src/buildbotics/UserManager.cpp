@@ -52,15 +52,17 @@ void UserManager::cleanup() {
 SmartPointer<User> UserManager::create() {
   SmartPointer<User> user = new User(app);
 
-  if (!users.insert(users_t::value_type(user->getSession(), user)).second)
-    THROWS("User session already exists: " << user->getSession());
+  if (!users.insert(users_t::value_type(user->getToken(), user)).second)
+    THROWS("User token already exists: " << user->getToken());
 
   return user;
 }
 
 
 SmartPointer<User> UserManager::get(const string &session) {
-  users_t::iterator it = users.find(session);
+  string token = session.substr(0, 32);
+
+  users_t::iterator it = users.find(token);
   if (it != users.end()) return it->second;
 
   // Decode session and create user if valid
@@ -70,7 +72,7 @@ SmartPointer<User> UserManager::get(const string &session) {
     // TODO look up user profile in DB
 
     // Add user
-    return users.insert(users_t::value_type(session, user)).first->second;
+    return users.insert(users_t::value_type(token, user)).first->second;
 
   } CATCH_ERROR;
 
@@ -79,13 +81,13 @@ SmartPointer<User> UserManager::get(const string &session) {
 
 
 void UserManager::updateSession(const SmartPointer<User> &user) {
-  string oldSession = user->getSession();
-  string newSession = user->updateSession();
+  string oldToken = user->getToken();
+  string newToken = user->updateSession();
 
-  // Insert user under new session
-  if (!users.insert(users_t::value_type(newSession, user)).second)
-    THROWS("User session already exists " << newSession);
+  // Insert user under new token
+  if (!users.insert(users_t::value_type(newToken, user)).second)
+    THROWS("User token already exists " << newToken);
 
-  // Remove user under old Session
-  users.erase(oldSession);
+  // Remove user under old token
+  users.erase(oldToken);
 }

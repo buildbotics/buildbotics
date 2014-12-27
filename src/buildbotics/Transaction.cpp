@@ -31,6 +31,7 @@
 
 #include "Transaction.h"
 #include "App.h"
+#include "AWS4Post.h"
 
 #include <cbang/event/Client.h>
 #include <cbang/event/Buffer.h>
@@ -41,6 +42,8 @@
 #include <cbang/log/Logger.h>
 #include <cbang/util/DefaultCatch.h>
 #include <cbang/db/maria/EventDB.h>
+#include <cbang/time/Timer.h>
+#include <cbang/security/Digest.h>
 
 #include <mysql/mysqld_error.h>
 
@@ -53,22 +56,29 @@ Transaction::Transaction(App &app, evhttp_request *req) :
   Request(req), Event::OAuth2Login(app.getEventClient()), app(app) {}
 
 
-void Transaction::lookupUser(bool skipAuthCheck) {
-  if (!user.isNull()) return;
+SmartPointer<JSON::Dict> Transaction::getArgsPtr() {
+  return SmartPointer<JSON::Dict>::Null(&getArgs());
+}
+
+
+bool Transaction::lookupUser(bool skipAuthCheck) {
+  if (!user.isNull()) return true;
 
   // Get session
   string session = findCookie(app.getSessionCookieName());
-  if (session.empty()) return;
+  if (session.empty() && inHas("Authorization"))
+    session = inGet("Authorization").substr(6, 32);
+  if (session.empty()) return false;
 
   // Check Authorization header matches first 32 bytes of session
   if (!skipAuthCheck) {
-    if (!inHas("Authorization")) return;
+    if (!inHas("Authorization")) return false;
 
     string auth = inGet("Authorization");
     unsigned len = auth.length();
 
     if (len < 38 || auth.compare(0, 6, "Token ") ||
-        session.compare(0, len - 6, auth.c_str() + 6)) return;
+        session.compare(0, len - 6, auth.c_str() + 6)) return false;
   }
 
   // Get user
@@ -78,7 +88,7 @@ void Transaction::lookupUser(bool skipAuthCheck) {
   if (user.isNull() || user->hasExpired()) {
     user.release();
     setCookie(app.getSessionCookieName(), "", "", "/");
-    return;
+    return false;
   }
 
   // Check if the user auth is expiring soon
@@ -86,6 +96,28 @@ void Transaction::lookupUser(bool skipAuthCheck) {
     app.getUserManager().updateSession(user);
     user->setCookie(*this);
   }
+
+  LOG_DEBUG(3, "User: " << user->getName());
+
+  return true;
+}
+
+
+void Transaction::requireUser() {
+  lookupUser();
+  if (user.isNull() || !user->isAuthenticated())
+    THROWX("Not authorized, please login", HTTP_UNAUTHORIZED);
+}
+
+
+void Transaction::requireUser(const string &name) {
+  requireUser();
+  if (user->getName() != name) THROWX("Not authorized", HTTP_UNAUTHORIZED);
+}
+
+
+bool Transaction::isUser(const string &name) {
+  return !user.isNull() && user->getName() == name;
 }
 
 
@@ -96,7 +128,7 @@ void Transaction::query(event_db_member_functor_t member, const string &s,
 }
 
 
-void Transaction::apiError(int status, int code, const string &msg) {
+bool Transaction::apiError(int status, int code, const string &msg) {
   LOG_ERROR(msg);
 
   // Reset output
@@ -122,6 +154,8 @@ void Transaction::apiError(int status, int code, const string &msg) {
   writer.release();
   setContentType("application/json");
   reply(status);
+
+  return true;
 }
 
 
@@ -200,28 +234,28 @@ bool Transaction::apiAuthLogout() {
 }
 
 
-bool Transaction::apiNameRegister() {
+bool Transaction::apiProfileRegister() {
   lookupUser();
   if (user.isNull()) return pleaseLogin();
 
   SmartPointer<JSON::Dict> dict = new JSON::Dict;
-  dict->insert("name", getArg("name"));
+  dict->insert("profile", getArg("profile"));
   dict->insert("provider", user->getProvider());
   dict->insert("id", user->getID());
 
-  query(&Transaction::returnOK,
-        "CALL Register(%(name)s, %(provider)s, %(id)s)", dict);
+  query(&Transaction::registration,
+        "CALL Register(%(profile)s, %(provider)s, %(id)s)", dict);
   return true;
 }
 
 
-bool Transaction::apiNameAvailable() {
-  query(&Transaction::returnBool, "CALL Available(%(name)s)", getArgs().copy());
+bool Transaction::apiProfileAvailable() {
+  query(&Transaction::returnBool, "CALL Available(%(profile)s)", getArgsPtr());
   return true;
 }
 
 
-bool Transaction::apiNameSuggest() {
+bool Transaction::apiProfileSuggest() {
   lookupUser();
   if (user.isNull()) return pleaseLogin();
 
@@ -236,34 +270,240 @@ bool Transaction::apiNameSuggest() {
 }
 
 
-bool Transaction::apiProjects() {
+bool Transaction::apiPutProfile() {
+  lookupUser();
+  if (user.isNull()) return pleaseLogin();
+
+  THROW("Not yet implemented");
+}
+
+
+bool Transaction::apiGetProfile() {
+  lookupUser();
+  JSON::ValuePtr args = getArgsPtr();
+  args->insertBoolean("unpublished", isUser(args->getString("profile")));
+
+  query(&Transaction::profile, "CALL GetProfile(%(profile)s, %(unpublished)b)",
+        args);
+
+  return true;
+}
+
+
+bool Transaction::apiGetThings() {
   query(&Transaction::returnList,
         "CALL FindThings(null, null, null, null, null, null)");
   return true;
 }
 
 
+bool Transaction::apiThingAvailable() {
+  query(&Transaction::returnBool, "CALL ThingAvailable(%(profile)s, %(thing)s)",
+        getArgsPtr());
+  return true;
+}
+
+
+bool Transaction::apiGetThing() {
+  lookupUser();
+  JSON::ValuePtr args = getArgsPtr();
+  args->insertBoolean("unpublished", isUser(args->getString("profile")));
+
+  query(&Transaction::thing,
+        "CALL GetThing(%(profile)s, %(thing)s, %(unpublished)b)", args);
+
+  return true;
+}
+
+
+bool Transaction::apiPutThing() {
+  JSON::Value &args = parseArgs();
+  requireUser(args.getString("profile"));
+
+  if (!args.hasString("type")) args.insert("type", "project");
+
+  query(&Transaction::returnOK,
+        "CALL PutThing(%(profile)s, %(thing)s, %(type)s, %(title)s, "
+        "%(url)s, %(description)s, %(license)s, %(publish)b)",
+        JSON::ValuePtr::Null(&args));
+
+  return true;
+}
+
+
+bool Transaction::apiDeleteThing() {
+  THROW("Not yet implemented");
+}
+
+
+bool Transaction::apiStarThing() {
+  JSON::Value &args = parseArgs();
+  requireUser();
+  args.insert("user", user->getName());
+
+  query(&Transaction::returnOK,
+        "CALL StarThing(%(user)s, %(profile)s, %(thing)s)",
+        JSON::ValuePtr::Null(&args));
+
+  return true;
+}
+
+
+bool Transaction::apiUnstarThing() {
+  JSON::Value &args = parseArgs();
+  requireUser();
+  args.insert("user", user->getName());
+
+  query(&Transaction::returnOK,
+        "CALL UnstarThing(%(user)s, %(profile)s, %(thing)s)",
+        JSON::ValuePtr::Null(&args));
+
+  return true;
+}
+
+
+bool Transaction::apiTagThing() {
+  JSON::Value &args = parseArgs();
+  requireUser();
+
+  query(&Transaction::returnOK,
+        "CALL MultiTagThing(%(profile)s, %(thing)s, %(tags)s)",
+        JSON::ValuePtr::Null(&args));
+
+  return true;
+}
+
+
+bool Transaction::apiUntagThing() {
+  JSON::Value &args = parseArgs();
+  requireUser(args.getString("profile"));
+
+  query(&Transaction::returnOK,
+        "CALL MultiUntagThing(%(profile)s, %(thing)s, %(tags)s)",
+        JSON::ValuePtr::Null(&args));
+
+  return true;
+}
+
+
+bool Transaction::apiPostComment() {
+  JSON::Value &args = parseArgs();
+  requireUser();
+  args.insert("owner", user->getName());
+
+  query(&Transaction::returnU64,
+        "CALL PostComment(%(owner)s, %(profile)s, %(thing)s, %(step)u, "
+        "%(ref)u, %(text)s)",
+        JSON::ValuePtr::Null(&args));
+
+  return true;
+}
+
+
+bool Transaction::apiUpdateComment() {
+  JSON::Value &args = parseArgs();
+  requireUser();
+  args.insert("owner", user->getName());
+
+  query(&Transaction::returnOK,
+        "CALL UpdateComment(%(owner)s, %(comment)u, %(text)s)",
+        JSON::ValuePtr::Null(&args));
+
+  return true;
+}
+
+
+bool Transaction::apiDeleteComment() {
+  JSON::Value &args = parseArgs();
+  requireUser();
+  args.insert("owner", user->getName());
+
+  query(&Transaction::returnOK, "CALL DeleteComment(%(owner)s, %(comment)u)",
+        JSON::ValuePtr::Null(&args));
+
+  return true;
+}
+
+
+bool Transaction::apiDownloadFile() {
+  JSON::Value &args = parseArgs();
+
+  query(&Transaction::download,
+        "CALL DownloadFile(%(profile)s, %(thing)s, %(file)s)",
+        JSON::ValuePtr::Null(&args));
+
+  return true;
+}
+
+
+bool Transaction::apiGetFile() {
+  THROW("Not yet implemented");
+}
+
+
 bool Transaction::apiPutFile() {
-  // Create URL
-  string url = "http://example.com/";
+  JSON::Value &args = parseArgs();
+  requireUser(args.getString("profile"));
 
-  // Create policy
+  // Create GUID
+  Digest hash("sha256");
+  hash.update(args.getString("profile"));
+  hash.update(args.getString("thing"));
+  hash.update(args.getString("file"));
+  hash.updateWith(Timer::now());
+  string guid = hash.toBase64();
 
-  // Encode policy
+  // Create key
+  string key = guid + "/" + args.getString("file");
+
+  // Create URLs
+  string uploadURL = "https://" + app.getAWSBucket() + ".s3.amazonaws.com/";
+  string fileURL = "/" + args.getString("profile") + "/" +
+    args.getString("thing") + "/" + args.getString("file");
+  args.insert("url", uploadURL + key);
+
+  // Build POST
+  AWS4Post post(app.getAWSBucket(), key, app.getAWSUploadExpires(),
+                Time::now(), "s3", app.getAWSRegion());
+
+  uint32_t size = args.getU32("size");
+  post.setLengthRange(size, size);
+  post.insert("Content-Type", args.getString("type"));
+  post.insert("acl", "public-read");
+  post.insert("success_action_status", "201");
+  post.addCondition("name", args.getString("file"));
+  post.sign(app.getAWSID(), app.getAWSSecret());
+
+  // Write JSON
+  setContentType("application/json");
+  writer = getJSONWriter();
+  writer->beginDict();
+  writer->insert("upload_url", uploadURL);
+  writer->insert("file_url", fileURL);
+  writer->insert("guid", guid);
+  writer->beginInsert("post");
+  post.write(*writer);
+  writer->endDict();
+  writer.release();
 
   // Write to DB
-  JSON::ValuePtr args = getArgs().copy();
-  args->insert("url", url);
-
-  query(&Transaction::returnList,
-        "CALL CreateFile(%(profile)s, %(thing)s, %(type)s, null, %(file)s, "
-        "%(type)s, %(url)s, %(caption)s, %(display)b)", args);
+  query(&Transaction::returnReply,
+        "CALL PutFile(%(profile)s, %(thing)s, %(file)s, %(step)s, %(type)s, "
+        "%(size)u, %(url)s, %(caption)s, %(display)b)",
+        JSON::ValuePtr::Null(&args));
 
   return true;
 }
 
 
 bool Transaction::apiDeleteFile() {
+  JSON::Value &args = parseArgs();
+  requireUser(args.getString("profile"));
+
+  query(&Transaction::returnOK,
+        "CALL DeleteFile(%(profile)s, %(thing)s, %(file)s)",
+        JSON::ValuePtr::Null(&args));
+
   return true;
 }
 
@@ -288,21 +528,66 @@ bool Transaction::apiDeleteTag() {
 }
 
 
+bool Transaction::apiGetLicenses() {
+  query(&Transaction::returnList, "CALL GetLicenses()");
+  return true;
+}
+
+
 bool Transaction::apiNotFound() {
   apiError(HTTP_OK, HTTP_NOT_FOUND, "Invalid API method " + getURI().getPath());
   return true;
 }
 
 
+void Transaction::download(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
+  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+  case MariaDB::EventDBCallback::EVENTDB_DONE:
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    redirect(db->getString(0));
+    break;
+
+  default: returnReply(state); return;
+  }
+}
+
+
 void Transaction::login(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
+  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    user->setName(db->getString(0));
+    user->setAuth(db->getU64(1));
+    break;
+
   case MariaDB::EventDBCallback::EVENTDB_DONE:
+    app.getUserManager().updateSession(user);
     user->setCookie(*this);
 
     getJSONWriter()->write("ok");
     setContentType("application/json");
     redirect("/");
-   break;
+    break;
+
+  default: returnReply(state); return;
+  }
+}
+
+
+void Transaction::registration(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_DONE:
+    user->setName(getArg("name"));
+    app.getUserManager().updateSession(user);
+    user->setCookie(*this);
+    // Fall through
 
   default: returnOK(state); return;
   }
@@ -316,14 +601,11 @@ void Transaction::profile(MariaDB::EventDBCallback::state_t state) {
 
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_ROW:
-    if (fieldName == "name") {
-      writer->insertDict("profile");
-      db->insertRow(*writer);
+    if (fieldName == "name") db->insertRow(*writer, 0, -1, false);
+    else {
+      writer->insertDict(db->getString(0));
+      db->insertRow(*writer, 1, -1, false);
       writer->endDict();
-
-    } else {
-      writer->beginAppend();
-      db->writeRowList(*writer);
     }
     break;
 
@@ -333,15 +615,60 @@ void Transaction::profile(MariaDB::EventDBCallback::state_t state) {
       writer->beginDict();
     }
 
-    if (fieldName == "follower") writer->insertList("followers");
-    else if (fieldName == "followed") writer->insertList("following");
-    else if (fieldName == "thing") writer->insertList("starred");
-    else if (fieldName == "badge") writer->insertList("badges");
-    else if (fieldName != "name") THROWS("Unexpected result set " << fieldName);
+    if (fieldName == "thing") writer->insertDict("things");
+    else if (fieldName == "follower") writer->insertDict("followers");
+    else if (fieldName == "followed") writer->insertDict("following");
+    else if (fieldName == "starred") writer->insertDict("starred");
+    else if (fieldName == "badge") writer->insertDict("badges");
+    else if (fieldName == "name") writer->insertDict("profile");
+    else THROWS("Unexpected result set " << fieldName);
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+    writer->endDict();
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_DONE:
+    writer->endDict();
+    // Fall through
+
+  default: return returnJSON(state);
+  }
+}
+
+
+void Transaction::thing(MariaDB::EventDBCallback::state_t state) {
+  string fieldName;
+  if (db->haveResult() && db->getFieldCount())
+    fieldName = db->getField(0).getName();
+
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    if (fieldName == "name") db->insertRow(*writer, 0, -1, false);
+    else {
+      writer->appendDict();
+      db->insertRow(*writer, 0, -1, false);
+      writer->endDict();
+    }
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
+    if (writer.isNull()) {
+      writer = getJSONWriter();
+      writer->beginDict();
+    }
+
+    if (fieldName == "name") writer->insertDict("thing");
+    else if (fieldName == "step") writer->insertList("steps");
+    else if (fieldName == "file") writer->insertList("files");
+    else if (fieldName == "comment") writer->insertList("comments");
+    else if (fieldName == "profile") writer->insertList("stars");
+    else THROWS("Unexpected result set " << fieldName);
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
     if (writer->inList()) writer->endList();
+    else writer->endDict();
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_DONE:
@@ -361,11 +688,7 @@ void Transaction::returnOK(MariaDB::EventDBCallback::state_t state) {
     reply();
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_ERROR: return returnJSON(state);
-
-  default:
-    apiError(HTTP_INTERNAL_SERVER_ERROR, 0, "Unexpected DB response");
-    return;
+  default: returnReply(state);
   }
 
 }
@@ -379,7 +702,7 @@ void Transaction::returnList(MariaDB::EventDBCallback::state_t state) {
     writer->beginAppend();
 
     if (db->getFieldCount() == 1) db->writeField(*writer, 0);
-    else db->writeRowList(*writer);
+    else db->writeRowDict(*writer);
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
@@ -406,6 +729,18 @@ void Transaction::returnBool(MariaDB::EventDBCallback::state_t state) {
 }
 
 
+
+void Transaction::returnU64(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    writer->write(db->getU64(0));
+    break;
+
+  default: return returnJSON(state);
+  }
+}
+
+
 void Transaction::returnJSON(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_ROW:
@@ -413,11 +748,25 @@ void Transaction::returnJSON(MariaDB::EventDBCallback::state_t state) {
     else db->writeRowDict(*writer);
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_DONE:
-    writer.release();
+  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
     setContentType("application/json");
+    if (writer.isNull()) writer = getJSONWriter();
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_END_RESULT: break;
+
+  default: return returnReply(state);
+  }
+}
+
+
+void Transaction::returnReply(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_DONE: {
+    writer.release();
     reply();
     break;
+  }
 
   case MariaDB::EventDBCallback::EVENTDB_ERROR: {
     int error = HTTP_INTERNAL_SERVER_ERROR;
@@ -432,10 +781,8 @@ void Transaction::returnJSON(MariaDB::EventDBCallback::state_t state) {
     break;
   }
 
-  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
-    if (writer.isNull()) writer = getJSONWriter();
-    break;
-
-  default: break;
+  default:
+    apiError(HTTP_INTERNAL_SERVER_ERROR, 0, "Unexpected DB response");
+    return;
   }
 }

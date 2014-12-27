@@ -40,7 +40,7 @@
 #include <map>
 
 
-namespace Buildbotics {
+namespace BuildBotics {
   class AWS4PresignedURL : public AWS4Signature, public cb::URI {
     cb::HTTP::RequestMethod method;
 

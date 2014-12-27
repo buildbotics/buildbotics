@@ -80,6 +80,12 @@ namespace BuildBotics {
     uint32_t dbPort;
     unsigned dbTimeout;
 
+    std::string awsID;
+    std::string awsSecret;
+    std::string awsBucket;
+    std::string awsRegion;
+    uint32_t awsUploadExpires;
+
   public:
     App();
 
@@ -101,6 +107,12 @@ namespace BuildBotics {
     uint64_t getAuthTimeout() const {return authTimeout;}
     uint64_t getAuthGraceperiod() const {return authGraceperiod;}
     const cb::KeyPair &getPrivateKey() const {return key;}
+
+    const std::string &getAWSID() const {return awsID;}
+    const std::string &getAWSSecret() const {return awsSecret;}
+    const std::string &getAWSBucket() const {return awsBucket;}
+    const std::string &getAWSRegion() const {return awsRegion;}
+    uint32_t getAWSUploadExpires() const {return awsUploadExpires;}
 
     // From cb::Application
     int init(int argc, char *argv[]);

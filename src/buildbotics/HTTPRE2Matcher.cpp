@@ -33,6 +33,7 @@
 
 #include <cbang/Exception.h>
 #include <cbang/event/Request.h>
+#include <cbang/log/Logger.h>
 
 #include <vector>
 
@@ -64,9 +65,11 @@ bool HTTPRE2Matcher::operator()(Event::Request &req) {
     }
 
     // Attempt match
-    re2::StringPiece piece(req.getURI().getPath());
-    if (!RE2::FindAndConsumeN(&piece, regex, argPtrs.data(), n))
+    string path = req.getURI().getPath();
+    if (!RE2::FullMatchN(path, regex, argPtrs.data(), n))
       return false;
+
+    LOG_DEBUG(5, path << " matched " << regex.pattern());
 
     // Store results
     const map<int, string> &names = regex.CapturingGroupNames();

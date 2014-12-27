@@ -63,13 +63,19 @@ namespace BuildBotics {
   public:
     Transaction(App &app, evhttp_request *req);
 
-    void lookupUser(bool skipAuthCheck = false);
+    cb::SmartPointer<cb::JSON::Dict> getArgsPtr();
+
+    bool lookupUser(bool skipAuthCheck = false);
+    void requireUser();
+    void requireUser(const std::string &name);
+    bool isUser(const std::string &name);
+
     typedef typename cb::MariaDB::EventDBMemberFunctor<Transaction>::member_t
     event_db_member_functor_t;
     void query(event_db_member_functor_t member, const std::string &s,
                const cb::SmartPointer<cb::JSON::Value> &dict = 0);
 
-    void apiError(int status, int code, const std::string &msg);
+    bool apiError(int status, int code, const std::string &msg);
     bool pleaseLogin();
 
     // From cb::Event::OAuth2Login
@@ -80,12 +86,30 @@ namespace BuildBotics {
     bool apiAuthLogin();
     bool apiAuthLogout();
 
-    bool apiNameRegister();
-    bool apiNameAvailable();
-    bool apiNameSuggest();
+    bool apiProfileRegister();
+    bool apiProfileAvailable();
+    bool apiProfileSuggest();
+    bool apiPutProfile();
+    bool apiGetProfile();
 
-    bool apiProjects();
+    bool apiGetThings();
+    bool apiThingAvailable();
+    bool apiGetThing();
+    bool apiPutThing();
+    bool apiDeleteThing();
 
+    bool apiStarThing();
+    bool apiUnstarThing();
+
+    bool apiTagThing();
+    bool apiUntagThing();
+
+    bool apiPostComment();
+    bool apiUpdateComment();
+    bool apiDeleteComment();
+
+    bool apiDownloadFile();
+    bool apiGetFile();
     bool apiPutFile();
     bool apiDeleteFile();
 
@@ -93,15 +117,22 @@ namespace BuildBotics {
     bool apiAddTag();
     bool apiDeleteTag();
 
+    bool apiGetLicenses();
+
     bool apiNotFound();
 
     // MariaDB::EventDB callbacks
+    void download(cb::MariaDB::EventDBCallback::state_t state);
     void login(cb::MariaDB::EventDBCallback::state_t state);
+    void registration(cb::MariaDB::EventDBCallback::state_t state);
     void profile(cb::MariaDB::EventDBCallback::state_t state);
+    void thing(cb::MariaDB::EventDBCallback::state_t state);
     void returnOK(cb::MariaDB::EventDBCallback::state_t state);
     void returnList(cb::MariaDB::EventDBCallback::state_t state);
     void returnBool(cb::MariaDB::EventDBCallback::state_t state);
+    void returnU64(cb::MariaDB::EventDBCallback::state_t state);
     void returnJSON(cb::MariaDB::EventDBCallback::state_t state);
+    void returnReply(cb::MariaDB::EventDBCallback::state_t state);
   };
 }
 
