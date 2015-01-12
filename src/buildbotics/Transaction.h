@@ -63,7 +63,7 @@ namespace BuildBotics {
   public:
     Transaction(App &app, evhttp_request *req);
 
-    cb::SmartPointer<cb::JSON::Dict> getArgsPtr();
+    cb::SmartPointer<cb::JSON::Dict> parseArgsPtr();
 
     bool lookupUser(bool skipAuthCheck = false);
     void requireUser();

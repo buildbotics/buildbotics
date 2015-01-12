@@ -56,8 +56,8 @@ Transaction::Transaction(App &app, evhttp_request *req) :
   Request(req), Event::OAuth2Login(app.getEventClient()), app(app) {}
 
 
-SmartPointer<JSON::Dict> Transaction::getArgsPtr() {
-  return SmartPointer<JSON::Dict>::Null(&getArgs());
+SmartPointer<JSON::Dict> Transaction::parseArgsPtr() {
+  return SmartPointer<JSON::Dict>::Null(&parseArgs());
 }
 
 
@@ -250,7 +250,8 @@ bool Transaction::apiProfileRegister() {
 
 
 bool Transaction::apiProfileAvailable() {
-  query(&Transaction::returnBool, "CALL Available(%(profile)s)", getArgsPtr());
+  query(&Transaction::returnBool, "CALL Available(%(profile)s)",
+        parseArgsPtr());
   return true;
 }
 
@@ -271,16 +272,20 @@ bool Transaction::apiProfileSuggest() {
 
 
 bool Transaction::apiPutProfile() {
-  lookupUser();
-  if (user.isNull()) return pleaseLogin();
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
 
-  THROW("Not yet implemented");
+  query(&Transaction::returnOK,
+        "CALL PutProfile(%(profile)s, %(fullname)s, %(location)s, %(url)s, "
+        "%(bio)s)", args);
+
+  return true;
 }
 
 
 bool Transaction::apiGetProfile() {
   lookupUser();
-  JSON::ValuePtr args = getArgsPtr();
+  JSON::ValuePtr args = parseArgsPtr();
   args->insertBoolean("unpublished", isUser(args->getString("profile")));
 
   query(&Transaction::profile, "CALL GetProfile(%(profile)s, %(unpublished)b)",
@@ -291,22 +296,25 @@ bool Transaction::apiGetProfile() {
 
 
 bool Transaction::apiGetThings() {
+  JSON::ValuePtr args = parseArgsPtr();
+
   query(&Transaction::returnList,
-        "CALL FindThings(null, null, null, null, null, null)");
+        "CALL FindThings(%(query)s, %(license)s, %(order)s, %(limit)u, "
+        "%(offset)u)", args);
   return true;
 }
 
 
 bool Transaction::apiThingAvailable() {
   query(&Transaction::returnBool, "CALL ThingAvailable(%(profile)s, %(thing)s)",
-        getArgsPtr());
+        parseArgsPtr());
   return true;
 }
 
 
 bool Transaction::apiGetThing() {
   lookupUser();
-  JSON::ValuePtr args = getArgsPtr();
+  JSON::ValuePtr args = parseArgsPtr();
   args->insertBoolean("unpublished", isUser(args->getString("profile")));
 
   query(&Transaction::thing,
@@ -603,8 +611,8 @@ void Transaction::profile(MariaDB::EventDBCallback::state_t state) {
   case MariaDB::EventDBCallback::EVENTDB_ROW:
     if (fieldName == "name") db->insertRow(*writer, 0, -1, false);
     else {
-      writer->insertDict(db->getString(0));
-      db->insertRow(*writer, 1, -1, false);
+      writer->appendDict();
+      db->insertRow(*writer, 0, -1, false);
       writer->endDict();
     }
     break;
@@ -615,17 +623,17 @@ void Transaction::profile(MariaDB::EventDBCallback::state_t state) {
       writer->beginDict();
     }
 
-    if (fieldName == "thing") writer->insertDict("things");
-    else if (fieldName == "follower") writer->insertDict("followers");
-    else if (fieldName == "followed") writer->insertDict("following");
-    else if (fieldName == "starred") writer->insertDict("starred");
-    else if (fieldName == "badge") writer->insertDict("badges");
-    else if (fieldName == "name") writer->insertDict("profile");
+    if (fieldName == "name") writer->insertDict("profile");
+    else if (fieldName == "thing") writer->insertList("things");
+    else if (fieldName == "follower") writer->insertList("followers");
+    else if (fieldName == "followed") writer->insertList("following");
+    else if (fieldName == "starred") writer->insertList("starred");
+    else if (fieldName == "badge") writer->insertList("badges");
     else THROWS("Unexpected result set " << fieldName);
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
-    writer->endDict();
+    writer->end();
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_DONE:
@@ -672,7 +680,7 @@ void Transaction::thing(MariaDB::EventDBCallback::state_t state) {
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_DONE:
-    writer->endDict();
+    if (!writer.isNull()) writer->endDict();
     // Fall through
 
   default: return returnJSON(state);

@@ -67,7 +67,7 @@ function body_controller($scope, $buildbotics, $modal) {
     function load_user() {
         $buildbotics.get('/api/auth/user').success(function (data) {
             if (typeof data.profile != 'undefined') {
-                if (typeof data.profile.lastlog != 'undefined') {
+                if (typeof data.profile.lastseen != 'undefined') {
                     $buildbotics.logged_in(data.profile);
                     return;
 
@@ -147,41 +147,6 @@ function register_dialog_controller($scope, $modalInstance, suggestions) {
 }
 
 
-// Profile Controller **********************************************************
-function profile_controller($scope) {
-    $scope.profile = $scope.profile_data.profile;
-    $scope.things = $scope.profile_data.things;
-    console.log($scope);
-}
-
-
-// Create Controller ***********************************************************
-function create_controller($scope, $buildbotics, $location, $notify) {
-    $buildbotics.extend($scope);
-    $scope.thing = {name: '', title: ''};
-    $scope.ok = function () {
-        var url = '/api/profiles/' + $buildbotics.user.name + '/things/' +
-            $scope.thing.name;
-
-        var thing = '/' + $buildbotics.user.name + '/' + $scope.thing.name;
-
-        $buildbotics.put(url, {type: 'thing', title: $scope.thing.title})
-            .success(function (data) {
-                if (data != 'ok')
-                    $notify.error('Failed to create thing',
-                                  'Failed to create ' + thing + '\n' +
-                                  JSON.stringify(data));
-                else $location.path(thing);
-
-            }).error(function (data, status) {
-                $notify.error('Failed to create thing',
-                             'Failed to create ' + thing + '\n' + status);
-            });
-    };
-}
-
-
-
 function buildbotics_run($rootScope, $cookies, $window, $document, $location) {
     // Recover path after login
     $rootScope.$on(
@@ -201,11 +166,76 @@ function buildbotics_run($rootScope, $cookies, $window, $document, $location) {
             } else if (path.indexOf('/api/auth/') == 0)
                 // Save location before login
                 $cookies['buildbotics.pre-login-path'] =
-                    $window.location.pathname;
+                $window.location.pathname;
         }
     )
 }
 
+
+function exception_handler($log, $window, $injector) {
+    var getSourceMappedStackTrace = function(exception) {
+        var $q = $injector.get('$q'),
+        $http = $injector.get('$http'),
+        SMConsumer = window.sourceMap.SourceMapConsumer,
+        cache = {};
+
+        // Retrieve a SourceMap object for a minified script URL
+        var getMapForScript = function(url) {
+            if (cache[url]) return cache[url];
+            else {
+                var promise = $http.get(url).then(function(response) {
+                    var m =
+                        response.data.match(/\/\/# sourceMappingURL=(.+\.map)/);
+
+                    if (m) {
+                        var path = url.match(/^(.+)\/[^/]+$/);
+                        path = path && path[1];
+                        return $http.get(path + '/' + m[1])
+                            .then(function(response) {
+                                return new SMConsumer(response.data);
+                            });
+
+                    } else return $q.reject();
+                });
+                cache[url] = promise;
+                return promise;
+            }
+        };
+
+        if (exception.stack) { // not all browsers support stack traces
+            return $q.all
+            ($.map(exception.stack.split(/\n/), function(stackLine) {
+                var match = stackLine.match(/^(.+)(http.+):(\d+):(\d+)/);
+                if (match) {
+                    var prefix = match[1],
+                    url = match[2],
+                    line = match[3],
+                    col = match[4];
+
+                    return getMapForScript(url).then(function(map) {
+                        var pos = map.originalPositionFor({
+                            line: parseInt(line, 10),
+                            column: parseInt(col, 10)
+                        });
+
+                        var mangledName =
+                            prefix.match(/\s*(at)?\s*(.*?)\s*(\(|@)/);
+                        mangledName = (mangledName && mangledName[2]) || '';
+                        return '    at ' + (pos.name ? pos.name : mangledName) +
+                            ' ' + $window.location.origin + pos.source + ':' +
+                            pos.line + ':' + pos.column;
+
+                    }, function() {return stackLine});
+
+                } else return $q.when(stackLine);
+            })).then(function (lines) {return lines.join('\n');});
+        } else return $q.when('');
+    };
+
+    return function(exception) {
+        getSourceMappedStackTrace(exception).then($log.error);
+    }
+}
 
 // Main ************************************************************************
 $(function() {
@@ -220,11 +250,19 @@ $(function() {
     });
 
     // Angular setup
-    deps = ['ngRoute', 'ngCookies', 'ngTouch',
-            'ui.bootstrap', 'ui.bootstrap.modal',
-            'buildbotics.service', 'buildbotics.notify', 'buildbotics.things',
-            'buildbotics.modal', 'buildbotics.markdown', 'buildbotics.upload',
-            'buildbotics.file-manager', 'buildbotics.comments'];
+    var deps = (
+        'ngRoute ngCookies ngTouch ui.bootstrap ui.bootstrap.modal');
+
+    var bb_deps = (
+        'service notify things modal markdown upload file-manager comments ' +
+            'profiles stars create explore field-editor text-field-editor ' +
+            'text-area-editor');
+
+    // Compose deps
+    deps = deps.split(' ');
+    deps = deps.concat(bb_deps
+                       .split(' ')
+                       .map(function (x) {return 'buildbotics.' + x;}));
 
     angular
         .module('buildbotics', deps)
@@ -232,9 +270,9 @@ $(function() {
         .controller('BodyCtrl', body_controller)
         .controller('ContentCtrl', content_controller)
         .controller('RegisterDialogCtrl', register_dialog_controller)
-        .controller('ProfileCtrl', profile_controller)
         .controller('CreateCtrl', create_controller)
         .run(buildbotics_run)
+        .factory('$exceptionHandler', exception_handler)
 
     angular.bootstrap(document.documentElement, ['buildbotics']);
 })

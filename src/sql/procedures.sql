@@ -38,7 +38,7 @@ BEGIN
 
   CALL Associate(_provider, _id, _name, _email, _avatar);
 
-  UPDATE profiles SET lastlog = NOW() WHERE id = _profile_id;
+  UPDATE profiles SET lastseen = NOW() WHERE id = _profile_id;
 
   SELECT name, auth FROM profiles WHERE id = _profile_id;
 END;
@@ -69,7 +69,6 @@ BEGIN
   -- Create profile
   INSERT INTO profiles (name, avatar) VALUES (_name, avatar);
   SET profile_id = LAST_INSERT_ID();
-
   -- Create settings
   INSERT INTO settings (id, email) VALUES (profile_id, email);
 
@@ -262,7 +261,7 @@ BEGIN
   DECLARE profile_id INT;
 
   SELECT id FROM profiles
-    WHERE name = _name AND NOT disabled AND NOT redirect INTO profile_id;
+    WHERE name = _name AND NOT disabled INTO profile_id;
 
   RETURN profile_id;
 END;
@@ -293,9 +292,9 @@ END;
 
 CREATE PROCEDURE GetProfileByID(IN _profile_id INT, IN _unpublished BOOL)
 BEGIN
-  SELECT name, joined, lastlog, fullname, location, avatar, url, bio, points,
+  SELECT name, joined, lastseen, fullname, location, avatar, url, bio, points,
     followers, following, stars, badges FROM profiles
-    WHERE id = _profile_id AND NOT disabled AND NOT redirect;
+    WHERE id = _profile_id AND NOT disabled;
 
   IF FOUND_ROWS() != 1 THEN
     SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
@@ -317,11 +316,17 @@ BEGIN
 END;
 
 
-CREATE PROCEDURE PutProfile(IN _name VARCHAR(64), IN _profile MEDIUMBLOB)
+CREATE PROCEDURE PutProfile(IN _profile VARCHAR(64), IN _fullname VARCHAR(256),
+  IN _location VARCHAR(256), IN _url VARCHAR(256), IN _bio TEXT)
 BEGIN
-  INSERT INTO profiles (name, profile) VALUES (_name, _profile)
-    ON DUPLICATE KEY
-    UPDATE profile = VALUES (profile);
+  UPDATE profiles
+    SET
+      fullname = IFNULL(_fullname, fullname),
+      location = IFNULL(_location, location),
+      url      = IFNULL(_url, url),
+      bio      = IFNULL(_bio, bio)
+    WHERE
+      id = GetProfileID(_profile);
 END;
 
 
@@ -376,11 +381,12 @@ END;
 -- Stars
 CREATE PROCEDURE GetStarredThingsByID(IN _profile_id INT)
 BEGIN
-  -- TODO select thing picture
-  -- TODO match with GetThings()
-  SELECT t.name AS starred, p.name AS owner, comments, t.stars AS stars
+  -- Keep in sync with GetThingsByID()
+  SELECT t.name starred, p.name owner, t.type, t.title, t.comments, t.stars,
+    t.children, GetFileURL(p.name, t.name, f.name) image
     FROM things t
-    INNER JOIN stars s ON id = s.thing_id
+    LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
+    INNER JOIN stars s ON t.id = s.thing_id
     INNER JOIN profiles p ON owner_id = p.id
     WHERE s.profile_id = _profile_id;
 END;
@@ -481,8 +487,8 @@ BEGIN
   DECLARE thing_id INT;
 
   SELECT id FROM things
-    WHERE name = _name AND owner_id = _owner_id AND
-      NOT redirect INTO thing_id;
+    WHERE name = _name AND owner_id = _owner_id
+    INTO thing_id;
 
   RETURN thing_id;
 END;
@@ -503,19 +509,15 @@ BEGIN
     SELECT name FROM profiles WHERE id = _owner_id INTO _owner;
   END IF;
 
-  SELECT t.name thing, _owner owner, t.type type, title, published,
+  SELECT t.name thing, _owner owner, t.type, title, published,
     FormatTS(t.created) created, FormatTS(t.modified) modified, comments, stars,
-    children, GetFileURL(_owner, t.name, f1.name) image
+    children, GetFileURL(_owner, t.name, f.name) image
     FROM things t
-    LEFT JOIN files f1 ON f1.id =
-      (SELECT f2.id FROM files f2
-         WHERE f2.thing_id = t.id AND f2.display
-         ORDER BY f2.position LIMIT 1)
+    LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
     WHERE owner_id = _owner_id AND
       (_name IS null OR t.name = _name) AND
       (_type IS null OR t.type = _type) AND
-      (_unpublished OR t.published) AND
-      NOT t.redirect;
+      (_unpublished OR t.published);
 END;
 
 
@@ -558,7 +560,7 @@ BEGIN
       LEFT JOIN profiles p ON p.id = parent.owner_id
       LEFT JOIN licenses l ON l.name = t.license
       WHERE t.owner_id = _owner_id AND t.name = _name AND
-        (_unpublished OR t.published) AND NOT t.redirect;
+        (_unpublished OR t.published);
 
     IF FOUND_ROWS() != 1 THEN
       SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
@@ -588,18 +590,23 @@ BEGIN
 END;
 
 
-CREATE PROCEDURE RenameThing(IN _owner VARCHAR(64), IN _oldName VARCHAR(64),
-  IN _newName VARCHAR(64))
+CREATE PROCEDURE RenameThing(IN _owner VARCHAR(64), IN _old_name VARCHAR(64),
+  IN _new_name VARCHAR(64))
 BEGIN
+  DECLARE _owner_id INT;
   DECLARE EXIT HANDLER FOR SQLEXCEPTION ROLLBACK;
 
-  SET _owner = GetProfileID(_owner);
+  SET _owner_id = GetProfileID(_owner);
 
   START TRANSACTION;
 
-  UPDATE things SET name = _newName
-    WHERE owner_id = _owner AND name = _oldName;
-  INSERT INTO things (owner_id, name, redirect) VALUES (_owner, _oldName, true);
+  UPDATE things SET name = _new_name
+    WHERE owner_id = _owner_id AND name = _old_name;
+
+  INSERT INTO thing_redirects
+    (old_owner, new_owner, old_thing, new_thing) VALUES
+    (_owner, _owner, _old_name, _new_name)
+    ON DUPLICATE KEY UPDATE new_owner = _owner, new_thing = _new_name;
 
   COMMIT;
 END;
@@ -839,6 +846,21 @@ END;
 
 
 -- Files
+CREATE FUNCTION GetFirstImageIDByID(_thing_id INT)
+RETURNS INT
+NOT DETERMINISTIC
+BEGIN
+  DECLARE _id INT;
+
+  SET _id = (
+    SELECT id FROM files
+      WHERE thing_id = _thing_id AND display
+      ORDER BY position LIMIT 1);
+
+  RETURN _id;
+END;
+
+
 CREATE FUNCTION GetFileURL(_owner VARCHAR(64), _thing VARCHAR(64),
   _name VARCHAR(64))
 RETURNS VARCHAR(256)
@@ -900,10 +922,10 @@ END;
 
 
 CREATE PROCEDURE RenameFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
-  IN _oldName VARCHAR(256), IN _newName VARCHAR(256))
+  IN _old_name VARCHAR(256), IN _new_name VARCHAR(256))
 BEGIN
-  UPDATE files SET name = _newName
-    WHERE thing_id = GetThingID(_owner, _thing) AND name = _oldName;
+  UPDATE files SET name = _new_name
+    WHERE thing_id = GetThingID(_owner, _thing) AND name = _old_name;
 END;
 
 
@@ -950,47 +972,67 @@ END;
 -- Search
 CREATE PROCEDURE FindProfiles(IN _query VARCHAR(256),
   IN _orderBy ENUM('points', 'followers', 'joined', 'score'), IN _limit INT,
-  IN _offset INT, IN _accend BOOL)
+  IN _offset INT)
 BEGIN
+  -- Query
+  IF TRIM(_query) = '' THEN
+    SET _query = null;
+  END IF;
+
+  -- Order by
   IF _orderBy IS null THEN
     SET _orderBy = 'score';
   END IF;
 
+  -- Limit
   IF _limit IS null THEN
     SET _limit = 10;
   END IF;
 
+  -- Offset
   IF _offset IS null THEN
     SET _offset = 0;
   END IF;
 
-  IF _accend IS null THEN
-    SET @dir = 'ASC';
-  ELSEIF _accend THEN
-    SET @dir = 'ASC';
-  ELSE
-    SET @dir = 'DESC';
-  END IF;
+  SET SQL_SELECT_LIMIT = _limit;
 
-  SET @s = CONCAT('SELECT *,
-    MATCH(name, fullname, location, bio) AGAINST(? IN BOOLEAN MODE) AS score
-    FROM profiles WHERE NOT disabled AND NOT redirect HAVING 0 < score
-    ORDER BY ', _orderBy, ' ', @dir, ', score LIMIT ? OFFSET ?');
+  -- Select
+  SELECT p.name profile, p.avatar, p.points, p.followers, p.joined,
+      MATCH(p.name, p.fullname, p.location, p.bio)
+      AGAINST(_query IN BOOLEAN MODE) score
 
-  SET @query = _query;
-  SET @limit = _limit;
-  SET @offset = _offset;
+    FROM profiles p
 
-  PREPARE stmt FROM @s;
-  EXECUTE stmt USING @query, @limit, @offset;
-  DEALLOCATE PREPARE stmt;
+    WHERE
+      NOT disabled
+
+    HAVING
+      (_query IS null OR 0 < score)
+
+    ORDER BY
+      CASE _orderBy
+        WHEN 'joined' THEN p.joined
+      END ASC,
+      CASE _orderBy
+        WHEN 'points' THEN p.points
+        WHEN 'followers' THEN p.followers
+        WHEN 'score' THEN score
+      END DESC;
+
+  SET SQL_SELECT_LIMIT = DEFAULT;
 END;
 
 
 CREATE PROCEDURE FindThings(IN _query VARCHAR(256), IN _license VARCHAR(64),
   IN _orderBy ENUM('stars', 'created', 'modified', 'score'), IN _limit INT,
-  IN _offset INT, IN _accend BOOL)
+  IN _offset INT)
 BEGIN
+  -- Query
+  IF TRIM(_query) = '' THEN
+    SET _query = null;
+  END IF;
+
+  -- Order by
   IF _orderBy IS null THEN
     IF _query IS null THEN
       SET _orderBy = 'stars';
@@ -999,90 +1041,45 @@ BEGIN
     END IF;
   END IF;
 
+  -- Limit
   IF _limit IS null THEN
     SET _limit = 10;
   END IF;
 
+  -- Offset
   IF _offset IS null THEN
     SET _offset = 0;
   END IF;
 
-  IF _accend IS null THEN
-    SET @dir = 'ASC';
-  ELSEIF _accend THEN
-    SET @dir = 'ASC';
-  ELSE
-    SET @dir = 'DESC';
-  END IF;
+  SET SQL_SELECT_LIMIT = _limit;
 
-  SET @s = 'SELECT *';
+  -- Select
+  SELECT t.name thing, p.name owner, t.type, t.title,
+      FormatTS(t.created) created, FormatTS(t.modified) modified,
+      t.comments, t.stars, t.children, GetFileURL(p.name, t.name, f.name) image,
+      MATCH(t.name, t.title, t.description, t.tags)
+      AGAINST(_query IN BOOLEAN MODE) score
 
-  IF _query IS NOT null THEN
-    SET @s = CONCAT(@s, ', MATCH(name, title, description, tags) AGAINST(',
-      QUOTE(_query), ' IN BOOLEAN MODE) AS score');
-  END IF;
+    FROM things t
+      LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
+      INNER JOIN profiles p ON t.owner_id = p.id
 
-  SET @s = CONCAT(@s, ' FROM things WHERE published AND NOT redirect');
+    WHERE
+      t.published AND
+      (_license IS null OR t.license = _license)
 
-  IF _query IS NOT null THEN
-    SET @s = CONCAT(@s, ' HAVING 0 < score');
-  END IF;
+    HAVING
+      (_query IS null OR 0 < score)
 
-  IF _license IS NOT null THEN
-    SET @s = CONCAT(@s, ' AND license = ', QUOTE(_license));
-  END IF;
+    ORDER BY
+      CASE _orderBy
+        WHEN 'created' THEN t.created
+        WHEN 'modifed' THEN t.modified
+      END ASC,
+      CASE _orderBy
+        WHEN 'stars' THEN t.stars
+        WHEN 'score' THEN score
+      END DESC;
 
-  SET @s = CONCAT(@s, ' ORDER BY ', _orderBy, ' ', @dir);
-
-  IF _query IS NOT null AND _orderBy <> 'score' THEN
-    SET @s = CONCAT(@s, ', score');
-  END IF;
-
-  SET @s = CONCAT(@s, ' LIMIT ? OFFSET ?');
-
-  SET @limit = _limit;
-  SET @offset = _offset;
-
-  PREPARE stmt FROM @s;
-  EXECUTE stmt USING @limit, @offset;
-  DEALLOCATE PREPARE stmt;
-END;
-
-
-CREATE PROCEDURE FindThingsByTags(IN _tags VARCHAR(256),
-  IN _orderBy ENUM('stars', 'created', 'modifed', 'score'), IN _limit INT,
-  IN _offset INT, IN _accend BOOL)
-BEGIN
-  IF _orderBy IS null THEN
-    SET _orderBy = 'score';
-  END IF;
-
-  IF _limit IS null THEN
-    SET _limit = 10;
-  END IF;
-
-  IF _offset IS null THEN
-    SET _offset = 0;
-  END IF;
-
-  IF _accend IS null THEN
-    SET @dir = 'ASC';
-  ELSEIF _accend THEN
-    SET @dir = 'ASC';
-  ELSE
-    SET @dir = 'DESC';
-  END IF;
-
-  SET @s = CONCAT('SELECT *,
-    MATCH(tags) AGAINST(? IN BOOLEAN MODE) AS score
-    FROM things WHERE published AND NOT redirect HAVING 0 < score
-    ORDER BY ', _orderBy, ' ', @dir, ', score LIMIT ? OFFSET ?');
-
-  SET @tags = _tags;
-  SET @limit = _limit;
-  SET @offset = _offset;
-
-  PREPARE stmt FROM @s;
-  EXECUTE stmt USING @tags, @limit, @offset;
-  DEALLOCATE PREPARE stmt;
+  SET SQL_SELECT_LIMIT = DEFAULT;
 END;

@@ -22,9 +22,9 @@ pane_border = 1px solid #ddd
 pane_shadow = 0 0 5px 0 rgba(50, 50, 50, 0.2)
 
 golden_ratio = 1.6180339887498948482
-thing_content_width = 700px
-thing_sidebar_width = 230px
-thing_gallery_width = thing_content_width * 0.8
+content_width = 700px
+sidebar_width = 230px
+gallery_width = content_width * 0.8
 
 [ng\:cloak], [ng-cloak], .ng-cloak
   display: none !important
@@ -71,7 +71,8 @@ body
     height: 52px
     margin: 0
 
-  .title
+  .title, a:hover.title, a:focus.title
+    background-color: inherit
     padding 0
 
   .navbar-contents
@@ -259,19 +260,11 @@ a.stars, a.children
 
 thing_width = 300px
 
-.flexbox .things
-  display: flex
-  flex-wrap: wrap
-  justify-content: space-around
-
-  .thing
-    flex: 0 0 thing_width
-
 .things
   list-style: none
   padding: 0
 
-  .thing
+  .thing-preview
     position: relative
     display: inline-block
     margin: 0 8px 1em 8px
@@ -285,7 +278,6 @@ thing_width = 300px
       width: thing_width
       height: ((thing_width) / 1.618)
       border-radius: 6px
-      padding: 2px
       border: 1px solid #ddd
 
       &.missing
@@ -340,24 +332,19 @@ thing_width = 300px
       clear: both
       color: text_color
 
-#thing
+.thing, .profile
   .path
     font-size: 18pt
 
+  .edit
+    cursor: pointer
+
+    &:hover, &:hover h3, &:hover a
+      color: link_hover_color
+
   .edit-row
-    height: 2.5em
-    margin: 1em 0
-
-    h3
-      font-size: 16pt
-      margin: none
-
-    .btn-group
+    > .btn-group, > .fa
       float: right
-
-    > .fa
-      float: right
-      margin: 1em
 
   h3
     font-size: 14pt
@@ -382,7 +369,18 @@ thing_width = 300px
   .content
     float: left
     width: 100%
-    max-width: thing_content_width
+    max-width: content_width
+
+    .edit-row
+      height: 2.5em
+      margin: 1em 0
+
+      h3
+        font-size: 16pt
+        margin: none
+
+      > .fa
+        margin: 1em
 
   .sidebar
     position: relative
@@ -390,18 +388,11 @@ thing_width = 300px
     border: pane_border
     padding: 1em
     float: right
-    width: thing_sidebar_width
+    width: sidebar_width
     color: #888
     font-size: 80%
 
-    .edit
-      cursor: pointer
-
-      &:hover, &:hover h3, &:hover a
-        color: link_hover_color
-
     .fa-edit
-      float: right
       font-size: 14pt
 
     h1, h2, h3
@@ -419,7 +410,7 @@ thing_width = 300px
     .license .title
       color: medium_text_color
 
-    .link a
+    .url a,
       display: block
       white-space: nowrap
       text-overflow: ellipsis
@@ -521,7 +512,7 @@ thing_width = 300px
   .taken
     color: red
 
-#user
+.profile
   .picture
     width: 200px
     height: 200px
@@ -710,19 +701,25 @@ thing_width = 300px
 .tooltip
   white-space: nowrap
 
+  .tooltip-inner
+    background-color: rgba(0, 0, 0, 0.8)
+
+  &.top .tooltip-arrow
+    border-top: 5px solid rgba(0, 0, 0, 0.8)
+
 .carousel
   border: pane_border
   border-radius: 3px
   margin: auto
   overflow: hidden
-  max-width: thing_gallery_width
-  max-height: (thing_gallery_width / 16 * 9)
+  max-width: gallery_width
+  max-height: (gallery_width / 16 * 9)
   background: header_color
 
   .item
     img
       display: block
       margin: auto
-      max-width: thing_gallery_width
-      max-height: (thing_gallery_width / 16 * 9)
+      max-width: gallery_width
+      max-height: (gallery_width / 16 * 9)
       background: white

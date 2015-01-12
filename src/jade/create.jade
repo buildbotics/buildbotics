@@ -5,9 +5,10 @@ ng-form#create(ng-controller='CreateCtrl' name='create')
       th
       th: h3 Thing name
     tr
-      td: button.btn {{user.name}}
+      td {{user.name}}
       td /
-      td.name(ng-class="{'has-error': create.name.$error.thingname}")
+      td.name.input-group-sm(
+        ng-class="{'has-error': create.name.$error.thingname}")
         span.fa.fa-check(ng-show='create.name.$valid')
         input.form-control(type='text' name='name' ng-model='thing.name'
           ng-model-options='{debounce: 500}' thingname required)
@@ -29,10 +30,11 @@ ng-form#create(ng-controller='CreateCtrl' name='create')
 
   p
     h3
-      | Title&nbsp;
-      span.weak (optional)
+      | Title
+      span.weak &nbsp;(optional)
 
-    input.form-control(type='text' name='title' ng-model='thing.title')
+    .input-group-sm
+      input.form-control(type='text' name='title' ng-model='thing.title')
 
   p
     button.btn.btn-primary(ng-click='ok()' ng-disabled='create.$invalid')

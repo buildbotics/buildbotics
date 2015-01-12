@@ -28,7 +28,7 @@ html
         .explore-page(ng-switch-when='explore')
           h2.page-title Explore
           hr
-          include ./things.jade
+          bb-explore
 
         .create-page(ng-switch-when='create')
           h2.page-title Create a new thing
@@ -44,21 +44,16 @@ html
           hr
 
         .user-page(ng-switch-when='profile')
-          include ./profile.jade
+          bb-profile(ng-model='profile_data')
 
         .thing-page(ng-switch-when='thing')
-          include ./thing.jade
+          bb-thing(ng-model='thing_data')
 
         .settings-page(ng-switch-when='404')
           h2.page-title Page not found
 
     #templates
-      include ./register.jade
-      include ./modal.jade
-      include ./notify.jade
-      include ./gallery.jade
-      include ./file-manager.jade
-      include ./comments.jade
+      include ../../build/templates.jade
 
     - var cdn = '//cdnjs.cloudflare.com/ajax/libs'
     script(src=cdn + '/jquery/1.11.1/jquery.js')
@@ -73,23 +68,12 @@ html
     script(src=ngCDN + '/angular-sanitize.js')
     script(src=ngCDN + '/angular-touch.js')
 
-    script(src=cdn + '/angular-ui-bootstrap/0.12.0/ui-bootstrap.min.js')
     script(src=cdn + '/angular-ui-bootstrap/0.12.0/ui-bootstrap-tpls.min.js')
 
-    - cdn = '//cdn.jsdelivr.net'
-    script(src=cdn + '/editor/0.1.0/editor.js')
+    script(src='//cdn.jsdelivr.net/editor/0.1.0/editor.js')
 
     script(src='js/modernizr.custom.js')
     script(src='js/plupload.full.min.js')
+    script(src='js/source-map.js')
 
-    script(src='js/buildbotics.js')
-    script(src='js/modal.js')
-    script(src='js/gallery.js')
-    script(src='js/upload.js')
-    script(src='js/markdown.js')
-    script(src='js/notify.js')
-    script(src='js/file-manager.js')
-    script(src='js/things.js')
-    script(src='js/comments.js')
-    script(src='js/main.js')
-
+    script(src='js/assets.js')

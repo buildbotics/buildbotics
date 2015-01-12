@@ -27,9 +27,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   `id`             INT AUTO_INCREMENT,
   `name`           VARCHAR(64) NOT NULL UNIQUE,
   `joined`         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `lastlog`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `lastseen`       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `disabled`       BOOL NOT NULL DEFAULT false,
-  `redirect`       BOOL NOT NULL DEFAULT false,
   `fullname`       VARCHAR(256),
   `location`       VARCHAR(256),
   `avatar`         VARCHAR(256),
@@ -45,6 +44,14 @@ CREATE TABLE IF NOT EXISTS profiles (
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`name`, `fullname`, `location`, `bio`)
+);
+
+
+CREATE TABLE IF NOT EXISTS profile_redirects (
+  `old_profile` VARCHAR(64) NOT NULL,
+  `new_profile` VARCHAR(64) NOT NULL,
+
+  UNIQUE (`old_profile`)
 );
 
 
@@ -149,7 +156,6 @@ CREATE TABLE IF NOT EXISTS things (
   `tags`        TEXT,
 
   `published`   BOOL DEFAULT false,
-  `redirect`    BOOL DEFAULT false,
 
   `created`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `modified`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -162,11 +168,22 @@ CREATE TABLE IF NOT EXISTS things (
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`name`, `title`, `description`, `tags`),
+  FULLTEXT KEY `tags` (`tags`),
   UNIQUE (`owner_id`, `name`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`parent_id`) REFERENCES things(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`type`) REFERENCES thing_type(`name`) ON DELETE SET NULL,
   FOREIGN KEY (`license`) REFERENCES licenses(`name`) ON DELETE SET NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS thing_redirects (
+  `old_owner` VARCHAR(64) NOT NULL,
+  `new_owner` VARCHAR(64) NOT NULL,
+  `old_thing` VARCHAR(64) NOT NULL,
+  `new_thing` VARCHAR(64) NOT NULL,
+
+  UNIQUE (`old_owner`, `old_thing`)
 );
 
 

@@ -1,7 +1,22 @@
 'use strict';
 
 
-function thing_list_controller($scope, $routeParams) {
+function things_directive() {
+    function link($scope, element, attrs, ctrl) {
+        $scope.star_toggle = function () {
+            alert('TODO');
+        }
+    }
+
+    return {
+        link: link,
+        require: ['ngModel'],
+        restrict: 'E',
+        templateUrl: 'things.html',
+        scope: {
+            things: '=ngModel'
+        }
+    }
 }
 
 
@@ -36,169 +51,188 @@ function parse_tags(tags) {
 }
 
 
-function thing_controller($scope, $buildbotics, $notify) {
-    $.extend($scope, $scope.thing_data);
-    $scope.edit = {};
-    $scope.old = {};
-    $scope.is_owner = $buildbotics.isUser($scope.thing.owner);
-    $scope.images_control = {};
-    $scope.api_url = '/api/profiles/' + $scope.thing.owner + '/things/' +
-        $scope.thing.name;
-    $scope.thing.api_url = $scope.api_url;
-    $scope.stars = $scope.stars || [];
-    $scope.starred = $scope.stars.filter(function (star) {
-        return star.profile == $buildbotics.user.name;
-    }).length != 0;
-    $scope.thing.tags = parse_tags($scope.thing.tags);
-    $scope.new_tags = '';
+function thing_directive($buildbotics, $notify) {
+    function controller($scope) {
+        $buildbotics.extend($scope);
+        $.extend($scope, $scope.thing_data);
 
-    function put_thing(data) {
-        $buildbotics.put($scope.api_url, data)
-            .error(function (data, status) {
-                $notify.error('Save failed', 'Failed to save ' + field + '\n' +
-                              status)
-            });
-    }
+        $scope.edit = {};
+        $scope.old = {};
+        $scope.images_control = {};
+        $scope.api_url = '/api/profiles/' + $scope.thing.owner + '/things/' +
+            $scope.thing.name;
+        $scope.thing.api_url = $scope.api_url;
+        $scope.stars = $scope.stars || [];
+        $scope.starred = $scope.stars.filter(function (star) {
+            return star.profile == $buildbotics.user.name;
+        }).length != 0;
+        $scope.thing.tags = parse_tags($scope.thing.tags);
+        $scope.new_tags = '';
 
-    $scope.toggleEdit = function (field) {
-        $scope.edit[field] = !$scope.edit[field];
-        if ($scope.edit[field]) $scope.old[field] = $scope.thing[field];
-        else $scope.thing[field] = $scope.old[field];
-   };
-
-    $scope.edit = function (field) {
-        $scope.old[field] = $scope.thing[field];
-        $scope.edit[field] = true;
-    };
-
-    $scope.cancel = function (field) {
-        $scope.thing[field] = $scope.old[field];
-        $scope.edit[field] = false;
-    };
-
-    $scope.save = function (field) {
-        if ($scope.thing[field] != $scope.old[field]) {
-            var data = {};
-            data[field] = $scope.thing[field];
-            put_thing(data);
+        $scope.is_owner = function () {
+            return $buildbotics.isUser($scope.thing.owner);
         }
 
-        $scope.edit[field] = false;
-    };
-
-    $scope.addTags = function () {
-        var tags = $scope.new_tags.split(',');
-        var new_tags = [];
-        for (var i = 0; i < tags.length; i++) {
-            var tag = tags[i].trim();
-            if (tag && $scope.thing.tags.indexOf(tag) == -1)
-                new_tags.push(tag);
+        function put_thing(data) {
+            $buildbotics.put($scope.api_url, data)
+                .error(function (data, status) {
+                    $notify.error('Save failed', 'Failed to save ' + field +
+                                  '\n' + status)
+                });
         }
 
-        if (new_tags.length) {
-            $buildbotics.put($scope.api_url + '/tags/' + new_tags.join(','))
+        $scope.toggleEdit = function (field) {
+            $scope.edit[field] = !$scope.edit[field];
+            if ($scope.edit[field]) $scope.old[field] = $scope.thing[field];
+            else $scope.thing[field] = $scope.old[field];
+        };
+
+        $scope.edit = function (field) {
+            $scope.old[field] = $scope.thing[field];
+            $scope.edit[field] = true;
+        };
+
+        $scope.cancel = function (field) {
+            $scope.thing[field] = $scope.old[field];
+            $scope.edit[field] = false;
+        };
+
+        $scope.save = function (field) {
+            if ($scope.thing[field] != $scope.old[field]) {
+                var data = {};
+                data[field] = $scope.thing[field];
+                put_thing(data);
+            }
+
+            $scope.edit[field] = false;
+        };
+
+        $scope.addTags = function (tags) {
+            tags = tags.split(',');
+            var new_tags = [];
+            for (var i = 0; i < tags.length; i++) {
+                var tag = tags[i].trim();
+                if (tag && $scope.thing.tags.indexOf(tag) == -1)
+                    new_tags.push(tag);
+            }
+
+            if (new_tags.length) {
+                $buildbotics.put($scope.api_url + '/tags/' + new_tags.join(','))
+                    .success(function () {
+                        for (var i = 0; i < new_tags.length; i++)
+                            $scope.thing.tags.push(new_tags[i]);
+                    })
+                    .error(function (data, status) {
+                        $notify.error('Failed to add tags',
+                                      'Failed to add tags `' + new_tags +
+                                      '`\n' + status)
+                    });
+            }
+
+            $scope.new_tags = '';
+            $scope.edit['tags'] = false;
+        }
+
+        $scope.removeTag = function (tag) {
+            $buildbotics.delete($scope.api_url + '/tags/' + tag)
                 .success(function () {
-                    for (var i = 0; i < new_tags.length; i++)
-                        $scope.thing.tags.push(new_tags[i]);
+                    var i = $scope.thing.tags.indexOf(tag);
+                    $scope.thing.tags.splice(i, 1);
                 })
                 .error(function (data, status) {
-                    $notify.error('Failed to add tags', 'Failed to add tags `' +
-                                  new_tags + '`\n' + status)
+                    $notify.error('Failed to remove tag',
+                                  'Failed to remove tag `' + tag + '`\n' +
+                                  status)
                 });
         }
 
-        $scope.new_tags = '';
-        $scope.edit['tags'] = false;
-    }
-
-    $scope.removeTag = function (tag) {
-        $buildbotics.delete($scope.api_url + '/tags/' + tag)
-            .success(function () {
-                var i = $scope.thing.tags.indexOf(tag);
-                $scope.thing.tags.splice(i, 1);
-            })
-            .error(function (data, status) {
-                $notify.error('Failed to remove tag', 'Failed to remove tag `' +
-                              tag + '`\n' + status)
-            });
-    }
-
-    $scope.publish = function (pub) {
-        put_thing({publish: pub});
-        $scope.thing.published = pub;
-    }
-
-    $scope.deleteFile = function (file, done) {
-        $buildbotics.delete($scope.api_url + '/files/' + file.name)
-            .success(function () {
-                done(true);
-            })
-            .error(function (data, status) {
-                $notify.error('Delete failed', 'Failed to delete file ' +
-                              file.name + '\n' + status)
-                done(false);
-            });
-    }
-
-    $scope.uploadFile = function (file, media, done) {
-        var url = $scope.api_url + '/files/' + file.name;
-
-        var data = {
-            type: file.type,
-            size: file.size,
-            display: media
+        $scope.publish = function (pub) {
+            put_thing({publish: pub});
+            $scope.thing.published = pub;
         }
 
-        $buildbotics.put(url, data)
-            .success(function (data) {done(true, data);})
-            .error(function (data, status) {
-                console.error('Upload failed:', status);
-                done(false);
-            });
-    }
-
-    $scope.starThing = function () {
-        if ($scope.starred) return;
-
-        $buildbotics.put($scope.api_url + '/star')
-            .success(function () {
-                $scope.stars.push({
-                    profile: $buildbotics.user.name,
-                    avatar: $buildbotics.user.avatar
+        $scope.deleteFile = function (file, done) {
+            $buildbotics.delete($scope.api_url + '/files/' + file.name)
+                .success(function () {
+                    done(true);
+                })
+                .error(function (data, status) {
+                    $notify.error('Delete failed', 'Failed to delete file ' +
+                                  file.name + '\n' + status)
+                    done(false);
                 });
+        }
 
-                $scope.thing.stars += 1;
-                $scope.starred = true;
+        $scope.uploadFile = function (file, media, done) {
+            var url = $scope.api_url + '/files/' + file.name;
 
-            }).error(function (data, status) {
-                $notify.error('Star failed', 'Failed to star thing\n' +
-                              status)
-            });
-    }
+            var data = {
+                type: file.type,
+                size: file.size,
+                display: media
+            }
 
-
-    $scope.unstarThing = function () {
-        if (!$scope.starred) return;
-
-        $buildbotics.delete($scope.api_url + '/star')
-            .success(function () {
-                $scope.stars = $scope.stars.filter(function (star) {
-                    return star.profile != $buildbotics.user.name;
+            $buildbotics.put(url, data)
+                .success(function (data) {done(true, data);})
+                .error(function (data, status) {
+                    console.error('Upload failed:', status);
+                    done(false);
                 });
+        }
 
-                $scope.thing.stars -= 1;
-                $scope.starred = false;
+        $scope.starThing = function () {
+            if ($scope.starred) return;
 
-            }).error(function (data, status) {
-                $notify.error('Unstar failed', 'Failed to unstar thing\n' +
-                              status)
-            });
+            $buildbotics.put($scope.api_url + '/star')
+                .success(function () {
+                    $scope.stars.push({
+                        profile: $buildbotics.user.name,
+                        avatar: $buildbotics.user.avatar
+                    });
+
+                    $scope.thing.stars += 1;
+                    $scope.starred = true;
+
+                }).error(function (data, status) {
+                    $notify.error('Star failed', 'Failed to star thing\n' +
+                                  status)
+                });
+        }
+
+
+        $scope.unstarThing = function () {
+            if (!$scope.starred) return;
+
+            $buildbotics.delete($scope.api_url + '/star')
+                .success(function () {
+                    $scope.stars = $scope.stars.filter(function (star) {
+                        return star.profile != $buildbotics.user.name;
+                    });
+
+                    $scope.thing.stars -= 1;
+                    $scope.starred = false;
+
+                }).error(function (data, status) {
+                    $notify.error('Unstar failed', 'Failed to unstar thing\n' +
+                                  status)
+                });
+        }
+
+
+        $scope.toggleStarThing = function () {
+            if ($scope.starred) $scope.unstarThing();
+            else $scope.starThing();
+        }
     }
 
-
-    $scope.toggleStarThing = function () {
-        if ($scope.starred) $scope.unstarThing();
-        else $scope.starThing();
+    return {
+        controller: controller,
+        require: ['ngModel'],
+        restrict: 'E',
+        templateUrl: 'thing.html',
+        scope: {
+            thing_data: '=ngModel'
+        }
     }
 }
 
@@ -206,5 +240,5 @@ function thing_controller($scope, $buildbotics, $notify) {
 angular
     .module('buildbotics.things', [])
     .directive('bbTags', tags_directive)
-    .controller('ThingListCtrl',  thing_list_controller)
-    .controller('ThingCtrl', thing_controller)
+    .directive('bbThings',  things_directive)
+    .directive('bbThing', thing_directive)

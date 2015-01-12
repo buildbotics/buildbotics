@@ -2,7 +2,7 @@
 
 
 function comments_directive($buildbotics, $notify) {
-    function link($scope, element, attrs, ctrl) {
+    function controller($scope) {
         $buildbotics.extend($scope);
         $scope.api_url = $scope.thing.api_url + '/comments';
         $scope.text = '';
@@ -42,7 +42,7 @@ function comments_directive($buildbotics, $notify) {
     }
 
     return {
-        link: link,
+        controller: controller,
         require: ['ngModel'],
         restrict: 'E',
         templateUrl: 'comments.html',
@@ -102,4 +102,4 @@ function comment_controller($scope, $buildbotics, $notify) {
 angular
     .module('buildbotics.comments', [])
     .directive('bbComments', comments_directive)
-    .controller('CommentCtrl', comment_controller);
+    .controller('CommentCtrl', comment_controller)
