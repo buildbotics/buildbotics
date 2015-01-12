@@ -1,14 +1,14 @@
 DIR := $(shell dirname $(lastword $(MAKEFILE_LIST)))
 
 NODE_MODS := $(DIR)/node_modules
-JADE      := $(DIR)/scripts/jade.js
+JADE      := $(NODE_MODS)/jade/bin/jade.js
 STYLUS    := $(NODE_MODS)/stylus/bin/stylus
 AP        := $(NODE_MODS)/autoprefixer/autoprefixer
 UGLIFY    := $(NODE_MODS)/uglify-js/bin/uglifyjs
 
 HTTP_DIR := build/public/http
 
-HTML   := index notfound markdown-editor
+HTML   := index notfound
 HTML   := $(patsubst %,$(HTTP_DIR)/%.html,$(HTML))
 CSS    := $(wildcard src/stylus/*.styl)
 CSS    := $(patsubst src/stylus/%.styl,$(HTTP_DIR)/css/%.css,$(CSS))
@@ -55,10 +55,10 @@ $(HTTP_DIR)/%: src/resources/%
 	install -D $< $@
 
 $(HTTP_DIR)/%.html: src/jade/%.jade $(wildcard src/jade/*.jade)
-	$(JADE) $< >$@ || rm $@
+	$(JADE) $< -o $(HTTP_DIR) || (rm $@; exit 1)
 
 $(HTTP_DIR)/css/%.css: src/stylus/%.styl
-	$(STYLUS) -I styles < $< | $(AP) -b "> 1%" >$@ || rm $@
+	$(STYLUS) -I styles < $< | $(AP) -b "> 1%" >$@ || (rm $@; exit 1)
 
 dirs:
 	@mkdir -p $(HTTP_DIR)/css
