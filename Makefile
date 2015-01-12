@@ -4,38 +4,46 @@ NODE_MODS := $(DIR)/node_modules
 JADE      := $(DIR)/scripts/jade.js
 STYLUS    := $(NODE_MODS)/stylus/bin/stylus
 AP        := $(NODE_MODS)/autoprefixer/autoprefixer
+UGLIFY    := $(NODE_MODS)/uglify-js/bin/uglifyjs
 
 HTTP_DIR := build/public/http
 
-HTML   := api index notfound markdown-editor
+HTML   := index notfound markdown-editor
 HTML   := $(patsubst %,$(HTTP_DIR)/%.html,$(HTML))
 CSS    := $(wildcard src/stylus/*.styl)
 CSS    := $(patsubst src/stylus/%.styl,$(HTTP_DIR)/css/%.css,$(CSS))
 JS     := $(wildcard src/js/*.js)
-JS     := $(patsubst src/js/%.js,$(HTTP_DIR)/js/%.js,$(JS))
+JS_ASSETS := $(HTTP_DIR)/js/assets.js
 STATIC := $(shell find src/resources -type f \! -name *~)
 STATIC := $(patsubst src/resources/%,$(HTTP_DIR)/%,$(STATIC))
+TEMPLS := $(wildcard src/jade/templates/*.jade)
 
 WATCH  := src/jade src/js src/resources src/stylus Makefile
 
-all: build api node_modules
+all: build node_modules
 
 build: dirs html css js static
 	@ln -sf $(HTTP_DIR) .
 
-html: $(HTML)
+html: templates $(HTML)
 
 css: $(CSS)
 
-js: $(JS)
+js: $(JS_ASSETS)
 
 static: $(STATIC)
 
-api: $(HTTP_DIR)/api.html $(HTTP_DIR)/css/api.css
-	@mkdir -p api/css api/js
-	@cp $(HTTP_DIR)/api.html api/index.html
-	@cp $(HTTP_DIR)/css/api.css api/css
-	@cp $(HTTP_DIR)/js/api.js api/js
+templates: build/templates.jade
+
+build/templates.jade: $(TEMPLS)
+	cat $(TEMPLS) >$@
+
+$(HTTP_DIR)/index.html: build/templates.jade
+
+$(JS_ASSETS): $(JS)
+	$(UGLIFY) $(JS) -o $@ --source-map $@.map --source-map-root /js/ \
+	  --source-map-url $(shell basename $@).map -c -p 2
+	install $(JS) $(HTTP_DIR)/js/
 
 node_modules:
 	npm install
@@ -54,8 +62,7 @@ $(HTTP_DIR)/css/%.css: src/stylus/%.styl
 
 dirs:
 	@mkdir -p $(HTTP_DIR)/css
-
-$(HTTP_DIR)/api.html: docs/api.md
+	@mkdir -p $(HTTP_DIR)/js
 
 watch:
 	@clear
@@ -69,6 +76,6 @@ tidy:
 	rm -f $(shell find "$(DIR)" -name \*~)
 
 clean: tidy
-	rm -rf api build/public http
+	rm -rf build/public http
 
-.PHONY: all install build html css static api clean tidy
+.PHONY: all install build html css static templates clean tidy
