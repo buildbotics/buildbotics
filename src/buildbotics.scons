@@ -13,7 +13,7 @@ for dir in subdirs:
 
 
 # Resources
-res = env.Resources('resources.cpp', ['#/build/public'])
+res = env.Resources('resources.cpp', ['#/src/resources'])
 resLib = env.Library(name + 'Resources', res)
 Precious(resLib)
 

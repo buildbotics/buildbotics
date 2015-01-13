@@ -32,12 +32,6 @@ if not env.GetOption('clean') and not 'package' in COMMAND_LINE_TARGETS:
 
 conf.Finish()
 
-# Make resources
-from subprocess import call
-make = ['make', '-C', str(Dir('#'))]
-if env.GetOption('clean'): make.append('clean')
-call(make)
-
 # Program
 Export('env name')
 prog, lib = \
