@@ -53,7 +53,8 @@ using namespace BuildBotics;
 
 
 Transaction::Transaction(App &app, evhttp_request *req) :
-  Request(req), Event::OAuth2Login(app.getEventClient()), app(app) {}
+  Request(req), Event::OAuth2Login(app.getEventClient()), app(app),
+  jsonFields(0) {}
 
 
 SmartPointer<JSON::Dict> Transaction::parseArgsPtr() {
@@ -191,7 +192,10 @@ bool Transaction::apiAuthUser() {
     dict->insert("provider", user->getProvider());
     dict->insert("id", user->getID());
 
-    query(&Transaction::profile, "CALL GetUser(%(provider)s, %(id)s)", dict);
+    jsonFields = "*profile things followers following starred badges";
+
+    query(&Transaction::returnJSONFields,
+          "CALL GetUser(%(provider)s, %(id)s)", dict);
 
   } else pleaseLogin();
 
@@ -229,7 +233,9 @@ bool Transaction::apiAuthLogin() {
 
 bool Transaction::apiAuthLogout() {
   setCookie(app.getSessionCookieName(), "", "", "/", 1);
-  redirect("/");
+  getJSONWriter()->write("ok");
+  setContentType("application/json");
+  reply();
   return true;
 }
 
@@ -288,8 +294,10 @@ bool Transaction::apiGetProfile() {
   JSON::ValuePtr args = parseArgsPtr();
   args->insertBoolean("unpublished", isUser(args->getString("profile")));
 
-  query(&Transaction::profile, "CALL GetProfile(%(profile)s, %(unpublished)b)",
-        args);
+  jsonFields = "*profile things followers following starred badges";
+
+  query(&Transaction::returnJSONFields,
+        "CALL GetProfile(%(profile)s, %(unpublished)b)", args);
 
   return true;
 }
@@ -317,7 +325,9 @@ bool Transaction::apiGetThing() {
   JSON::ValuePtr args = parseArgsPtr();
   args->insertBoolean("unpublished", isUser(args->getString("profile")));
 
-  query(&Transaction::thing,
+  jsonFields = "*thing steps files comments stars";
+
+  query(&Transaction::returnJSONFields,
         "CALL GetThing(%(profile)s, %(thing)s, %(unpublished)b)", args);
 
   return true;
@@ -548,6 +558,19 @@ bool Transaction::apiNotFound() {
 }
 
 
+string Transaction::nextJSONField() {
+  if (!jsonFields) return "";
+
+  const char *start = jsonFields;
+  const char *end = jsonFields;
+  while (*end && *end != ' ') end++;
+
+  jsonFields = *end ? end + 1 : 0;
+
+  return string(start, end - start);
+}
+
+
 void Transaction::download(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
@@ -598,92 +621,6 @@ void Transaction::registration(MariaDB::EventDBCallback::state_t state) {
     // Fall through
 
   default: returnOK(state); return;
-  }
-}
-
-
-void Transaction::profile(MariaDB::EventDBCallback::state_t state) {
-  string fieldName;
-  if (db->haveResult() && db->getFieldCount())
-    fieldName = db->getField(0).getName();
-
-  switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
-    if (fieldName == "name") db->insertRow(*writer, 0, -1, false);
-    else {
-      writer->appendDict();
-      db->insertRow(*writer, 0, -1, false);
-      writer->endDict();
-    }
-    break;
-
-  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
-    if (writer.isNull()) {
-      writer = getJSONWriter();
-      writer->beginDict();
-    }
-
-    if (fieldName == "name") writer->insertDict("profile");
-    else if (fieldName == "thing") writer->insertList("things");
-    else if (fieldName == "follower") writer->insertList("followers");
-    else if (fieldName == "followed") writer->insertList("following");
-    else if (fieldName == "starred") writer->insertList("starred");
-    else if (fieldName == "badge") writer->insertList("badges");
-    else THROWS("Unexpected result set " << fieldName);
-    break;
-
-  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
-    writer->end();
-    break;
-
-  case MariaDB::EventDBCallback::EVENTDB_DONE:
-    writer->endDict();
-    // Fall through
-
-  default: return returnJSON(state);
-  }
-}
-
-
-void Transaction::thing(MariaDB::EventDBCallback::state_t state) {
-  string fieldName;
-  if (db->haveResult() && db->getFieldCount())
-    fieldName = db->getField(0).getName();
-
-  switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
-    if (fieldName == "name") db->insertRow(*writer, 0, -1, false);
-    else {
-      writer->appendDict();
-      db->insertRow(*writer, 0, -1, false);
-      writer->endDict();
-    }
-    break;
-
-  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
-    if (writer.isNull()) {
-      writer = getJSONWriter();
-      writer->beginDict();
-    }
-
-    if (fieldName == "name") writer->insertDict("thing");
-    else if (fieldName == "step") writer->insertList("steps");
-    else if (fieldName == "file") writer->insertList("files");
-    else if (fieldName == "comment") writer->insertList("comments");
-    else if (fieldName == "profile") writer->insertList("stars");
-    else THROWS("Unexpected result set " << fieldName);
-    break;
-
-  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
-    if (writer->inList()) writer->endList();
-    else writer->endDict();
-    break;
-
-  case MariaDB::EventDBCallback::EVENTDB_DONE:
-    if (!writer.isNull()) writer->endDict();
-    // Fall through
-
-  default: return returnJSON(state);
   }
 }
 
@@ -762,6 +699,45 @@ void Transaction::returnJSON(MariaDB::EventDBCallback::state_t state) {
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_END_RESULT: break;
+
+  default: return returnReply(state);
+  }
+}
+
+
+void Transaction::returnJSONFields(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    if (writer->inDict()) db->insertRow(*writer, 0, -1, false);
+    else {
+      writer->appendDict();
+      db->insertRow(*writer, 0, -1, false);
+      writer->endDict();
+    }
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT: {
+    setContentType("application/json");
+    if (writer.isNull()) {
+      writer = getJSONWriter();
+      writer->beginDict();
+    }
+
+    string field = nextJSONField();
+    if (field.empty()) THROW("Unexpected result set");
+    if (field[0] == '*') writer->insertDict(field.substr(1));
+    else writer->insertList(field);
+    break;
+  }
+
+  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+    if (writer->inList()) writer->endList();
+    else writer->endDict();
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_DONE:
+    if (!writer.isNull()) writer->endDict();
+    // Fall through
 
   default: return returnReply(state);
   }

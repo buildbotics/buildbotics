@@ -333,7 +333,7 @@ END;
 -- Follow
 CREATE PROCEDURE GetFollowingByID(IN _profile_id INT)
 BEGIN
-  SELECT name AS followed, avatar
+  SELECT name, avatar
     FROM profiles
     INNER JOIN followers f ON id = f.followed_id
     WHERE f.follower_id = _profile_id;
@@ -348,7 +348,7 @@ END;
 
 CREATE PROCEDURE GetFollowersByID(IN _profile_id INT)
 BEGIN
-  SELECT name as follower, avatar
+  SELECT name, avatar
     FROM profiles
     INNER JOIN followers f ON id = f.follower_id
     WHERE f.followed_id = _profile_id;
@@ -382,7 +382,7 @@ END;
 CREATE PROCEDURE GetStarredThingsByID(IN _profile_id INT)
 BEGIN
   -- Keep in sync with GetThingsByID()
-  SELECT t.name starred, p.name owner, t.type, t.title, t.comments, t.stars,
+  SELECT t.name, p.name owner, t.type, t.title, t.comments, t.stars,
     t.children, GetFileURL(p.name, t.name, f.name) image
     FROM things t
     LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
@@ -432,7 +432,7 @@ END;
 -- Badges
 CREATE PROCEDURE GetBadgesByID(IN _profile_id INT)
 BEGIN
-  SELECT name AS badge, description
+  SELECT name, description
     FROM badges
     INNER JOIN profile_badges pb ON id = pb.badge_id
     WHERE pb.profile_id = _profile_id;
@@ -509,7 +509,7 @@ BEGIN
     SELECT name FROM profiles WHERE id = _owner_id INTO _owner;
   END IF;
 
-  SELECT t.name thing, _owner owner, t.type, title, published,
+  SELECT t.name, _owner owner, t.type, title, published,
     FormatTS(t.created) created, FormatTS(t.modified) modified, comments, stars,
     children, GetFileURL(_owner, t.name, f.name) image
     FROM things t
@@ -551,7 +551,7 @@ BEGIN
   SET _thing_id = GetThingIDByID(_owner_id, _name);
 
   IF _thing_id IS NOT null THEN
-    SELECT t.name name, _owner owner, t.type, t.title,
+    SELECT t.name, _owner owner, t.type, t.title,
       t.published, FormatTS(t.created) created, FormatTS(t.modified) modified,
       t.url, t.description, t.tags, t.comments, t.stars, t.children, t.license,
       l.url license_url, CONCAT(p.name, '/', parent.name) parent
@@ -574,7 +574,7 @@ BEGIN
       ORDER BY position;
 
     -- Files
-    SELECT f.name file, type, FormatTS(f.created) created, downloads, caption,
+    SELECT f.name, type, FormatTS(f.created) created, downloads, caption,
       display, space size, GetFileURL(_owner, _name, f.name) url
       FROM files f
       LEFT JOIN steps ON steps.id = step_id

@@ -59,6 +59,7 @@ namespace BuildBotics {
     cb::SmartPointer<User> user;
     cb::SmartPointer<cb::MariaDB::EventDB> db;
     cb::SmartPointer<cb::JSON::Writer> writer;
+    const char *jsonFields;
 
   public:
     Transaction(App &app, evhttp_request *req);
@@ -122,16 +123,17 @@ namespace BuildBotics {
     bool apiNotFound();
 
     // MariaDB::EventDB callbacks
+    std::string nextJSONField();
+
     void download(cb::MariaDB::EventDBCallback::state_t state);
     void login(cb::MariaDB::EventDBCallback::state_t state);
     void registration(cb::MariaDB::EventDBCallback::state_t state);
-    void profile(cb::MariaDB::EventDBCallback::state_t state);
-    void thing(cb::MariaDB::EventDBCallback::state_t state);
     void returnOK(cb::MariaDB::EventDBCallback::state_t state);
     void returnList(cb::MariaDB::EventDBCallback::state_t state);
     void returnBool(cb::MariaDB::EventDBCallback::state_t state);
     void returnU64(cb::MariaDB::EventDBCallback::state_t state);
     void returnJSON(cb::MariaDB::EventDBCallback::state_t state);
+    void returnJSONFields(cb::MariaDB::EventDBCallback::state_t state);
     void returnReply(cb::MariaDB::EventDBCallback::state_t state);
   };
 }
