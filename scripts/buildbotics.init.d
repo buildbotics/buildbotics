@@ -5,6 +5,18 @@
 #  Add to system with:
 #    sudo update-rc.d buildbotics defaults 90
 
+### BEGIN INIT INFO
+# Provides: buildbotics
+# Required-Start:
+# Required-Stop:
+# Should-Start:
+# Should-Stop:
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: Start and stop Buildbotics Web server
+# Description: Buildbotics Web server
+### END INIT INFO
+
 NAME=buildbotics
 EXEC=/usr/local/bin/$NAME
 CONFIG=/etc/$NAME/config.xml
