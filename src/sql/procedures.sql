@@ -270,23 +270,32 @@ END;
 CREATE PROCEDURE GetUser(IN _provider VARCHAR(16), IN _id VARCHAR(64))
 BEGIN
   DECLARE profile_id INT;
+  DECLARE name VARCHAR(64);
+  DECLARE avatar VARCHAR(256);
+  DECLARE found INT;
 
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION, NOT FOUND
-  BEGIN
-    SELECT name, avatar FROM associations
-      WHERE provider = _provider AND id = _id;
+  -- Lookup association
+  SELECT a.profile_id, a.name, a.avatar
+    INTO profile_id, name, avatar
+    FROM associations a
+    WHERE a.provider = _provider AND a.id = _id;
 
-    IF FOUND_ROWS() != 1 THEN
-      SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
-        SET MESSAGE_TEXT = 'User not found';
-    END IF;
-  END;
+  -- Error if not found
+  IF name IS null THEN
+    SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
+      SET MESSAGE_TEXT = 'User not found';
+  END IF;
 
-  SELECT a.profile_id FROM associations a
-    WHERE a.provider = _provider AND a.id = _id
-    INTO profile_id;
+  -- Check if profile exists
+  SELECT id FROM profiles
+    WHERE id = profile_id
+    INTO found;
 
-  CALL GetProfileByID(profile_id, true);
+  IF found IS null THEN
+    SELECT name, avatar;
+  ELSE
+    CALL GetProfileByID(profile_id, true);
+  END IF;
 END;
 
 
@@ -550,43 +559,41 @@ BEGIN
   SET _owner_id = GetProfileID(_owner);
   SET _thing_id = GetThingIDByID(_owner_id, _name);
 
-  IF _thing_id IS NOT null THEN
-    SELECT t.name, _owner owner, t.type, t.title,
-      t.published, FormatTS(t.created) created, FormatTS(t.modified) modified,
-      t.url, t.description, t.tags, t.comments, t.stars, t.children, t.license,
-      l.url license_url, CONCAT(p.name, '/', parent.name) parent
-      FROM things t
-      LEFT JOIN things parent ON parent.id = t.parent_id
-      LEFT JOIN profiles p ON p.id = parent.owner_id
-      LEFT JOIN licenses l ON l.name = t.license
-      WHERE t.owner_id = _owner_id AND t.name = _name AND
-        (_unpublished OR t.published);
+  SELECT t.name, _owner owner, t.type, t.title,
+    t.published, FormatTS(t.created) created, FormatTS(t.modified) modified,
+    t.url, t.description, t.tags, t.comments, t.stars, t.children, t.license,
+    l.url license_url, CONCAT(p.name, '/', parent.name) parent
+    FROM things t
+    LEFT JOIN things parent ON parent.id = t.parent_id
+    LEFT JOIN profiles p ON p.id = parent.owner_id
+    LEFT JOIN licenses l ON l.name = t.license
+    WHERE t.owner_id = _owner_id AND t.name = _name AND
+      (_unpublished OR t.published);
 
-    IF FOUND_ROWS() != 1 THEN
-      SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
-       SET MESSAGE_TEXT = 'Thing not found';
-    END IF;
-
-    -- Steps
-    SELECT id step, name, FormatTS(created) created,
-      FormatTS(modified) modified, description FROM steps
-      WHERE thing_id = _thing_id
-      ORDER BY position;
-
-    -- Files
-    SELECT f.name, type, FormatTS(f.created) created, downloads, caption,
-      display, space size, GetFileURL(_owner, _name, f.name) url
-      FROM files f
-      LEFT JOIN steps ON steps.id = step_id
-      WHERE f.thing_id = _thing_id
-      ORDER BY f.display, f.position, f.created;
-
-    -- Comments
-    CALL GetCommentsByID(_thing_id);
-
-    -- Stars
-    CALL GetThingStarsByID(_thing_id);
+  IF FOUND_ROWS() != 1 THEN
+    SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
+     SET MESSAGE_TEXT = 'Thing not found';
   END IF;
+
+  -- Steps
+  SELECT id step, name, FormatTS(created) created,
+    FormatTS(modified) modified, description FROM steps
+    WHERE thing_id = _thing_id
+    ORDER BY position;
+
+  -- Files
+  SELECT f.name, type, FormatTS(f.created) created, downloads, caption,
+    display, space size, GetFileURL(_owner, _name, f.name) url
+    FROM files f
+    LEFT JOIN steps ON steps.id = step_id
+    WHERE f.thing_id = _thing_id
+    ORDER BY f.display, f.position, f.created;
+
+  -- Comments
+  CALL GetCommentsByID(_thing_id);
+
+  -- Stars
+  CALL GetThingStarsByID(_thing_id);
 END;
 
 
@@ -997,7 +1004,7 @@ BEGIN
   SET SQL_SELECT_LIMIT = _limit;
 
   -- Select
-  SELECT p.name profile, p.avatar, p.points, p.followers, p.joined,
+  SELECT p.name, p.avatar, p.points, p.followers, p.joined,
       MATCH(p.name, p.fullname, p.location, p.bio)
       AGAINST(_query IN BOOLEAN MODE) score
 
@@ -1054,7 +1061,7 @@ BEGIN
   SET SQL_SELECT_LIMIT = _limit;
 
   -- Select
-  SELECT t.name thing, p.name owner, t.type, t.title,
+  SELECT t.name, p.name owner, t.type, t.title,
       FormatTS(t.created) created, FormatTS(t.modified) modified,
       t.comments, t.stars, t.children, GetFileURL(p.name, t.name, f.name) image,
       MATCH(t.name, t.title, t.description, t.tags)
