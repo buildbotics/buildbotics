@@ -1,7 +1,6 @@
 #!/bin/bash -e
 
 NAME=buildbotics
-RUN_GROUP=$NAME
 
 case "$1" in
     remove)
@@ -24,10 +23,20 @@ case "$1" in
         # Remove files
         rm -rf /etc/$NAME /etc/default/$NAME
 
+        # Remove user if it exists
+        if getent passwd $NAME >/dev/null; then
+            echo -n "Removing system user $NAME..."
+            if userdel $NAME 2>/dev/null; then
+                echo "done"
+            else
+                echo "failed"
+            fi
+        fi
+
         # Remove group if it exists
-        if getent group $RUN_GROUP >/dev/null; then
-            echo -n "Removing system group $RUN_GROUP..."
-            if groupdel $RUN_GROUP 2>/dev/null; then
+        if getent group $NAME >/dev/null; then
+            echo -n "Removing system group $NAME..."
+            if groupdel $NAME 2>/dev/null; then
                 echo "done"
             else
                 echo "failed"

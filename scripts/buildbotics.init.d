@@ -1,6 +1,6 @@
-#!/usr/bash
+#!/bin/bash
 #
-#   Buildbotics server
+#   Buildbotics Web server
 #
 #  Add to system with:
 #    sudo update-rc.d buildbotics defaults 90
@@ -20,7 +20,7 @@
 NAME=buildbotics
 EXEC=/usr/local/bin/$NAME
 CONFIG=/etc/$NAME/config.xml
-USER=server
+USER=$NAME
 PIDFILE=/var/run/$NAME.pid
 
 START_STOP_OPTS="-x $EXEC -n $NAME -c $USER -b"

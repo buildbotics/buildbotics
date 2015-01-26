@@ -28,8 +28,5 @@ case "$1" in
               invoke-rc.d $NAME start || true
             fi
         fi
-
-        echo
-        echo "The Buildbotics Web server is now installed"
         ;;
 esac
