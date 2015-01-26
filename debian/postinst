@@ -2,7 +2,7 @@
 
 NAME=buildbotics
 ETC=/etc/$NAME
-ETC=/var/run/$NAME
+RUN=/var/run/$NAME
 
 case "$1" in
     reconfigure|configure)
