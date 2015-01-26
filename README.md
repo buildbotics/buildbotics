@@ -25,7 +25,8 @@ Install the MariaDB repo keys:
 Then install the packages like this:
 
     sudo apt-get update
-    sudo apt-get install libre2-dev libmariadbclient-dev mariadb-server-10.0
+    sudo apt-get install libre2-dev libmariadbclient-dev mariadb-server-10.0 \
+      python-mysql.connector
 
 # Build
 

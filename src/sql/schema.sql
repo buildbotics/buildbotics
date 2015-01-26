@@ -172,7 +172,7 @@ CREATE TABLE IF NOT EXISTS things (
   UNIQUE (`owner_id`, `name`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`parent_id`) REFERENCES things(`id`) ON DELETE SET NULL,
-  FOREIGN KEY (`type`) REFERENCES thing_type(`name`) ON DELETE SET NULL,
+  FOREIGN KEY (`type`) REFERENCES thing_type(`name`),
   FOREIGN KEY (`license`) REFERENCES licenses(`name`) ON DELETE SET NULL
 );
 
