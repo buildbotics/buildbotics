@@ -18,7 +18,7 @@
 ### END INIT INFO
 
 NAME=buildbotics
-EXEC=/usr/local/bin/$NAME
+EXEC=/usr/bin/$NAME
 CONFIG=/etc/$NAME/config.xml
 USER=$NAME
 PIDFILE=/var/run/$NAME/$NAME.pid

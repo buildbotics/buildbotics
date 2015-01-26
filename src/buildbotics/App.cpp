@@ -81,7 +81,7 @@ App::App() :
   options.pushCategory("Database");
   options.addTarget("db-host", dbHost, "DB host name");
   options.addTarget("db-user", dbUser, "DB user name");
-  options.addTarget("db-pass", dbPass, "DB password");
+  options.addTarget("db-pass", dbPass, "DB password")->setObscured();;
   options.addTarget("db-name", dbName, "DB name");
   options.addTarget("db-port", dbPort, "DB port");
   options.addTarget("db-timeout", dbTimeout, "DB timeout");
@@ -90,7 +90,7 @@ App::App() :
   options.pushCategory("Amazon Web Services");
   options.addTarget("aws-access-key-id", awsID, "AWS access key ID");
   options.addTarget("aws-secret-access-key", awsSecret,
-                    "AWS secret access key");
+                    "AWS secret access key")->setObscured();;
   options.addTarget("aws-bucket", awsBucket, "AWS bucket name");
   options.addTarget("aws-region", awsRegion, "AWS region code");
   options.addTarget("aws-upload-expires", awsUploadExpires,
