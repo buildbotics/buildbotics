@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS things (
   `title`       VARCHAR(128),
   `url`         VARCHAR(256),
   `description` TEXT,
-  `license`     VARCHAR(64),
+  `license`     VARCHAR(64) DEFAULT 'BSD License',
   `tags`        TEXT,
 
   `published`   BOOL DEFAULT false,
