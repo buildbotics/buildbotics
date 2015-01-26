@@ -28,7 +28,8 @@ START_STOP_OPTS="-x $EXEC -n $NAME -c $USER -p $PID_FILE"
 
 
 start() {
-    start-stop-daemon --start $START_STOP_OPTS -b -- --config $CONFIG --log $LOG
+    start-stop-daemon --start $START_STOP_OPTS -b -- --config $CONFIG \
+      --log $LOG --log-rotate-dir $(dirname $LOG)
 }
 
 
