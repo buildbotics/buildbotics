@@ -47,46 +47,31 @@ tar = env.TarBZ2Dist(name, docs + [prog])
 Alias('dist', tar)
 AlwaysBuild(tar)
 
-# TODO Complete descriptions
 description = \
 '''
+Buildbotics Web server
 '''
 
 short_description = description
 
 
 if 'package' in COMMAND_LINE_TARGETS:
-    # Don't package Windows here
-    if env['PLATFORM'] == 'win32':
-        f = open('package.txt', 'w');
-        f.write('none');
-        f.close()
-        Exit(0)
-
-    # Package
     pkg = env.Packager(
         name,
         version = version,
         maintainer = 'Joseph Coffland <joseph@cauldrondevelopment.com>',
-        vendor = 'Cauldron Development LLC',
-        url = 'http://cauldrondevelopment.com/',
+        vendor = 'Buildbotics LLC',
+        url = 'http://buildbotics.com/',
         license = 'copyright',
-        bug_url = 'https://github.com/BuildBotics/' + name + '/issues',
-        summary = 'BuildBotics Web Server',
+        bug_url = 'https://github.com/buildbotics/' + name + '/issues',
+        summary = 'Buildbotics Web server',
         description = description,
         prefix = '/usr',
 
         documents = docs,
         programs = [str(prog[0])],
-        init_d = [[name + '.init.d', name]],
+        init_d = [['scripts/' + name + '.init.d', name]],
         changelog = 'ChangeLog',
-
-        rpm_license = 'Restricted',
-        rpm_group = 'Applications/Internet',
-        rpm_pre_requires = 'shadow-utils',
-        rpm_requires = 'bzip2-libs, zlib',
-        rpm_post = 'rpm/post',
-        rpm_preun = 'rpm/preun',
 
         deb_directory = 'debian',
         deb_section = 'science',

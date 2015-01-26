@@ -1,0 +1,37 @@
+#!/bin/bash -e
+
+NAME=buildbotics
+RUN_GROUP=$NAME
+
+case "$1" in
+    remove)
+        if [ -x insserv ]; then
+            # Stop the service
+            service $NAME stop || true
+
+            # Uninstall init.d script
+            insserv -r $NAME
+        else
+            # Stop the service
+            invoke-rc.d $NAME stop || true
+
+            # Uninstall init.d script
+            update-rc.d -f $NAME remove
+        fi
+        ;;
+
+    purge)
+        # Remove files
+        rm -rf /etc/$NAME /etc/default/$NAME
+
+        # Remove group if it exists
+        if getent group $RUN_GROUP >/dev/null; then
+            echo -n "Removing system group $RUN_GROUP..."
+            if groupdel $RUN_GROUP 2>/dev/null; then
+                echo "done"
+            else
+                echo "failed"
+            fi
+        fi
+        ;;
+esac

@@ -1,0 +1,35 @@
+#!/bin/bash -e
+
+NAME=buildbotics
+RUN_GROUP=$NAME
+ETC=/etc/$NAME
+
+case "$1" in
+    reconfigure|configure)
+        # Setup permissions
+        chown root:$RUN_GROUP $ETC
+        chmod 775 $ETC
+
+        if [ -x insserv ]; then
+            # Install the init.d script
+            insserv -d $NAME
+
+            # Start the service
+            if [ -e $ETC/config.xml ]; then
+                service $NAME start || true
+            fi
+
+        else
+            # Install the init.d script
+            update-rc.d $NAME defaults 95
+
+            # Start the service
+            if [ -e $ETC/config.xml ]; then
+              invoke-rc.d $NAME start || true
+            fi
+        fi
+
+        echo
+        echo "The Buildbotics Web server is now installed"
+        ;;
+esac

@@ -129,7 +129,7 @@ void Transaction::query(event_db_member_functor_t member, const string &s,
 }
 
 
-bool Transaction::apiError(int status, int code, const string &msg) {
+bool Transaction::apiError(int status, const string &msg) {
   LOG_ERROR(msg);
 
   // Reset output
@@ -142,26 +142,16 @@ bool Transaction::apiError(int status, int code, const string &msg) {
   // Drop DB connection
   if (!db.isNull()) db->close();
 
-  // Error message
-  writer = getJSONWriter();
-  writer->beginList();
-  writer->appendDict();
-  writer->insert("message", msg);
-  writer->insert("code", code);
-  writer->endDict();
-  writer->endList();
-
-  // Send it
-  writer.release();
-  setContentType("application/json");
-  reply(status);
+  // Send error message
+  setContentType("text/plain");
+  reply(status, msg);
 
   return true;
 }
 
 
 bool Transaction::pleaseLogin() {
-  apiError(HTTP_OK, HTTP_UNAUTHORIZED, "Not authorized, please login");
+  apiError(HTTP_UNAUTHORIZED, "Not authorized, please login");
   return true;
 }
 
@@ -173,6 +163,11 @@ void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
       user->authenticate(profile->getString("provider"),
                          profile->getString("id"));
       app.getUserManager().updateSession(user);
+
+      // Fix up Facebook avatar
+      if (profile->getString("provider") == "facebook")
+        profile->insert("avatar", "http://graph.facebook.com/" +
+                        profile->getString("id") + "/picture?type=small");
 
       query(&Transaction::login, "CALL Login(%(provider)s, %(id)s, %(name)s, "
             "%(email)s, %(avatar)s);", profile);
@@ -194,7 +189,7 @@ bool Transaction::apiAuthUser() {
 
     jsonFields = "*profile things followers following starred badges";
 
-    query(&Transaction::returnJSONFields,
+    query(&Transaction::authUser,
           "CALL GetUser(%(provider)s, %(id)s)", dict);
 
   } else pleaseLogin();
@@ -553,7 +548,7 @@ bool Transaction::apiGetLicenses() {
 
 
 bool Transaction::apiNotFound() {
-  apiError(HTTP_OK, HTTP_NOT_FOUND, "Invalid API method " + getURI().getPath());
+  apiError(HTTP_NOT_FOUND, "Invalid API method " + getURI().getPath());
   return true;
 }
 
@@ -587,6 +582,19 @@ void Transaction::download(MariaDB::EventDBCallback::state_t state) {
 }
 
 
+void Transaction::authUser(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_ERROR:
+    // Not really logged in, clear cookie
+    setCookie(app.getSessionCookieName(), "", "", "/");
+
+    // Fall through
+
+  default: return returnJSONFields(state);
+  }
+}
+
+
 void Transaction::login(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
@@ -615,7 +623,7 @@ void Transaction::login(MariaDB::EventDBCallback::state_t state) {
 void Transaction::registration(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_DONE:
-    user->setName(getArg("name"));
+    user->setName(getArg("profile"));
     app.getUserManager().updateSession(user);
     user->setCookie(*this);
     // Fall through
@@ -760,13 +768,13 @@ void Transaction::returnReply(MariaDB::EventDBCallback::state_t state) {
     default: break;
     }
 
-    apiError(HTTP_OK, error,
+    apiError(error,
              SSTR("DB:" << db->getErrorNumber() << ": " << db->getError()));
     break;
   }
 
   default:
-    apiError(HTTP_INTERNAL_SERVER_ERROR, 0, "Unexpected DB response");
+    apiError(HTTP_INTERNAL_SERVER_ERROR, "Unexpected DB response");
     return;
   }
 }

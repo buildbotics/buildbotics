@@ -76,7 +76,7 @@ namespace BuildBotics {
     void query(event_db_member_functor_t member, const std::string &s,
                const cb::SmartPointer<cb::JSON::Value> &dict = 0);
 
-    bool apiError(int status, int code, const std::string &msg);
+    bool apiError(int status, const std::string &msg);
     bool pleaseLogin();
 
     // From cb::Event::OAuth2Login
@@ -126,6 +126,7 @@ namespace BuildBotics {
     std::string nextJSONField();
 
     void download(cb::MariaDB::EventDBCallback::state_t state);
+    void authUser(cb::MariaDB::EventDBCallback::state_t state);
     void login(cb::MariaDB::EventDBCallback::state_t state);
     void registration(cb::MariaDB::EventDBCallback::state_t state);
     void returnOK(cb::MariaDB::EventDBCallback::state_t state);

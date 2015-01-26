@@ -1,0 +1,31 @@
+#!/bin/bash -e
+
+NAME=buildbotics
+RUN_GROUP=$NAME
+ETC=/etc/$NAME
+
+case "$1" in
+    install|upgrade)
+        if [ "$1" == "upgrade" ]; then
+            # Stop the service
+            if [ -x insserv ]; then
+                service $NAME stop || true
+            else
+                invoke-rc.d $NAME stop || true
+            fi
+        fi
+
+        # Create config directory
+        test -d $ETC || mkdir $ETC
+
+        # Create group if it does not exist
+        if ! getent group $RUN_GROUP >/dev/null; then
+            echo -n "Adding system group $RUN_GROUP..."
+            if groupadd -r $RUN_GROUP 2>/dev/null; then
+                echo "done"
+            else
+                echo "failed"
+            fi
+        fi
+        ;;
+esac
