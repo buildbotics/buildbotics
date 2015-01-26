@@ -1,14 +1,15 @@
 #!/bin/bash -e
 
 NAME=buildbotics
-RUN_GROUP=$NAME
 ETC=/etc/$NAME
+ETC=/var/run/$NAME
 
 case "$1" in
     reconfigure|configure)
         # Setup permissions
-        chown root:$RUN_GROUP $ETC
-        chmod 775 $ETC
+        chown root:$NAME $ETC
+        chown $NAME:$NAME $RUN
+        chmod 775 $ETC $RUN
 
         if [ -x insserv ]; then
             # Install the init.d script

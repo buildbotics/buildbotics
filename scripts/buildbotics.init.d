@@ -21,13 +21,13 @@ NAME=buildbotics
 EXEC=/usr/local/bin/$NAME
 CONFIG=/etc/$NAME/config.xml
 USER=$NAME
-PIDFILE=/var/run/$NAME.pid
+PIDFILE=/var/run/$NAME/$NAME.pid
 
-START_STOP_OPTS="-x $EXEC -n $NAME -c $USER -b"
+START_STOP_OPTS="-x $EXEC -n $NAME -c $USER"
 
 
 start() {
-    start-stop-daemon --start $START_STOP_OPTS -- --config $CONFIG
+    start-stop-daemon --start $START_STOP_OPTS -b -- --config $CONFIG
 }
 
 

@@ -2,6 +2,7 @@
 
 NAME=buildbotics
 ETC=/etc/$NAME
+RUN=/var/run/$NAME
 
 case "$1" in
     install|upgrade)
@@ -14,8 +15,9 @@ case "$1" in
             fi
         fi
 
-        # Create config directory
+        # Create directorys
         test -d $ETC || mkdir $ETC
+        test -d $RUN || mkdir $RUN
 
         # Create group if it does not exist
         if ! getent group $NAME >/dev/null; then

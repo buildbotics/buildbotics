@@ -21,7 +21,7 @@ case "$1" in
 
     purge)
         # Remove files
-        rm -rf /etc/$NAME /etc/default/$NAME
+        rm -rf /etc/$NAME /etc/default/$NAME /var/lib/$NAME
 
         # Remove user if it exists
         if getent passwd $NAME >/dev/null; then
