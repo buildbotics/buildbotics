@@ -22,13 +22,13 @@ EXEC=/usr/bin/$NAME
 CONFIG=/etc/$NAME/config.xml
 USER=$NAME
 PID_FILE=/var/run/$NAME/$NAME.pid
+LOG=/var/log/$NAME/$NAME.log
 
 START_STOP_OPTS="-x $EXEC -n $NAME -c $USER -p $PID_FILE"
 
 
 start() {
-    start-stop-daemon --start $START_STOP_OPTS -b -- --config $CONFIG \
-        --log /var/log/$NAME/$NAME.log
+    start-stop-daemon --start $START_STOP_OPTS -b -- --config $CONFIG --log $LOG
 }
 
 
