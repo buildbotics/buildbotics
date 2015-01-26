@@ -8,8 +8,8 @@ case "$1" in
     reconfigure|configure)
         # Setup permissions
         chown root:$NAME $ETC
-        chown $NAME:$NAME $RUN
-        chmod 775 $ETC $RUN
+        chown $NAME:$NAME $RUN $LOG
+        chmod 775 $ETC $RUN $LOG
 
         if [ -x insserv ]; then
             # Install the init.d script
