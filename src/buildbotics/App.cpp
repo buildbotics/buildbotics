@@ -152,6 +152,7 @@ int App::init(int argc, char *argv[]) {
   // Handle exit signal
   base.newSignal(SIGINT, this, &App::signalEvent).add();
   base.newSignal(SIGKILL, this, &App::signalEvent).add();
+  base.newSignal(SIGTERM, this, &App::signalEvent).add();
 
   return 0;
 }
