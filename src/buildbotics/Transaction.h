@@ -60,6 +60,7 @@ namespace BuildBotics {
     cb::SmartPointer<cb::MariaDB::EventDB> db;
     cb::SmartPointer<cb::JSON::Writer> writer;
     const char *jsonFields;
+    std::string redirectTo;
 
   public:
     Transaction(App &app, evhttp_request *req);

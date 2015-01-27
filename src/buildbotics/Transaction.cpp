@@ -577,11 +577,14 @@ void Transaction::download(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
   case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+    break;
+
   case MariaDB::EventDBCallback::EVENTDB_DONE:
+    redirect(redirectTo);
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_ROW:
-    redirect(db->getString(0));
+    redirectTo = db->getString(0);
     break;
 
   default: returnReply(state); return;
