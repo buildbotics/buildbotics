@@ -914,17 +914,18 @@ END;
 
 
 CREATE PROCEDURE DownloadFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
-  IN _name VARCHAR(256))
+  IN _name VARCHAR(256), IN _count BOOLEAN)
 BEGIN
   DECLARE _file_id INT;
   DECLARE _url VARCHAR(256);
 
   SELECT id, url INTO _file_id, _url FROM files
-    WHERE thing_id = GetThingID(_owner, _thing) AND name = _name
-    FOR UPDATE;
+    WHERE thing_id = GetThingID(_owner, _thing) AND name = _name;
 
-  UPDATE files SET downloads = downloads + 1
-    WHERE id = _file_id;
+  IF _count THEN
+    UPDATE files SET downloads = downloads + 1
+      WHERE id = _file_id;
+  END IF;
 
   IF _url IS null THEN
     SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND

@@ -55,12 +55,12 @@ using namespace BuildBotics;
 Transaction::Transaction(App &app, evhttp_request *req) :
   Request(req), Event::OAuth2Login(app.getEventClient()), app(app),
   jsonFields(0) {
-  LOG_DEBUG(3, "Transaction()");
+  LOG_DEBUG(5, "Transaction()");
 }
 
 
 Transaction::~Transaction() {
-  LOG_DEBUG(3, "~Transaction()");
+  LOG_DEBUG(5, "~Transaction()");
 }
 
 
@@ -449,7 +449,7 @@ bool Transaction::apiDownloadFile() {
   JSON::Value &args = parseArgs();
 
   query(&Transaction::download,
-        "CALL DownloadFile(%(profile)s, %(thing)s, %(file)s)",
+        "CALL DownloadFile(%(profile)s, %(thing)s, %(file)s, %(count)b)",
         JSON::ValuePtr::Null(&args));
 
   return true;
