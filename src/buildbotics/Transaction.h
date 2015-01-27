@@ -89,11 +89,15 @@ namespace BuildBotics {
     bool apiAuthLogin();
     bool apiAuthLogout();
 
+    bool apiGetProfiles();
     bool apiProfileRegister();
     bool apiProfileAvailable();
     bool apiProfileSuggest();
     bool apiPutProfile();
     bool apiGetProfile();
+
+    bool apiFollow();
+    bool apiUnfollow();
 
     bool apiGetThings();
     bool apiThingAvailable();

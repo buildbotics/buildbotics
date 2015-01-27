@@ -102,11 +102,16 @@ void Server::init() {
   ADD_TM(api, HTTP_GET, "/api/auth/logout", apiAuthLogout);
 
   // Profiles
+  ADD_TM(api, HTTP_GET, "/api/profiles", apiGetProfiles);
   ADD_TM(api, HTTP_PUT, PROFILE_RE "/register", apiProfileRegister);
   ADD_TM(api, HTTP_GET, PROFILE_RE "/available", apiProfileAvailable);
   ADD_TM(api, HTTP_GET, "/api/suggest", apiProfileSuggest);
   ADD_TM(api, HTTP_PUT, PROFILE_RE, apiPutProfile);
   ADD_TM(api, HTTP_GET, PROFILE_RE, apiGetProfile);
+
+  // Follow
+  ADD_TM(api, HTTP_PUT, PROFILE_RE "/follow", apiFollow);
+  ADD_TM(api, HTTP_DELETE, PROFILE_RE "/follow", apiUnfollow);
 
   // Things
   ADD_TM(api, HTTP_GET, "/api/things", apiGetThings);

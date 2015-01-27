@@ -344,7 +344,7 @@ END;
 -- Follow
 CREATE PROCEDURE GetFollowingByID(IN _profile_id INT)
 BEGIN
-  SELECT name, avatar
+  SELECT name, avatar, points, followers, badges, joined
     FROM profiles
     INNER JOIN followers f ON id = f.followed_id
     WHERE f.follower_id = _profile_id;
@@ -359,7 +359,7 @@ END;
 
 CREATE PROCEDURE GetFollowersByID(IN _profile_id INT)
 BEGIN
-  SELECT name, avatar
+  SELECT name, avatar, points, followers, badges, joined
     FROM profiles
     INNER JOIN followers f ON id = f.follower_id
     WHERE f.followed_id = _profile_id;
@@ -411,7 +411,7 @@ END;
 
 CREATE PROCEDURE GetThingStarsByID(IN _thing_id INT)
 BEGIN
-    SELECT p.name profile, p.avatar FROM stars s
+    SELECT p.name, p.avatar FROM stars s
       INNER JOIN profiles p ON p.id = profile_id
       WHERE s.thing_id = _thing_id
       ORDER BY s.created;
@@ -1001,7 +1001,7 @@ BEGIN
 
   -- Limit
   IF _limit IS null THEN
-    SET _limit = 10;
+    SET _limit = 100;
   END IF;
 
   -- Offset
@@ -1012,7 +1012,7 @@ BEGIN
   SET SQL_SELECT_LIMIT = _limit;
 
   -- Select
-  SELECT p.name, p.avatar, p.points, p.followers, p.joined,
+  SELECT p.name, p.avatar, p.points, p.followers, p.badges, p.joined,
       MATCH(p.name, p.fullname, p.location, p.bio)
       AGAINST(_query IN BOOLEAN MODE) score
 
@@ -1058,7 +1058,7 @@ BEGIN
 
   -- Limit
   IF _limit IS null THEN
-    SET _limit = 10;
+    SET _limit = 100;
   END IF;
 
   -- Offset

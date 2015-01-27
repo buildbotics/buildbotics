@@ -242,6 +242,14 @@ bool Transaction::apiAuthLogout() {
 }
 
 
+bool Transaction::apiGetProfiles() {
+  JSON::ValuePtr args = parseArgsPtr();
+  query(&Transaction::returnList,
+        "CALL FindProfiles(%(query)s, %(order)s, %(limit)u, %(offset)u)", args);
+  return true;
+}
+
+
 bool Transaction::apiProfileRegister() {
   lookupUser();
   if (user.isNull()) return pleaseLogin();
@@ -300,6 +308,28 @@ bool Transaction::apiGetProfile() {
 
   query(&Transaction::returnJSONFields,
         "CALL GetProfile(%(profile)s, %(unpublished)b)", args);
+
+  return true;
+}
+
+
+bool Transaction::apiFollow() {
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser();
+  args->insert("user", user->getName());
+
+  query(&Transaction::returnOK, "CALL Follow(%(user)s, %(profile)s)", args);
+
+  return true;
+}
+
+
+bool Transaction::apiUnfollow() {
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser();
+  args->insert("user", user->getName());
+
+  query(&Transaction::returnOK, "CALL Unfollow(%(user)s, %(profile)s)", args);
 
   return true;
 }
