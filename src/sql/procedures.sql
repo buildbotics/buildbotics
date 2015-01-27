@@ -869,7 +869,7 @@ BEGIN
   SET _id = (
     SELECT id FROM files
       WHERE thing_id = _thing_id AND display
-      ORDER BY position LIMIT 1);
+      ORDER BY position, created LIMIT 1);
 
   RETURN _id;
 END;
