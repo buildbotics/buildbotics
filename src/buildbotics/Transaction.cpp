@@ -54,7 +54,14 @@ using namespace BuildBotics;
 
 Transaction::Transaction(App &app, evhttp_request *req) :
   Request(req), Event::OAuth2Login(app.getEventClient()), app(app),
-  jsonFields(0) {}
+  jsonFields(0) {
+  LOG_DEBUG(3, "Transaction()");
+}
+
+
+Transaction::~Transaction() {
+  LOG_DEBUG(3, "~Transaction()");
+}
 
 
 SmartPointer<JSON::Dict> Transaction::parseArgsPtr() {
@@ -134,7 +141,7 @@ bool Transaction::apiError(int status, const string &msg) {
 
   // Reset output
   if (!writer.isNull()) {
-    writer->reset();
+    //writer->reset();
     writer.release();
   }
   getOutputBuffer().clear();

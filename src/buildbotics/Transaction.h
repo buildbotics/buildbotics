@@ -63,6 +63,7 @@ namespace BuildBotics {
 
   public:
     Transaction(App &app, evhttp_request *req);
+    ~Transaction();
 
     cb::SmartPointer<cb::JSON::Dict> parseArgsPtr();
 
