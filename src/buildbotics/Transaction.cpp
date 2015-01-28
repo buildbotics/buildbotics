@@ -44,6 +44,7 @@
 #include <cbang/db/maria/EventDB.h>
 #include <cbang/time/Timer.h>
 #include <cbang/security/Digest.h>
+#include <cbang/net/URI.h>
 
 #include <mysql/mysqld_error.h>
 
@@ -510,7 +511,7 @@ bool Transaction::apiPutFile() {
   string uploadURL = "https://" + app.getAWSBucket() + ".s3.amazonaws.com/";
   string fileURL = "/" + args.getString("profile") + "/" +
     args.getString("thing") + "/" + args.getString("file");
-  args.insert("url", uploadURL + key);
+  args.insert("url", uploadURL + URI::encode(key));
 
   // Build POST
   AWS4Post post(app.getAWSBucket(), key, app.getAWSUploadExpires(),
@@ -529,7 +530,7 @@ bool Transaction::apiPutFile() {
   writer = getJSONWriter();
   writer->beginDict();
   writer->insert("upload_url", uploadURL);
-  writer->insert("file_url", fileURL);
+  writer->insert("file_url", URI::encode(fileURL));
   writer->insert("guid", guid);
   writer->beginInsert("post");
   post.write(*writer);
