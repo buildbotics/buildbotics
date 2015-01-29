@@ -177,6 +177,12 @@ void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
         profile->insert("avatar", "http://graph.facebook.com/" +
                         profile->getString("id") + "/picture?type=small");
 
+      // Fix up for GitHub name
+      if (!profile->has("name") && profile->hasString("login"))
+        profile->insert("name", profile->getString("login"));
+
+      LOG_DEBUG(3, "Profile: " << *profile);
+
       query(&Transaction::login, "CALL Login(%(provider)s, %(id)s, %(name)s, "
             "%(email)s, %(avatar)s);", profile);
 
