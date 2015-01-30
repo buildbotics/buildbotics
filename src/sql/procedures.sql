@@ -688,9 +688,17 @@ END;
 
 
 -- Tags
-CREATE PROCEDURE GetTags()
+CREATE PROCEDURE GetTags(_limit INT)
 BEGIN
-  SELECT name, count FROM tags WHERE 0 < count ORDER BY count DESC;
+  IF _limit IS null THEN
+    SET _limit = 100;
+  END IF;
+
+  SELECT name, count
+    FROM tags
+    WHERE 0 < count
+    ORDER BY count DESC
+    LIMIT _limit;
 END;
 
 

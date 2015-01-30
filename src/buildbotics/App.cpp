@@ -116,6 +116,7 @@ SmartPointer<MariaDB::EventDB> App::getDBConnection() {
   db->setWriteTimeout(dbTimeout);
   db->setReconnect(true);
   db->enableNonBlocking();
+  db->setCharacterSet("utf8");
 
   // Connect
   db->connectNB(dbHost, dbUser, dbPass, dbName, dbPort);

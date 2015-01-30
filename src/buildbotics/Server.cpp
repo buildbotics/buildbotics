@@ -90,7 +90,7 @@ void Server::init() {
 #define FILE_RE THING_RE "/files/(?P<file>" FILENAME_RE ")"
 #define THING_TAGS_RE THING_RE "/tags/(?P<tags>" TAG_RE "(," TAG_RE ")*)"
 #define TAGS_RE "/api/tags"
-#define TAG_PATH_RE "/(?P<tag>" TAG_RE ")"
+#define TAG_PATH_RE TAGS_RE "/(?P<tag>" TAG_RE ")"
 #define FILE_URL_RE \
   "/(?P<profile>" NAME_RE ")/(?P<thing>" NAME_RE ")/(?P<file>" FILENAME_RE ")"
 
@@ -137,8 +137,7 @@ void Server::init() {
 
   // Tags
   ADD_TM(api, HTTP_GET, TAGS_RE, apiGetTags);
-  ADD_TM(api, HTTP_PUT, TAG_PATH_RE, apiAddTag);
-  ADD_TM(api, HTTP_DELETE, TAG_PATH_RE, apiDeleteTag);
+  ADD_TM(api, HTTP_GET, TAG_PATH_RE, apiGetTagThings);
   ADD_TM(api, HTTP_PUT, THING_TAGS_RE, apiTagThing);
   ADD_TM(api, HTTP_DELETE, THING_TAGS_RE, apiUntagThing);
 

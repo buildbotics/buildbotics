@@ -374,15 +374,14 @@ bool Transaction::apiGetThing() {
 
 
 bool Transaction::apiPutThing() {
-  JSON::Value &args = parseArgs();
-  requireUser(args.getString("profile"));
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
 
-  if (!args.hasString("type")) args.insert("type", "project");
+  if (!args->hasString("type")) args->insert("type", "project");
 
   query(&Transaction::returnOK,
         "CALL PutThing(%(profile)s, %(thing)s, %(type)s, %(title)s, "
-        "%(url)s, %(description)s, %(license)s, %(publish)b)",
-        JSON::ValuePtr::Null(&args));
+        "%(url)s, %(description)s, %(license)s, %(publish)b)", args);
 
   return true;
 }
@@ -394,100 +393,93 @@ bool Transaction::apiDeleteThing() {
 
 
 bool Transaction::apiStarThing() {
-  JSON::Value &args = parseArgs();
+  JSON::ValuePtr args = parseArgsPtr();
   requireUser();
-  args.insert("user", user->getName());
+  args->insert("user", user->getName());
 
   query(&Transaction::returnOK,
-        "CALL StarThing(%(user)s, %(profile)s, %(thing)s)",
-        JSON::ValuePtr::Null(&args));
+        "CALL StarThing(%(user)s, %(profile)s, %(thing)s)", args);
 
   return true;
 }
 
 
 bool Transaction::apiUnstarThing() {
-  JSON::Value &args = parseArgs();
+  JSON::ValuePtr args = parseArgsPtr();
   requireUser();
-  args.insert("user", user->getName());
+  args->insert("user", user->getName());
 
   query(&Transaction::returnOK,
-        "CALL UnstarThing(%(user)s, %(profile)s, %(thing)s)",
-        JSON::ValuePtr::Null(&args));
+        "CALL UnstarThing(%(user)s, %(profile)s, %(thing)s)", args);
 
   return true;
 }
 
 
 bool Transaction::apiTagThing() {
-  JSON::Value &args = parseArgs();
+  JSON::ValuePtr args = parseArgsPtr();
   requireUser();
 
   query(&Transaction::returnOK,
-        "CALL MultiTagThing(%(profile)s, %(thing)s, %(tags)s)",
-        JSON::ValuePtr::Null(&args));
+        "CALL MultiTagThing(%(profile)s, %(thing)s, %(tags)s)", args);
 
   return true;
 }
 
 
 bool Transaction::apiUntagThing() {
-  JSON::Value &args = parseArgs();
-  requireUser(args.getString("profile"));
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
 
   query(&Transaction::returnOK,
-        "CALL MultiUntagThing(%(profile)s, %(thing)s, %(tags)s)",
-        JSON::ValuePtr::Null(&args));
+        "CALL MultiUntagThing(%(profile)s, %(thing)s, %(tags)s)", args);
 
   return true;
 }
 
 
 bool Transaction::apiPostComment() {
-  JSON::Value &args = parseArgs();
+  JSON::ValuePtr args = parseArgsPtr();
   requireUser();
-  args.insert("owner", user->getName());
+  args->insert("owner", user->getName());
 
   query(&Transaction::returnU64,
         "CALL PostComment(%(owner)s, %(profile)s, %(thing)s, %(step)u, "
-        "%(ref)u, %(text)s)",
-        JSON::ValuePtr::Null(&args));
+        "%(ref)u, %(text)s)", args);
 
   return true;
 }
 
 
 bool Transaction::apiUpdateComment() {
-  JSON::Value &args = parseArgs();
+  JSON::ValuePtr args = parseArgsPtr();
   requireUser();
-  args.insert("owner", user->getName());
+  args->insert("owner", user->getName());
 
   query(&Transaction::returnOK,
-        "CALL UpdateComment(%(owner)s, %(comment)u, %(text)s)",
-        JSON::ValuePtr::Null(&args));
+        "CALL UpdateComment(%(owner)s, %(comment)u, %(text)s)", args);
 
   return true;
 }
 
 
 bool Transaction::apiDeleteComment() {
-  JSON::Value &args = parseArgs();
+  JSON::ValuePtr args = parseArgsPtr();
   requireUser();
-  args.insert("owner", user->getName());
+  args->insert("owner", user->getName());
 
   query(&Transaction::returnOK, "CALL DeleteComment(%(owner)s, %(comment)u)",
-        JSON::ValuePtr::Null(&args));
+        args);
 
   return true;
 }
 
 
 bool Transaction::apiDownloadFile() {
-  JSON::Value &args = parseArgs();
+  JSON::ValuePtr args = parseArgsPtr();
 
   query(&Transaction::download,
-        "CALL DownloadFile(%(profile)s, %(thing)s, %(file)s, %(count)b)",
-        JSON::ValuePtr::Null(&args));
+        "CALL DownloadFile(%(profile)s, %(thing)s, %(file)s, %(count)b)", args);
 
   return true;
 }
@@ -499,36 +491,36 @@ bool Transaction::apiGetFile() {
 
 
 bool Transaction::apiPutFile() {
-  JSON::Value &args = parseArgs();
-  requireUser(args.getString("profile"));
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
 
   // Create GUID
   Digest hash("sha256");
-  hash.update(args.getString("profile"));
-  hash.update(args.getString("thing"));
-  hash.update(args.getString("file"));
+  hash.update(args->getString("profile"));
+  hash.update(args->getString("thing"));
+  hash.update(args->getString("file"));
   hash.updateWith(Timer::now());
   string guid = hash.toBase64();
 
   // Create key
-  string key = guid + "/" + args.getString("file");
+  string key = guid + "/" + args->getString("file");
 
   // Create URLs
   string uploadURL = "https://" + app.getAWSBucket() + ".s3.amazonaws.com/";
-  string fileURL = "/" + args.getString("profile") + "/" +
-    args.getString("thing") + "/" + args.getString("file");
-  args.insert("url", uploadURL + URI::encode(key));
+  string fileURL = "/" + args->getString("profile") + "/" +
+    args->getString("thing") + "/" + args->getString("file");
+  args->insert("url", uploadURL + URI::encode(key));
 
   // Build POST
   AWS4Post post(app.getAWSBucket(), key, app.getAWSUploadExpires(),
                 Time::now(), "s3", app.getAWSRegion());
 
-  uint32_t size = args.getU32("size");
+  uint32_t size = args->getU32("size");
   post.setLengthRange(size, size);
-  post.insert("Content-Type", args.getString("type"));
+  post.insert("Content-Type", args->getString("type"));
   post.insert("acl", "public-read");
   post.insert("success_action_status", "201");
-  post.addCondition("name", args.getString("file"));
+  post.addCondition("name", args->getString("file"));
   post.sign(app.getAWSID(), app.getAWSSecret());
 
   // Write JSON
@@ -546,41 +538,35 @@ bool Transaction::apiPutFile() {
   // Write to DB
   query(&Transaction::returnReply,
         "CALL PutFile(%(profile)s, %(thing)s, %(file)s, %(step)s, %(type)s, "
-        "%(size)u, %(url)s, %(caption)s, %(display)b)",
-        JSON::ValuePtr::Null(&args));
+        "%(size)u, %(url)s, %(caption)s, %(display)b)", args);
 
   return true;
 }
 
 
 bool Transaction::apiDeleteFile() {
-  JSON::Value &args = parseArgs();
-  requireUser(args.getString("profile"));
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
 
   query(&Transaction::returnOK,
-        "CALL DeleteFile(%(profile)s, %(thing)s, %(file)s)",
-        JSON::ValuePtr::Null(&args));
+        "CALL DeleteFile(%(profile)s, %(thing)s, %(file)s)", args);
 
   return true;
 }
 
 
 bool Transaction::apiGetTags() {
-  query(&Transaction::returnList, "CALL GetTags()");
+  JSON::ValuePtr args = parseArgsPtr();
+  query(&Transaction::returnList, "CALL GetTags(%(limit)u)", args);
   return true;
 }
 
 
-bool Transaction::apiAddTag() {
-  string tag = getArg("tag");
-  query(&Transaction::returnOK, "CALL AddTag('" + tag + "')");
-  return true;
-}
-
-
-bool Transaction::apiDeleteTag() {
-  string tag = getArg("tag");
-  query(&Transaction::returnOK, "CALL DeleteTag('" + tag + "')");
+bool Transaction::apiGetTagThings() {
+  JSON::ValuePtr args = parseArgsPtr();
+  query(&Transaction::returnList,
+        "CALL FindThingsByTag(%(tag)s, %(order)s, %(limit)u, %(offset)u)",
+        args);
   return true;
 }
 

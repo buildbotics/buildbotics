@@ -121,6 +121,7 @@ namespace BuildBotics {
     bool apiDeleteFile();
 
     bool apiGetTags();
+    bool apiGetTagThings();
     bool apiAddTag();
     bool apiDeleteTag();
 
