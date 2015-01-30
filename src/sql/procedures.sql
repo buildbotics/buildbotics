@@ -94,7 +94,8 @@ BEGIN
     RETURN false;
   END IF;
 
-  RETURN true;
+  RETURN FIND_IN_SET(_name,
+    'explore,learn,create,tags,settings,login,register') = 0;
 END;
 
 
@@ -716,6 +717,56 @@ BEGIN
   DELETE FROM tags WHERE id = _tag_id;
 
   COMMIT;
+END;
+
+
+CREATE PROCEDURE FindThingsByTag(IN _tag VARCHAR(64),
+  IN _orderBy ENUM('stars', 'created', 'modified'), IN _limit INT,
+  IN _offset INT)
+BEGIN
+  -- Order by
+  IF _orderBy IS null THEN
+    SET _orderBy = 'stars';
+  END IF;
+
+  -- Limit
+  IF _limit IS null THEN
+    SET _limit = 100;
+  END IF;
+
+  -- Offset
+  IF _offset IS null THEN
+    SET _offset = 0;
+  END IF;
+
+  SET SQL_SELECT_LIMIT = _limit;
+
+  SELECT t.name, p.name owner, t.type, t.title,
+      FormatTS(t.created) created, FormatTS(t.modified) modified,
+      t.comments, t.stars, t.children, GetFileURL(p.name, t.name, f.name) image
+
+    FROM things t
+      LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
+      INNER JOIN profiles p ON t.owner_id = p.id
+
+    WHERE
+      t.id IN (
+        SELECT thing_id FROM thing_tags
+          LEFT JOIN tags ON thing_tags.tag_id = tags.id
+          WHERE tags.name = _tag
+      ) AND
+      t.published
+
+    ORDER BY
+      CASE _orderBy
+        WHEN 'created' THEN t.created
+        WHEN 'modifed' THEN t.modified
+      END ASC,
+      CASE _orderBy
+        WHEN 'stars' THEN t.stars
+      END DESC;
+
+  SET SQL_SELECT_LIMIT = DEFAULT;
 END;
 
 
