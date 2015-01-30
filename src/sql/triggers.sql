@@ -75,6 +75,22 @@ BEGIN
 END;
 
 
+-- Comments
+DROP TRIGGER IF EXISTS IncComments;
+CREATE TRIGGER IncComments AFTER INSERT ON comments
+FOR EACH ROW
+BEGIN
+  UPDATE things SET comments = comments + 1 WHERE id = NEW.thing_id;
+END;
+
+DROP TRIGGER IF EXISTS DecComments;
+CREATE TRIGGER DecComments AFTER DELETE ON comments
+FOR EACH ROW
+BEGIN
+  UPDATE things SET comments = comments - 1 WHERE id = OLD.thing_id;
+END;
+
+
 -- Badges
 DROP TRIGGER IF EXISTS IncBadges;
 CREATE TRIGGER IncBadges AFTER INSERT ON profile_badges
