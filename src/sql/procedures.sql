@@ -701,15 +701,19 @@ END;
 
 CREATE PROCEDURE DeleteTag(IN _tag VARCHAR(64))
 BEGIN
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION ROLLBACK;
+  DECLARE _tag_id INT;
 
   START TRANSACTION;
 
-  UPDATE things
-    SET tags = REPLACE(REPLACE(tags, CONCAT(_tag, ','), ''), _tag, '')
-    WHERE MATCH(tags) AGAINST(CONCAT('+', _tag) IN BOOLEAN MODE);
+  -- Get tag ID
+  SELECT id INTO _tag_id FROM tags WHERE name = _tag;
 
-  DELETE FROM tags WHERE name = _tag;
+  -- Delete thing_tags
+  -- Note trigger will remove tags from things
+  DELETE FROM thing_tags WHERE tag_id = _tag_id;
+
+  -- Delete tag
+  DELETE FROM tags WHERE id = _tag_id;
 
   COMMIT;
 END;

@@ -168,7 +168,6 @@ CREATE TABLE IF NOT EXISTS things (
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`name`, `title`, `description`, `tags`),
-  FULLTEXT KEY `tags` (`tags`),
   UNIQUE (`owner_id`, `name`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`parent_id`) REFERENCES things(`id`) ON DELETE SET NULL,
