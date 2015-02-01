@@ -13,8 +13,11 @@ BEGIN
         CALL Event(NEW.owner_id, 'rename', NEW.id);
       END IF;
 
-      IF OLD.type != NEW.type OR OLD.title != NEW.title OR OLD.url != NEW.url OR
-        OLD.instructions != NEW.instructions OR OLD.license != NEW.license THEN
+      IF IFNULL(OLD.type, '') != NEW.type OR
+        IFNULL(OLD.title, '') != NEW.title OR
+        IFNULL(OLD.url, '') != NEW.url OR
+        IFNULL(OLD.instructions, '') != NEW.instructions OR
+        IFNULL(OLD.license, '') != NEW.license THEN
         CALL Event(NEW.owner_id, 'update', NEW.id);
       END IF;
     END IF;
