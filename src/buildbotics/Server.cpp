@@ -119,6 +119,7 @@ void Server::init() {
   ADD_TM(api, HTTP_GET, THING_RE "/available", apiThingAvailable);
   ADD_TM(api, HTTP_GET, THING_RE, apiGetThing);
   ADD_TM(api, HTTP_PUT, THING_RE, apiPutThing);
+  ADD_TM(api, HTTP_PUT, THING_RE "/rename", apiRenameThing);
   ADD_TM(api, HTTP_DELETE, THING_RE, apiDeleteThing);
 
   // Stars

@@ -394,8 +394,25 @@ bool Transaction::apiPutThing() {
 }
 
 
+bool Transaction::apiRenameThing() {
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
+
+  query(&Transaction::returnOK,
+        "CALL RenameThing(%(profile)s, %(thing)s, %(name)s)", args);
+
+  return true;
+}
+
+
 bool Transaction::apiDeleteThing() {
-  THROW("Not yet implemented");
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
+
+  query(&Transaction::returnOK, "CALL DeleteThing(%(profile)s, %(thing)s)",
+        args);
+
+  return true;
 }
 
 

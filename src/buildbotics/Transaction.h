@@ -104,6 +104,7 @@ namespace BuildBotics {
     bool apiThingAvailable();
     bool apiGetThing();
     bool apiPutThing();
+    bool apiRenameThing();
     bool apiDeleteThing();
 
     bool apiStarThing();

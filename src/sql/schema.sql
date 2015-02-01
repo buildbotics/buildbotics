@@ -309,7 +309,7 @@ INSERT INTO event_actions
     -- Profile actions
     ('badge'), ('follow'),
     -- Thing actions
-    ('update'), ('publish'), ('rename'), ('delete'), ('star'), ('comment')
+    ('update'), ('publish'), ('rename'), ('star'), ('comment')
   ON DUPLICATE KEY UPDATE name = name;
 
 

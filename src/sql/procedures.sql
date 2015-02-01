@@ -629,9 +629,13 @@ CREATE PROCEDURE RenameThing(IN _owner VARCHAR(64), IN _old_name VARCHAR(64),
   IN _new_name VARCHAR(64))
 BEGIN
   DECLARE _owner_id INT;
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION ROLLBACK;
 
   SET _owner_id = GetProfileID(_owner);
+
+  IF NOT ValidName(_new_name) THEN
+    SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+      SET MESSAGE_TEXT = 'Thing name invalid';
+  END IF;
 
   START TRANSACTION;
 
@@ -686,6 +690,13 @@ BEGIN
 
   -- TODO Copy thing fields and steps
 END;
+
+
+CREATE PROCEDURE DeleteThing(IN _owner VARCHAR(64), IN _name VARCHAR(64))
+BEGIN
+  DELETE FROM things WHERE owner_id = GetProfileID(_owner) AND name = _name;
+END;
+
 
 -- Steps
 CREATE FUNCTION GetStepIDByID(_thing_id VARCHAR(64), _name VARCHAR(64))
