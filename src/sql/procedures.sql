@@ -304,8 +304,9 @@ END;
 
 CREATE PROCEDURE GetProfileByID(IN _profile_id INT, IN _unpublished BOOL)
 BEGIN
-  SELECT name, joined, lastseen, fullname, location, avatar, url, bio, points,
-    followers, following, stars, badges FROM profiles
+  SELECT name, FormatTS(joined) joined, FormatTS(lastseen) lastseen, fullname,
+    location, avatar, url, bio, points, followers, following, stars, badges
+    FROM profiles
     WHERE id = _profile_id AND NOT disabled;
 
   IF FOUND_ROWS() != 1 THEN
@@ -357,7 +358,7 @@ END;
 -- Follow
 CREATE PROCEDURE GetFollowingByID(IN _profile_id INT)
 BEGIN
-  SELECT name, avatar, points, followers, badges, joined
+  SELECT name, avatar, points, followers, badges, FormatTS(joined) joined
     FROM profiles
     INNER JOIN followers f ON id = f.followed_id
     WHERE f.follower_id = _profile_id;
@@ -372,7 +373,7 @@ END;
 
 CREATE PROCEDURE GetFollowersByID(IN _profile_id INT)
 BEGIN
-  SELECT name, avatar, points, followers, badges, joined
+  SELECT name, avatar, points, followers, badges, FormatTS(joined) joined
     FROM profiles
     INNER JOIN followers f ON id = f.follower_id
     WHERE f.followed_id = _profile_id;
@@ -994,7 +995,7 @@ END;
 CREATE PROCEDURE GetFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _name VARCHAR(256))
 BEGIN
-  SELECT f.name AS name, s.name step, type, space, url, caption, display,
+  SELECT f.name, s.name step, type, space, url, caption, display,
     FormatTS(f.created) created, downloads, f.position position FROM files f
     LEFT JOIN steps s ON s.id = step_id
     WHERE f.thing_id = GetThingID(_owner, _thing) AND f.name = _name;
@@ -1100,8 +1101,8 @@ BEGIN
   SET SQL_SELECT_LIMIT = _limit;
 
   -- Select
-  SELECT p.name, p.avatar, p.points, p.followers, p.badges, p.joined,
-      MATCH(p.name, p.fullname, p.location, p.bio)
+  SELECT p.name, p.avatar, p.points, p.followers, p.badges,
+      FormatTS(p.joined) joined, MATCH(p.name, p.fullname, p.location, p.bio)
       AGAINST(_query IN BOOLEAN MODE) score
 
     FROM profiles p
@@ -1218,7 +1219,7 @@ BEGIN
     SET _limit = 100;
   END IF;
 
-  SELECT e.ts, s.name subject, e.action, e.object_type,
+  SELECT FormatTS(e.ts) ts, s.name subject, e.action, e.object_type,
     COALESCE(
       p.name,
       CONCAT(tp.name, '/', t.name),
