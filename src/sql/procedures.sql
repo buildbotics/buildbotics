@@ -659,8 +659,11 @@ BEGIN
 
   INSERT INTO things
       (owner_id, name, type, title, url, description, license, published)
+
     VALUES
-      (_owner, _name, _type, _title, _url, _description, _license, _published)
+      (_owner, _name, _type, _title, _url, _description,
+      IFNULL(_license, 'BSD License'), IFNULL(_published, false))
+
     ON DUPLICATE KEY UPDATE
       title       = IFNULL(_title, title),
       url         = IFNULL(_url, url),
