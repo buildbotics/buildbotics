@@ -201,7 +201,7 @@ bool Transaction::apiAuthUser() {
     dict->insert("provider", user->getProvider());
     dict->insert("id", user->getID());
 
-    jsonFields = "*profile things followers following starred badges";
+    jsonFields = "*profile things followers following starred badges events";
 
     query(&Transaction::authUser,
           "CALL GetUser(%(provider)s, %(id)s)", dict);
@@ -311,11 +311,18 @@ bool Transaction::apiGetProfile() {
   JSON::ValuePtr args = parseArgsPtr();
   args->insertBoolean("unpublished", isUser(args->getString("profile")));
 
-  jsonFields = "*profile things followers following starred badges";
+  jsonFields = "*profile things followers following starred badges events";
 
   query(&Transaction::returnJSONFields,
         "CALL GetProfile(%(profile)s, %(unpublished)b)", args);
 
+  return true;
+}
+
+
+bool Transaction::apiGetProfileAvatar() {
+  JSON::ValuePtr args = parseArgsPtr();
+  query(&Transaction::download, "CALL GetProfileAvatar(%(profile)s)", args);
   return true;
 }
 
@@ -573,6 +580,14 @@ bool Transaction::apiGetTagThings() {
 
 bool Transaction::apiGetLicenses() {
   query(&Transaction::returnList, "CALL GetLicenses()");
+  return true;
+}
+
+
+bool Transaction::apiGetEvents() {
+  JSON::ValuePtr args = parseArgsPtr();
+  query(&Transaction::returnList, "CALL GetEvents(%(subject)s, %(action)s, "
+        "%(object_type)s, %(object)s, %(owner)s, %(since)s, %(limit)u)", args);
   return true;
 }
 

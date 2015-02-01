@@ -298,18 +298,42 @@ CREATE TABLE IF NOT EXISTS files (
 );
 
 
+CREATE TABLE IF NOT EXISTS event_actions (
+  name VARCHAR(16),
+  PRIMARY KEY (name)
+);
+
+
+INSERT INTO event_actions
+  VALUES
+    -- Profile actions
+    ('badge'), ('follow'),
+    -- Thing actions
+    ('update'), ('publish'), ('rename'), ('delete'), ('star'), ('comment')
+  ON DUPLICATE KEY UPDATE name = name;
+
+
+CREATE TABLE IF NOT EXISTS event_object_types (
+  name VARCHAR(16),
+  PRIMARY KEY (name)
+);
+
+
+INSERT INTO event_object_types
+  VALUES ('profile'), ('thing'), ('comment'), ('badge')
+  ON DUPLICATE KEY UPDATE name = name;
+
+
 CREATE TABLE IF NOT EXISTS events (
   id INT NOT NULL AUTO_INCREMENT,
-  owner_id  INT NOT NULL,
-  type      ENUM('comment', 'badge', 'tag', 'license', 'step',
-                 'project', 'tool', 'machine', 'file'),
-  action    ENUM('create', 'rename', 'update', 'delete'),
-  target_id INT,
-  target_owner_id INT,
-  url       VARCHAR(256),
-  points    INT,
-  ts        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  summary   VARCHAR(256),
+  ts          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  subject_id  INT NOT NULL,
+  action      VARCHAR(16) NOT NULL,
+  object_type VARCHAR(16) NOT NULL,
+  object_id   INT NOT NULL,
 
-  PRIMARY KEY (id, owner_id)
-) PARTITION BY HASH(owner_id) PARTITIONS 31; -- Partition by date?
+  PRIMARY KEY (id, subject_id),
+  FOREIGN KEY (`subject_id`) REFERENCES profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (`action`) REFERENCES event_actions(name),
+  FOREIGN KEY (`object_type`) REFERENCES event_object_types(name)
+);

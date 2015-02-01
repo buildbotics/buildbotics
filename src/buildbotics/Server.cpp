@@ -108,6 +108,7 @@ void Server::init() {
   ADD_TM(api, HTTP_GET, "/api/suggest", apiProfileSuggest);
   ADD_TM(api, HTTP_PUT, PROFILE_RE, apiPutProfile);
   ADD_TM(api, HTTP_GET, PROFILE_RE, apiGetProfile);
+  ADD_TM(api, HTTP_GET, PROFILE_RE "/avatar", apiGetProfileAvatar);
 
   // Follow
   ADD_TM(api, HTTP_PUT, PROFILE_RE "/follow", apiFollow);
@@ -143,6 +144,9 @@ void Server::init() {
 
   // Licenses
   ADD_TM(api, HTTP_GET, "/api/licenses", apiGetLicenses);
+
+  // Events
+  ADD_TM(api, HTTP_GET, "/api/events", apiGetEvents);
 
   // Not found
   ADD_TM(api, HTTP_ANY, "", apiNotFound);

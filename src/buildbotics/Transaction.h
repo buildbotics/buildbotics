@@ -95,6 +95,7 @@ namespace BuildBotics {
     bool apiProfileSuggest();
     bool apiPutProfile();
     bool apiGetProfile();
+    bool apiGetProfileAvatar();
 
     bool apiFollow();
     bool apiUnfollow();
@@ -126,6 +127,8 @@ namespace BuildBotics {
     bool apiDeleteTag();
 
     bool apiGetLicenses();
+
+    bool apiGetEvents();
 
     bool apiNotFound();
 

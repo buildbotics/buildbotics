@@ -318,6 +318,8 @@ BEGIN
   CALL GetFollowingByID(_profile_id);
   CALL GetStarredThingsByID(_profile_id);
   CALL GetBadgesByID(_profile_id);
+  CALL GetEventsByID(_profile_id, null, null, null, now() - INTERVAL 1 month,
+    null);
 END;
 
 
@@ -328,9 +330,19 @@ BEGIN
 END;
 
 
+CREATE PROCEDURE GetProfileAvatar(IN _profile VARCHAR(64))
+BEGIN
+  SELECT avatar FROM profiles WHERE name = _profile;
+END;
+
+
 CREATE PROCEDURE PutProfile(IN _profile VARCHAR(64), IN _fullname VARCHAR(256),
   IN _location VARCHAR(256), IN _url VARCHAR(256), IN _bio TEXT)
 BEGIN
+  DECLARE _profile_id INT;
+
+  SET _profile_id = GetProfileID(_profile);
+
   UPDATE profiles
     SET
       fullname = IFNULL(_fullname, fullname),
@@ -338,7 +350,7 @@ BEGIN
       url      = IFNULL(_url, url),
       bio      = IFNULL(_bio, bio)
     WHERE
-      id = GetProfileID(_profile);
+      id = _profile_id;
 END;
 
 
@@ -442,6 +454,17 @@ END;
 
 
 -- Badges
+CREATE FUNCTION GetBadgeID(_name VARCHAR(64))
+RETURNS INT
+NOT DETERMINISTIC
+READS SQL DATA
+BEGIN
+  DECLARE badge_id INT;
+  SELECT id FROM badges WHERE name = _name INTO badge_id;
+  RETURN badge_id;
+END;
+
+
 CREATE PROCEDURE GetBadgesByID(IN _profile_id INT)
 BEGIN
   SELECT name, description
@@ -459,16 +482,15 @@ END;
 
 CREATE PROCEDURE GrantBadge(IN _profile VARCHAR(64), IN _badge VARCHAR(64))
 BEGIN
-  INSERT INTO profile_badges VALUES (GetProfileID(_profile),
-    (SELECT id FROM badges WHERE name = _badge));
+  INSERT INTO profile_badges
+    VALUES (GetProfileID(_profile), GetBadgeID(_badge));
 END;
 
 
 CREATE PROCEDURE RevokeBadge(IN _profile VARCHAR(64), IN _badge VARCHAR(64))
 BEGIN
   DELETE FROM profile_badges
-    WHERE profile_id = GetProfileID(_profile) AND
-      badge_id IN (SELECT id FROM badges WHERE name = _badge);
+    WHERE profile_id = GetProfileID(_profile) AND badge_id = GetBadgeID(_badge);
 END;
 
 
@@ -1160,4 +1182,133 @@ BEGIN
       END DESC;
 
   SET SQL_SELECT_LIMIT = DEFAULT;
+END;
+
+
+-- Events
+CREATE FUNCTION GetObjectType(_action VARCHAR(16))
+RETURNS VARCHAR(16)
+DETERMINISTIC
+BEGIN
+  CASE
+    WHEN _action = 'comment' THEN RETURN 'comment';
+    WHEN _action = 'badge' THEN RETURN 'badge';
+    WHEN _action IN ('update-profile', 'follow', 'badge') THEN RETURN 'profile';
+    ELSE RETURN 'thing';
+  END CASE;
+END;
+
+
+CREATE PROCEDURE Event(IN _subject_id INT, IN _action VARCHAR(16),
+  IN _object_id INT)
+BEGIN
+  INSERT INTO events (subject_id, action, object_type, object_id)
+  VALUES (_subject_id, _action, GetObjectType(_action), _object_id);
+END;
+
+
+CREATE PROCEDURE GetEventsByID(IN _subject_id INT, IN _action VARCHAR(16),
+  IN _object_type VARCHAR(16), IN _object_id INT, IN _since TIMESTAMP,
+  IN _limit INT)
+BEGIN
+  IF _limit IS null THEN
+    SET _limit = 100;
+  END IF;
+
+  SELECT e.ts, s.name subject, e.action, e.object_type,
+    COALESCE(
+      p.name,
+      CONCAT(tp.name, '/', t.name),
+      CONCAT(cp.name, '/', ct.name, '#comment-', c.id),
+      CONCAT('/badges', b.name)
+    ) path
+
+    FROM events e
+
+    LEFT JOIN profiles s  ON s.id = e.subject_id
+
+    LEFT JOIN profiles p  ON e.object_type = 'profile' AND p.id = e.object_id
+
+    LEFT JOIN things t    ON e.object_type = 'thing'   AND t.id = e.object_id
+    LEFT JOIN profiles tp ON e.object_type = 'thing'   AND tp.id = t.owner_id
+
+    LEFT JOIN comments c  ON e.object_type = 'comment' AND c.id = e.object_id
+    LEFT JOIN things ct   ON e.object_type = 'comment' AND ct.id = c.thing_id
+    LEFT JOIN profiles cp ON e.object_type = 'comment' AND cp.id = ct.owner_id
+
+    LEFT JOIN badges b    ON e.object_type = 'badge'   AND b.id = e.object_id
+
+    WHERE
+      (_subject_id  IS null OR e.subject_id = _subject_id) AND
+      (_action      IS null OR FIND_IN_SET(e.action, _action)) AND
+      (_object_type IS null OR e.object_type = _object_type) AND
+      (_object_id   IS null OR e.object_id  = _object_id ) AND
+      (_since       IS null OR _since      <= e.ts)
+
+    ORDER BY e.ts DESC
+
+    LIMIT _limit;
+END;
+
+
+CREATE PROCEDURE GetEvents(IN _subject VARCHAR(64), IN _action VARCHAR(16),
+  IN _object_type VARCHAR(16), IN _object VARCHAR(64), IN _owner VARCHAR(64),
+  IN _since TIMESTAMP, IN _limit INT)
+BEGIN
+  DECLARE _subject_id INT;
+  DECLARE _object_id INT;
+  DECLARE _owner_id INT;
+  DECLARE _action_type VARCHAR(16);
+
+  SET _subject_id = GetProfileID(_subject);
+
+  IF _object IS NOT null THEN
+    IF _object_type IS null THEN
+      SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+        SET MESSAGE_TEXT = '"object_type" must be used with "object"';
+    END IF;
+
+    IF _action IS NOT null AND _object_type != GetObjectType(_action) THEN
+      SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+        SET MESSAGE_TEXT = '"object_type" does not agree with "action"';
+    END IF;
+
+    IF _object_type = 'thing' THEN
+      IF _owner IS NULL THEN
+        SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+          SET MESSAGE_TEXT = '"owner" must be used with "thing" object';
+      END IF;
+    ELSE
+      IF _owner IS NOT NULL THEN
+        SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+          SET MESSAGE_TEXT =
+            '"owner" is not appropriate with non-thing object';
+      END IF;
+    END IF;
+
+    CASE _object_type
+      WHEN 'profile' THEN SET _object_id = GetProfileID(_object);
+      WHEN 'thing' THEN SET _object_id = GetThingID(_owner, _object);
+      WHEN 'badge' THEN SET _object_id = GetBadgeID(_object);
+      ELSE
+        SET @message_text =
+          CONCAT('Invalid "object_type" "', _object_type, '"');
+        SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+          SET MESSAGE_TEXT = @message_text;
+    END CASE;
+  END IF;
+
+  IF NOT _subject IS null AND _subject_id IS null THEN
+    SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
+      SET MESSAGE_TEXT = 'Subject not found';
+  END IF;
+
+  IF NOT _object IS null AND _object_id IS null THEN
+    SET @message_text = CONCAT(_object_type, ' not found');
+    SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
+      SET MESSAGE_TEXT = @message_text;
+  END IF;
+
+  CALL GetEventsByID(_subject_id, _action, _object_type, _object_id, _since,
+    _limit);
 END;
