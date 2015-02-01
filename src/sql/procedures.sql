@@ -588,7 +588,7 @@ BEGIN
 
   SELECT t.name, _owner owner, t.type, t.title,
     t.published, FormatTS(t.created) created, FormatTS(t.modified) modified,
-    t.url, t.description, t.tags, t.comments, t.stars, t.children, t.license,
+    t.url, t.instructions, t.tags, t.comments, t.stars, t.children, t.license,
     l.url license_url, CONCAT(p.name, '/', parent.name) parent
     FROM things t
     LEFT JOIN things parent ON parent.id = t.parent_id
@@ -604,7 +604,7 @@ BEGIN
 
   -- Steps
   SELECT id step, name, FormatTS(created) created,
-    FormatTS(modified) modified, description FROM steps
+    FormatTS(modified) modified, instructions FROM steps
     WHERE thing_id = _thing_id
     ORDER BY position;
 
@@ -648,7 +648,7 @@ END;
 
 CREATE PROCEDURE PutThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
   IN _type CHAR(8), IN _title VARCHAR(256), IN _url VARCHAR(256),
-  IN _description TEXT, IN _license VARCHAR(64), IN _published BOOL)
+  IN _instructions TEXT, IN _license VARCHAR(64), IN _published BOOL)
 BEGIN
   SET _owner = GetProfileID(_owner);
 
@@ -658,19 +658,19 @@ BEGIN
   END IF;
 
   INSERT INTO things
-      (owner_id, name, type, title, url, description, license, published)
+      (owner_id, name, type, title, url, instructions, license, published)
 
     VALUES
-      (_owner, _name, _type, _title, _url, _description,
+      (_owner, _name, _type, _title, _url, _instructions,
       IFNULL(_license, 'BSD License'), IFNULL(_published, false))
 
     ON DUPLICATE KEY UPDATE
-      title       = IFNULL(_title, title),
-      url         = IFNULL(_url, url),
-      description = IFNULL(_description, description),
-      license     = IFNULL(_license, license),
-      published   = IFNULL(_published, published),
-      modified    = CURRENT_TIMESTAMP;
+      title        = IFNULL(_title, title),
+      url          = IFNULL(_url, url),
+      instructions = IFNULL(_instructions, instructions),
+      license      = IFNULL(_license, license),
+      published    = IFNULL(_published, published),
+      modified     = CURRENT_TIMESTAMP;
 END;
 
 
@@ -1160,7 +1160,7 @@ BEGIN
   SELECT t.name, p.name owner, t.type, t.title,
       FormatTS(t.created) created, FormatTS(t.modified) modified,
       t.comments, t.stars, t.children, GetFileURL(p.name, t.name, f.name) image,
-      MATCH(t.name, t.title, t.description, t.tags)
+      MATCH(t.name, t.title, t.instructions, t.tags)
       AGAINST(_query IN BOOLEAN MODE) score
 
     FROM things t

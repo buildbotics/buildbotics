@@ -143,31 +143,31 @@ INSERT INTO thing_type
 
 
 CREATE TABLE IF NOT EXISTS things (
-  `id`          INT NOT NULL AUTO_INCREMENT,
-  `parent_id`   INT,
+  `id`           INT NOT NULL AUTO_INCREMENT,
+  `parent_id`    INT,
 
-  `owner_id`    INT NOT NULL,
-  `name`        VARCHAR(64) NOT NULL,
-  `type`        CHAR(8) NOT NULL,
-  `title`       VARCHAR(128),
-  `url`         VARCHAR(256),
-  `description` TEXT,
-  `license`     VARCHAR(64) DEFAULT 'BSD License',
-  `tags`        TEXT,
+  `owner_id`     INT NOT NULL,
+  `name`         VARCHAR(64) NOT NULL,
+  `type`         CHAR(8) NOT NULL,
+  `title`        VARCHAR(128),
+  `url`          VARCHAR(256),
+  `instructions` TEXT,
+  `license`      VARCHAR(64) DEFAULT 'BSD License',
+  `tags`         TEXT,
 
-  `published`   BOOL DEFAULT false,
+  `published`    BOOL DEFAULT false,
 
-  `created`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `modified`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `modified`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-  `comments`    INT NOT NULL DEFAULT 0,
-  `stars`       INT NOT NULL DEFAULT 0,
-  `children`    INT NOT NULL DEFAULT 0,
+  `comments`     INT NOT NULL DEFAULT 0,
+  `stars`        INT NOT NULL DEFAULT 0,
+  `children`     INT NOT NULL DEFAULT 0,
 
-  `space`       BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  `space`        BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
   PRIMARY KEY (`id`),
-  FULLTEXT KEY `text` (`name`, `title`, `description`, `tags`),
+  FULLTEXT KEY `text` (`name`, `title`, `instructions`, `tags`),
   UNIQUE (`owner_id`, `name`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`parent_id`) REFERENCES things(`id`) ON DELETE SET NULL,
@@ -187,17 +187,17 @@ CREATE TABLE IF NOT EXISTS thing_redirects (
 
 
 CREATE TABLE IF NOT EXISTS steps (
-  `id`          INT NOT NULL AUTO_INCREMENT,
-  `owner_id`    INT NOT NULL,
-  `thing_id`    INT NOT NULL,
-  `name`        VARCHAR(64) NOT NULL,
-  `created`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `modified`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `position`    INT DEFAULT 0,
-  `description` TEXT,
+  `id`           INT NOT NULL AUTO_INCREMENT,
+  `owner_id`     INT NOT NULL,
+  `thing_id`     INT NOT NULL,
+  `name`         VARCHAR(64) NOT NULL,
+  `created`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `modified`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `position`     INT DEFAULT 0,
+  `instructions` TEXT,
 
   PRIMARY KEY (`id`),
-  FULLTEXT KEY `text` (`name`, `description`),
+  FULLTEXT KEY `text` (`name`, `instructions`),
   UNIQUE (`thing_id`, `name`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`thing_id`) REFERENCES things(`id`) ON DELETE CASCADE

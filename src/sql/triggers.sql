@@ -14,7 +14,7 @@ BEGIN
       END IF;
 
       IF OLD.type != NEW.type OR OLD.title != NEW.title OR OLD.url != NEW.url OR
-        OLD.description != NEW.description OR OLD.license != NEW.license THEN
+        OLD.instructions != NEW.instructions OR OLD.license != NEW.license THEN
         CALL Event(NEW.owner_id, 'update', NEW.id);
       END IF;
     END IF;
