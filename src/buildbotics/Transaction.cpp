@@ -178,7 +178,9 @@ void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
                         profile->getString("id") + "/picture?type=small");
 
       // Fix up for GitHub name
-      if (!profile->has("name") && profile->hasString("login"))
+      if ((!profile->has("name") ||
+           String::trim(profile->getString("name")).empty()) &&
+          profile->hasString("login"))
         profile->insert("name", profile->getString("login"));
 
       LOG_DEBUG(3, "Profile: " << *profile);

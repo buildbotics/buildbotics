@@ -14,6 +14,15 @@ END;
 CREATE PROCEDURE Associate(IN _provider VARCHAR(16), IN _id VARCHAR(64),
   IN _name VARCHAR(256), IN _email VARCHAR(256), IN _avatar VARCHAR(256))
 BEGIN
+  IF TRIM(_name) = '' THEN
+    SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+      SET MESSAGE_TEXT = 'Name cannot be empty';
+  END IF;
+
+  IF TRIM(_email) = '' THEN
+    SET _email = null;
+  END IF;
+
   INSERT INTO associations (provider, id, name, email, avatar)
     VALUES (_provider, _id, _name, _email, _avatar)
     ON DUPLICATE KEY UPDATE name = _name, email = _email, avatar = _avatar;
@@ -104,7 +113,7 @@ RETURNS BOOL
 NOT DETERMINISTIC
 READS SQL DATA
 BEGIN
-  IF NOT ValidName(_name) THEN
+  IF _name IS NULL OR NOT ValidName(_name) THEN
     RETURN false;
   END IF;
 
