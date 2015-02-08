@@ -32,6 +32,17 @@ BEGIN
 END;
 
 
+-- Thing Views
+DROP TRIGGER IF EXISTS InsertThingViews;
+CREATE TRIGGER InsertThingViews AFTER INSERT ON thing_views
+FOR EACH ROW
+BEGIN
+  UPDATE things
+    SET views = views + 1
+    WHERE id = NEW.thing_id;
+END;
+
+
 -- Followers
 DROP TRIGGER IF EXISTS InsertFollowers;
 CREATE TRIGGER InsertFollowers AFTER INSERT ON followers

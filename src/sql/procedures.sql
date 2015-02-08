@@ -417,7 +417,7 @@ CREATE PROCEDURE GetStarredThingsByID(IN _profile_id INT)
 BEGIN
   -- Keep in sync with GetThingsByID()
   SELECT t.name, p.name owner, t.type, t.title, t.comments, t.stars,
-    t.children, GetFileURL(p.name, t.name, f.name) image
+    t.children, t.views, GetFileURL(p.name, t.name, f.name) image
     FROM things t
     LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
     INNER JOIN stars s ON t.id = s.thing_id
@@ -558,7 +558,7 @@ BEGIN
   SELECT t.name, _owner owner, t.type, title,
     IF(t.published IS null, null, FormatTS(t.published)),
     FormatTS(t.created) created, FormatTS(t.modified) modified, comments, stars,
-    children, GetFileURL(_owner, t.name, f.name) image
+    children, views, GetFileURL(_owner, t.name, f.name) image
     FROM things t
     LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
     WHERE owner_id = _owner_id AND
@@ -589,7 +589,7 @@ END;
 
 
 CREATE PROCEDURE GetThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
-  IN _unpublished BOOL)
+  IN _user VARCHAR(64), IN _unpublished BOOL)
 BEGIN
   DECLARE _owner_id INT;
   DECLARE _thing_id INT;
@@ -597,14 +597,23 @@ BEGIN
   SET _owner_id = GetProfileID(_owner);
   SET _thing_id = GetThingIDByID(_owner_id, _name);
 
+  -- Views
+  INSERT INTO thing_views (thing_id, user)
+    VALUES (_thing_id, _user)
+    ON DUPLICATE KEY UPDATE thing_id = thing_id;
+
+  -- Thing
   SELECT t.name, _owner owner, t.type, t.title,
     t.published, FormatTS(t.created) created, FormatTS(t.modified) modified,
-    t.url, t.instructions, t.tags, t.comments, t.stars, t.children, t.license,
-    l.url license_url, CONCAT(p.name, '/', parent.name) parent
+    t.url, t.instructions, t.tags, t.comments, t.stars, t.children, t.views,
+    t.license, l.url license_url, CONCAT(p.name, '/', parent.name) parent
+
     FROM things t
+
     LEFT JOIN things parent ON parent.id = t.parent_id
     LEFT JOIN profiles p ON p.id = parent.owner_id
     LEFT JOIN licenses l ON l.name = t.license
+
     WHERE t.owner_id = _owner_id AND t.name = _name AND
       (_unpublished OR t.published IS NOT NULL);
 
@@ -774,7 +783,8 @@ BEGIN
 
   SELECT t.name, p.name owner, t.type, t.title,
       FormatTS(t.created) created, FormatTS(t.modified) modified,
-      t.comments, t.stars, t.children, GetFileURL(p.name, t.name, f.name) image
+      t.comments, t.stars, t.children, t.views,
+      GetFileURL(p.name, t.name, f.name) image
 
     FROM things t
       LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
@@ -1153,7 +1163,8 @@ BEGIN
   -- Select
   SELECT t.name, p.name owner, t.type, t.title,
       FormatTS(t.created) created, FormatTS(t.modified) modified,
-      t.comments, t.stars, t.children, GetFileURL(p.name, t.name, f.name) image,
+      t.comments, t.stars, t.children, t.views,
+      GetFileURL(p.name, t.name, f.name) image,
       MATCH(t.name, t.title, t.instructions, t.tags)
       AGAINST(_query IN BOOLEAN MODE) score
 

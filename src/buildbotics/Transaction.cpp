@@ -371,12 +371,23 @@ bool Transaction::apiThingAvailable() {
 bool Transaction::apiGetThing() {
   lookupUser();
   JSON::ValuePtr args = parseArgsPtr();
+
   args->insertBoolean("unpublished", isUser(args->getString("profile")));
+
+  string userID;
+  if (user.isNull()) {
+    if (inHas("X-Real-IP")) userID = inGet("X-Real-IP");
+    else userID = getClientIP().toString();
+
+  } else userID = user->getName();
+
+  args->insert("user", userID);
 
   jsonFields = "*thing files comments stars";
 
   query(&Transaction::returnJSONFields,
-        "CALL GetThing(%(profile)s, %(thing)s, %(unpublished)b)", args);
+        "CALL GetThing(%(profile)s, %(thing)s, %(user)s, %(unpublished)b)",
+        args);
 
   return true;
 }

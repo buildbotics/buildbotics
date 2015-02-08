@@ -156,13 +156,13 @@ CREATE TABLE IF NOT EXISTS things (
   `tags`         TEXT,
 
   `published`    TIMESTAMP NULL,
-
   `created`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `modified`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   `comments`     INT NOT NULL DEFAULT 0,
   `stars`        INT NOT NULL DEFAULT 0,
   `children`     INT NOT NULL DEFAULT 0,
+  `views`        INT NOT NULL DEFAULT 0,
 
   `space`        BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
@@ -183,6 +183,16 @@ CREATE TABLE IF NOT EXISTS thing_redirects (
   `new_thing` VARCHAR(64) NOT NULL,
 
   UNIQUE (`old_owner`, `old_thing`)
+);
+
+
+CREATE TABLE IF NOT EXISTS thing_views (
+  thing_id INT NOT NULL,
+  user     VARCHAR(64) NOT NULL,
+  ts       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  UNIQUE (thing_id, user),
+  FOREIGN KEY (`thing_id`) REFERENCES things(`id`) ON DELETE CASCADE
 );
 
 
