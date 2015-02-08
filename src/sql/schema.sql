@@ -151,11 +151,11 @@ CREATE TABLE IF NOT EXISTS things (
   `type`         CHAR(8) NOT NULL,
   `title`        VARCHAR(128),
   `url`          VARCHAR(256),
-  `instructions` TEXT,
+  `instructions` MEDIUMTEXT,
   `license`      VARCHAR(64) DEFAULT 'BSD License',
   `tags`         TEXT,
 
-  `published`    BOOL DEFAULT false,
+  `published`    TIMESTAMP NULL,
 
   `created`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `modified`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -186,24 +186,6 @@ CREATE TABLE IF NOT EXISTS thing_redirects (
 );
 
 
-CREATE TABLE IF NOT EXISTS steps (
-  `id`           INT NOT NULL AUTO_INCREMENT,
-  `owner_id`     INT NOT NULL,
-  `thing_id`     INT NOT NULL,
-  `name`         VARCHAR(64) NOT NULL,
-  `created`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `modified`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `position`     INT DEFAULT 0,
-  `instructions` TEXT,
-
-  PRIMARY KEY (`id`),
-  FULLTEXT KEY `text` (`name`, `instructions`),
-  UNIQUE (`thing_id`, `name`),
-  FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`thing_id`) REFERENCES things(`id`) ON DELETE CASCADE
-);
-
-
 CREATE TABLE IF NOT EXISTS stars (
   `profile_id` INT NOT NULL,
   `thing_id`   INT NOT NULL,
@@ -219,7 +201,6 @@ CREATE TABLE IF NOT EXISTS comments (
   `id`        INT NOT NULL AUTO_INCREMENT,
   `owner_id`  INT NOT NULL,
   `thing_id`  INT NOT NULL,
-  `step_id`   INT,
   `created`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `modified`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ref`       INT,
@@ -229,7 +210,6 @@ CREATE TABLE IF NOT EXISTS comments (
   FULLTEXT KEY `text` (`text`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`thing_id`) REFERENCES things(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`step_id`) REFERENCES steps(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`ref`) REFERENCES comments(`id`) ON DELETE SET NULL
 );
 
@@ -279,7 +259,6 @@ CREATE TABLE IF NOT EXISTS profile_badges (
 CREATE TABLE IF NOT EXISTS files (
   `id`        INT NOT NULL AUTO_INCREMENT,
   `thing_id`  INT NOT NULL,
-  `step_id`   INT,
   `name`      VARCHAR(80) NOT NULL,
   `type`      VARCHAR(64) NOT NULL,
   `space`     INT NOT NULL,
@@ -293,8 +272,7 @@ CREATE TABLE IF NOT EXISTS files (
 
   PRIMARY KEY (`id`),
   UNIQUE (`thing_id`, `name`),
-  FOREIGN KEY (`thing_id`) REFERENCES things(id) ON DELETE CASCADE,
-  FOREIGN KEY (`step_id`) REFERENCES steps(id) ON DELETE CASCADE
+  FOREIGN KEY (`thing_id`) REFERENCES things(id) ON DELETE CASCADE
 );
 
 
@@ -309,7 +287,7 @@ INSERT INTO event_actions
     -- Profile actions
     ('badge'), ('follow'),
     -- Thing actions
-    ('update'), ('publish'), ('rename'), ('star'), ('comment')
+    ('publish'), ('rename'), ('star'), ('comment')
   ON DUPLICATE KEY UPDATE name = name;
 
 

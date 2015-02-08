@@ -555,7 +555,8 @@ BEGIN
     SELECT name FROM profiles WHERE id = _owner_id INTO _owner;
   END IF;
 
-  SELECT t.name, _owner owner, t.type, title, published,
+  SELECT t.name, _owner owner, t.type, title,
+    IF(t.published IS null, null, FormatTS(t.published)),
     FormatTS(t.created) created, FormatTS(t.modified) modified, comments, stars,
     children, GetFileURL(_owner, t.name, f.name) image
     FROM things t
@@ -563,7 +564,7 @@ BEGIN
     WHERE owner_id = _owner_id AND
       (_name IS null OR t.name = _name) AND
       (_type IS null OR t.type = _type) AND
-      (_unpublished OR t.published);
+      (_unpublished OR t.published IS NOT NULL);
 END;
 
 
@@ -605,24 +606,17 @@ BEGIN
     LEFT JOIN profiles p ON p.id = parent.owner_id
     LEFT JOIN licenses l ON l.name = t.license
     WHERE t.owner_id = _owner_id AND t.name = _name AND
-      (_unpublished OR t.published);
+      (_unpublished OR t.published IS NOT NULL);
 
   IF FOUND_ROWS() != 1 THEN
     SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
      SET MESSAGE_TEXT = 'Thing not found';
   END IF;
 
-  -- Steps
-  SELECT id step, name, FormatTS(created) created,
-    FormatTS(modified) modified, instructions FROM steps
-    WHERE thing_id = _thing_id
-    ORDER BY position;
-
   -- Files
   SELECT f.name, type, FormatTS(f.created) created, downloads, caption,
     display, space size, GetFileURL(_owner, _name, f.name) url
     FROM files f
-    LEFT JOIN steps ON steps.id = step_id
     WHERE f.thing_id = _thing_id
     ORDER BY f.display, f.position, f.created;
 
@@ -660,9 +654,19 @@ BEGIN
 END;
 
 
+CREATE PROCEDURE PublishThing(IN _owner VARCHAR(64), IN _name VARCHAR(64))
+BEGIN
+  UPDATE things
+    SET published = CURRENT_TIMESTAMP
+    WHERE owner_id = GetProfileID(_owner)
+      AND name = _name
+      AND published IS NULL;
+END;
+
+
 CREATE PROCEDURE PutThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
   IN _type CHAR(8), IN _title VARCHAR(256), IN _url VARCHAR(256),
-  IN _instructions TEXT, IN _license VARCHAR(64), IN _published BOOL)
+  IN _instructions TEXT, IN _license VARCHAR(64))
 BEGIN
   SET _owner = GetProfileID(_owner);
 
@@ -672,18 +676,17 @@ BEGIN
   END IF;
 
   INSERT INTO things
-      (owner_id, name, type, title, url, instructions, license, published)
+      (owner_id, name, type, title, url, instructions, license)
 
     VALUES
       (_owner, _name, _type, _title, _url, _instructions,
-      IFNULL(_license, 'BSD License'), IFNULL(_published, false))
+       IFNULL(_license, 'BSD License'))
 
     ON DUPLICATE KEY UPDATE
       title        = IFNULL(_title, title),
       url          = IFNULL(_url, url),
       instructions = IFNULL(_instructions, instructions),
       license      = IFNULL(_license, license),
-      published    = IFNULL(_published, published),
       modified     = CURRENT_TIMESTAMP;
 END;
 
@@ -697,39 +700,13 @@ BEGIN
     (owner_id, parent_id, name)
     VALUES (GetProfileID(_owner), _parent, _name);
 
-  -- TODO Copy thing fields and steps
+  -- TODO Copy thing fields
 END;
 
 
 CREATE PROCEDURE DeleteThing(IN _owner VARCHAR(64), IN _name VARCHAR(64))
 BEGIN
   DELETE FROM things WHERE owner_id = GetProfileID(_owner) AND name = _name;
-END;
-
-
--- Steps
-CREATE FUNCTION GetStepIDByID(_thing_id VARCHAR(64), _name VARCHAR(64))
-RETURNS INT
-NOT DETERMINISTIC
-READS SQL DATA
-BEGIN
-  DECLARE step_id INT;
-
-  SELECT id FROM steps
-    WHERE name = _name AND thing_id = _thing_id
-    INTO step_id;
-
-  RETURN step_id;
-END;
-
-
-CREATE FUNCTION GetStepID(_owner VARCHAR(64), _thing VARCHAR(64),
-  _name VARCHAR(64))
-RETURNS INT
-NOT DETERMINISTIC
-READS SQL DATA
-BEGIN
-  RETURN GetStepIDByID(GetThingID(_owner, _thing), _name);
 END;
 
 
@@ -809,7 +786,7 @@ BEGIN
           LEFT JOIN tags ON thing_tags.tag_id = tags.id
           WHERE tags.name = _tag
       ) AND
-      t.published
+      t.published IS NOT NULL
 
     ORDER BY
       CASE _orderBy
@@ -930,21 +907,20 @@ END;
 -- Comments
 CREATE PROCEDURE GetCommentsByID(IN _thing_id INT)
 BEGIN
-    SELECT c.id comment, s.name step, p.name owner, p.avatar, ref,
+    SELECT c.id comment, p.name owner, p.avatar, ref,
       FormatTS(c.created) created, FormatTS(c.modified) modified, c.text
       FROM comments c
       LEFT JOIN profiles p ON p.id = owner_id
-      LEFT JOIN steps s ON s.id = step_id
       WHERE c.thing_id = _thing_id
       ORDER BY c.created;
 END;
 
 
 CREATE PROCEDURE PostComment(IN _owner VARCHAR(64), IN _thing_owner VARCHAR(64),
-  IN _thing VARCHAR(64), IN _step INT, IN _ref INT, IN _text TEXT)
+  IN _thing VARCHAR(64), IN _ref INT, IN _text TEXT)
 BEGIN
-  INSERT INTO comments (owner_id, thing_id, step_id, ref, text)
-    VALUES (GetProfileID(_owner), GetThingID(_thing_owner, _thing), _step, _ref,
+  INSERT INTO comments (owner_id, thing_id, ref, text)
+    VALUES (GetProfileID(_owner), GetThingID(_thing_owner, _thing), _ref,
       _text);
 
   SELECT LAST_INSERT_ID() id;
@@ -994,18 +970,16 @@ END;
 
 
 CREATE PROCEDURE PutFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
-  IN _name VARCHAR(256), IN _step VARCHAR(64), IN _type VARCHAR(64),
+  IN _name VARCHAR(256), IN _type VARCHAR(64),
   IN _space INT, IN _url VARCHAR(256), IN _caption VARCHAR(256),
   IN _display BOOL)
 BEGIN
   SET _thing = GetThingID(_owner, _thing);
-  SET _step = GetStepIDByID(_thing, _step);
 
   INSERT INTO files
-    (thing_id, step_id, name, type, space, url, caption, display)
-    VALUES (_thing, _step, _name, _type, _space, _url, _caption, _display)
+    (thing_id, name, type, space, url, caption, display)
+    VALUES (_thing, _name, _type, _space, _url, _caption, _display)
     ON DUPLICATE KEY UPDATE
-      step_id = IFNULL(_step, step_id),
       url     = IFNULL(_url, url),
       caption = IFNULL(_caption, caption),
       display = IFNULL(_display, display);
@@ -1015,9 +989,8 @@ END;
 CREATE PROCEDURE GetFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _name VARCHAR(256))
 BEGIN
-  SELECT f.name, s.name step, type, space, url, caption, display,
+  SELECT f.name, type, space, url, caption, display,
     FormatTS(f.created) created, downloads, f.position position FROM files f
-    LEFT JOIN steps s ON s.id = step_id
     WHERE f.thing_id = GetThingID(_owner, _thing) AND f.name = _name;
 END;
 
@@ -1189,7 +1162,7 @@ BEGIN
       INNER JOIN profiles p ON t.owner_id = p.id
 
     WHERE
-      t.published AND
+      t.published IS NOT NULL AND
       (_license IS null OR t.license = _license)
 
     HAVING
@@ -1217,7 +1190,7 @@ BEGIN
   CASE
     WHEN _action = 'comment' THEN RETURN 'comment';
     WHEN _action = 'badge' THEN RETURN 'badge';
-    WHEN _action IN ('update-profile', 'follow', 'badge') THEN RETURN 'profile';
+    WHEN _action IN ('follow', 'badge') THEN RETURN 'profile';
     ELSE RETURN 'thing';
   END CASE;
 END;

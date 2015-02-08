@@ -373,10 +373,21 @@ bool Transaction::apiGetThing() {
   JSON::ValuePtr args = parseArgsPtr();
   args->insertBoolean("unpublished", isUser(args->getString("profile")));
 
-  jsonFields = "*thing steps files comments stars";
+  jsonFields = "*thing files comments stars";
 
   query(&Transaction::returnJSONFields,
         "CALL GetThing(%(profile)s, %(thing)s, %(unpublished)b)", args);
+
+  return true;
+}
+
+
+bool Transaction::apiPublishThing() {
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
+
+  query(&Transaction::returnOK,
+        "CALL PublishThing(%(profile)s, %(thing)s)", args);
 
   return true;
 }
@@ -470,8 +481,8 @@ bool Transaction::apiPostComment() {
   args->insert("owner", user->getName());
 
   query(&Transaction::returnU64,
-        "CALL PostComment(%(owner)s, %(profile)s, %(thing)s, %(step)u, "
-        "%(ref)u, %(text)s)", args);
+        "CALL PostComment(%(owner)s, %(profile)s, %(thing)s, %(ref)u, "
+        "%(text)s)", args);
 
   return true;
 }
@@ -563,8 +574,8 @@ bool Transaction::apiPutFile() {
 
   // Write to DB
   query(&Transaction::returnReply,
-        "CALL PutFile(%(profile)s, %(thing)s, %(file)s, %(step)s, %(type)s, "
-        "%(size)u, %(url)s, %(caption)s, %(display)b)", args);
+        "CALL PutFile(%(profile)s, %(thing)s, %(file)s, %(type)s, %(size)u, "
+        "%(url)s, %(caption)s, %(display)b)", args);
 
   return true;
 }

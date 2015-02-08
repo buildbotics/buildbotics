@@ -4,21 +4,13 @@ CREATE TRIGGER UpdateThings AFTER UPDATE ON things
 FOR EACH ROW
 BEGIN
   -- Events
-  IF NOT IFNULL(OLD.published, false) AND NEW.published THEN
+  IF NOT IFNULL(OLD.published, false) AND IFNULL(NEW.published, false) THEN
     CALL Event(NEW.owner_id, 'publish', NEW.id);
 
   ELSE
-    IF NEW.published THEN
+    IF NEW.published IS NOT NULL THEN
       IF OLD.name != NEW.name THEN
         CALL Event(NEW.owner_id, 'rename', NEW.id);
-      END IF;
-
-      IF IFNULL(OLD.type, '') != NEW.type OR
-        IFNULL(OLD.title, '') != NEW.title OR
-        IFNULL(OLD.url, '') != NEW.url OR
-        IFNULL(OLD.instructions, '') != NEW.instructions OR
-        IFNULL(OLD.license, '') != NEW.license THEN
-        CALL Event(NEW.owner_id, 'update', NEW.id);
       END IF;
     END IF;
   END IF;

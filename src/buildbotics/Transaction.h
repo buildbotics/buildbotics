@@ -103,6 +103,7 @@ namespace BuildBotics {
     bool apiGetThings();
     bool apiThingAvailable();
     bool apiGetThing();
+    bool apiPublishThing();
     bool apiPutThing();
     bool apiRenameThing();
     bool apiDeleteThing();
