@@ -39,6 +39,7 @@
 #include <cbang/os/Mutex.h>
 #include <cbang/net/IPAddress.h>
 #include <cbang/security/KeyPair.h>
+#include <cbang/db/maria/EventDBCallback.h>
 
 #include <cbang/auth/GoogleOAuth2.h>
 #include <cbang/auth/GitHubOAuth2.h>
@@ -79,12 +80,15 @@ namespace BuildBotics {
     std::string dbName;
     uint32_t dbPort;
     unsigned dbTimeout;
+    double dbMaintenancePeriod;
 
     std::string awsID;
     std::string awsSecret;
     std::string awsBucket;
     std::string awsRegion;
     uint32_t awsUploadExpires;
+
+    cb::SmartPointer<cb::MariaDB::EventDB> maintenanceDB;
 
   public:
     App();
@@ -118,6 +122,9 @@ namespace BuildBotics {
     int init(int argc, char *argv[]);
     void run();
 
+    void dbMaintenanceCB(cb::MariaDB::EventDBCallback::state_t state);
+
+    void maintenanceEvent(cb::Event::Event &e, int signal, unsigned flags);
     void signalEvent(cb::Event::Event &e, int signal, unsigned flags);
   };
 }

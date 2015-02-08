@@ -1320,3 +1320,10 @@ BEGIN
   CALL GetEventsByID(_subject_id, _action, _object_type, _object_id, _since,
     _limit);
 END;
+
+
+CREATE PROCEDURE Maintenance()
+BEGIN
+  -- Clean thing views
+  DELETE FROM thing_views WHERE ts < now() - INTERVAL 1 day;
+END;

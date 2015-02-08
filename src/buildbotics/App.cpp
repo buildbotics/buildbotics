@@ -58,7 +58,8 @@ App::App() :
   sessionCookieName("buildbotics.sid"), authTimeout(30 * Time::SEC_PER_DAY),
   authGraceperiod(Time::SEC_PER_HOUR), dbHost("localhost"),
   dbName("buildbotics"), dbPort(3306), dbTimeout(5),
-  awsRegion("us-east-1"), awsUploadExpires(Time::SEC_PER_HOUR * 2) {
+  dbMaintenancePeriod(Time::SEC_PER_HOUR), awsRegion("us-east-1"),
+  awsUploadExpires(Time::SEC_PER_HOUR * 2) {
 
   options.pushCategory("BuildBotics Server");
   options.add("outbound-ip", "IP address for outbound connections.  Defaults "
@@ -85,6 +86,8 @@ App::App() :
   options.addTarget("db-name", dbName, "DB name");
   options.addTarget("db-port", dbPort, "DB port");
   options.addTarget("db-timeout", dbTimeout, "DB timeout");
+  options.addTarget("db-maintenance-period", dbMaintenancePeriod, "The period, "
+                    "in seconds, at which the DB maintenance routine is run");
   options.popCategory();
 
   options.pushCategory("Amazon Web Services");
@@ -150,6 +153,9 @@ int App::init(int argc, char *argv[]) {
   if (dbUser.empty()) THROWS("db-user not set");
   if (dbPass.empty()) THROWS("db-pass not set");
 
+  // DB maintenance
+  base.newEvent(this, &App::maintenanceEvent).add(dbMaintenancePeriod);
+
   // Handle exit signal
   base.newSignal(SIGINT, this, &App::signalEvent).add();
   base.newSignal(SIGTERM, this, &App::signalEvent).add();
@@ -163,6 +169,29 @@ void App::run() {
     base.dispatch();
     LOG_INFO(1, "Clean exit");
   } CATCH_ERROR;
+}
+
+
+void App::dbMaintenanceCB(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_DONE:
+    LOG_INFO(3, "DB maintenance complete");
+    break;
+
+  case MariaDB::EventDBCallback::EVENTDB_ERROR:
+    LOG_ERROR("DB maintenance");
+    break;
+
+  default: break;
+  }
+}
+
+
+void App::maintenanceEvent(Event::Event &e, int signal, unsigned flags) {
+  e.add(dbMaintenancePeriod);
+  LOG_INFO(3, "DB maintenance starting");
+  maintenanceDB = getDBConnection();
+  maintenanceDB->query(this, &App::dbMaintenanceCB, "CALL Maintenance()");
 }
 
 
