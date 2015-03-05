@@ -80,7 +80,7 @@ void Server::init() {
   (GROUP).addMember<Transaction>(METHODS, PATTERN, &Transaction::FUNC)
 
 #define NAME_RE "[\\w_.]+"
-#define FILENAME_RE ".+"
+#define FILENAME_RE "[^/]+"
 #define TAG_RE "[\\w. -]+"
 #define PROFILE_RE "/api/profiles/(?P<profile>" NAME_RE ")"
 #define THING_RE PROFILE_RE "/things/(?P<thing>" NAME_RE ")"
@@ -137,6 +137,9 @@ void Server::init() {
   ADD_TM(api, HTTP_GET, FILE_RE, apiGetFile);
   ADD_TM(api, HTTP_PUT, FILE_RE, apiPutFile);
   ADD_TM(api, HTTP_DELETE, FILE_RE, apiDeleteFile);
+  ADD_TM(api, HTTP_PUT, FILE_RE "/confirm", apiConfirmFile);
+  ADD_TM(api, HTTP_POST, FILE_RE "/up", apiFileUp);
+  ADD_TM(api, HTTP_POST, FILE_RE "/down", apiFileDown);
 
   // Tags
   ADD_TM(api, HTTP_GET, TAGS_RE, apiGetTags);

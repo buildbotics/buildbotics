@@ -199,8 +199,19 @@ END;
 
 
 -- Files
-DROP TRIGGER IF EXISTS InsertFiles;
-CREATE TRIGGER InsertFiles AFTER INSERT ON files
+DROP TRIGGER IF EXISTS BeforeInsertFiles;
+CREATE TRIGGER BeforeInsertFiles BEFORE INSERT ON files
+FOR EACH ROW
+BEGIN
+  -- Position
+  SET NEW.position = (
+    SELECT AUTO_INCREMENT FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'files');
+END;
+
+
+DROP TRIGGER IF EXISTS AfterInsertFiles;
+CREATE TRIGGER AfterInsertFiles AFTER INSERT ON files
 FOR EACH ROW
 BEGIN
   -- Space

@@ -122,6 +122,9 @@ namespace BuildBotics {
     bool apiGetFile();
     bool apiPutFile();
     bool apiDeleteFile();
+    bool apiConfirmFile();
+    bool apiFileUp();
+    bool apiFileDown();
 
     bool apiGetTags();
     bool apiGetTagThings();

@@ -110,26 +110,106 @@ CREATE TABLE IF NOT EXISTS licenses (
 );
 
 
-INSERT INTO licenses
+INSERT INTO licenses (name)
   VALUES
-  ('Public domain', 'http://wikipedia.org/wiki/Public_domain'),
-  ('GNU Public License v2.0', 'http://opensource.org/licenses/GPL-2.0'),
-  ('GNU Public License v3.0', 'http://opensource.org/licenses/GPL-3.0'),
-  ('MIT License', 'http://opensource.org/licenses/MIT'),
-  ('BSD License', 'http://opensource.org/licenses/BSD-2-Clause'),
-  ('Creative Commons - Attribution License v4.0',
-  'http://creativecommons.org/licenses/by/4.0/'),
-  ('Creative Commons - Attribution-NoDerivatives License v4.0',
-  'http://creativecommons.org/licenses/by-nd/4.0/'),
-  ('Creative Commons - Attribution-ShareAlike License v4.0',
-  'http://creativecommons.org/licenses/by-sa/4.0/'),
-  ('Creative Commons - Attribution-NonCommercial License v4.0',
-  'http://creativecommons.org/licenses/by-nc/4.0/'),
-  ('Creative Commons - Attribution-NonCommercial-NoDerivatives License v4.0',
-  'http://creativecommons.org/licenses/by-nc-nd/4.0/'),
-  ('Creative Commons - Attribution-NonCommercial-ShareAlike License v4.0',
-  'http://creativecommons.org/licenses/by-nc-sa/4.0/')
-  ON DUPLICATE KEY UPDATE name = name;
+  ('Public domain'),
+  ('GNU Public License v2.0+'),
+  ('GNU Public License v3.0+'),
+  ('MIT License'),
+  ('BSD License'),
+  ('Creative Commons - Attrib License v4.0'),
+  ('Creative Commons - Attrib,NoDeriv License v4.0'),
+  ('Creative Commons - Attrib,ShareAlike License v4.0'),
+  ('Creative Commons - Attrib,NonCom License v4.0'),
+  ('Creative Commons - Attrib,NonCom,NoDeriv License v4.0'),
+  ('Creative Commons - Attrib,NonCom,ShareAlike License v4.0')
+  ON DUPLICATE KEY UPDATE url = url;
+
+UPDATE licenses
+  SET url = 'http://wikipedia.org/wiki/Public_domain', description =
+   'Releasing a work in to the $name gives up all copyright '
+   'claims to the work.  This is the least restricive option and allows anyone '
+   'to do anything they like with the work.'
+  WHERE name = 'Public domain';
+
+UPDATE licenses
+  SET url = 'http://opensource.org/licenses/GPL-2.0', description =
+   'The $name is a popular Open-Source license which allows mostly '
+   'unrestricted non-comercial use of the work provided that users who '
+   'make modifications to the work and publish any part of it also publish '
+   'their modifications under the $name or optionally under a later version of '
+   'the GPL.'
+  WHERE name ='GNU Public License v2.0+';
+
+UPDATE licenses
+  SET url = 'http://opensource.org/licenses/GPL-3.0', description =
+   'The $name is a popular Open-Source license which allows mostly '
+   'unrestricted non-comercial use of the work provided that users who '
+   'make modifications to the work and publish any part of it also publish '
+   'the changes they have made under the $name or optionally under a later '
+   'version of the GPL.'
+  WHERE name = 'GNU Public License v3.0+';
+
+UPDATE licenses
+  SET url = 'http://opensource.org/licenses/MIT', description =
+   'The $name is a free software license originating at the Massachusetts '
+   'Institute of Technology (MIT).  It is a permissive free software license, '
+   'meaning that it permits reuse within proprietary and non-proprietary '
+   'software provided that all copies and derivative works include a copy of '
+   'the $name terms and the original copyright notice.'
+  WHERE name = 'MIT License';
+
+UPDATE licenses
+  SET url = 'http://opensource.org/licenses/BSD-2-Clause', description =
+   'The $name is a free software license originating at Berkeley University.  '
+   'It allows almost unlimited freedom with the software so long as users '
+   'include the BSD copyright notice in copies and derived works.'
+  WHERE name = 'BSD License';
+
+UPDATE licenses
+  SET url = 'http://creativecommons.org/licenses/by/4.0/', description =
+   'The less restrictive, $name, gives users maximum freedom to do what they '
+   'want with the work but requires they give appropriate credit, provide a '
+   'link to the license, and indicate if changes were made.'
+  WHERE name = 'Creative Commons - Attrib License v4.0';
+
+UPDATE licenses
+  SET url = 'http://creativecommons.org/licenses/by-nd/4.0/', description =
+   'The $name gives users freedom to use the work but requires they give '
+   'appropriate credit and provide a link to the license but does not allow '
+   'publishing derivitave works.'
+  WHERE name = 'Creative Commons - Attrib,NoDeriv License v4.0';
+
+UPDATE licenses
+  SET url = 'http://creativecommons.org/licenses/by-sa/4.0/', description =
+   'The $name gives users freedom to use the work but requires they give '
+   'appropriate credit, provide a link to the license and if they '
+   'publish derivitave works those works must also be published under the '
+   '$name.'
+  WHERE name = 'Creative Commons - Attrib,ShareAlike License v4.0';
+
+UPDATE licenses
+  SET url = 'http://creativecommons.org/licenses/by-nc/4.0/', description =
+   'The $name, gives users freedom to use the work for non-commercial '
+   'purposes and requires they give appropriate credit, provide a link to the '
+   'license, and indicate if changes were made.'
+  WHERE name = 'Creative Commons - Attrib,NonCom License v4.0';
+
+UPDATE licenses
+  SET url = 'http://creativecommons.org/licenses/by-nc-nd/4.0/', description =
+   'The $name, gives users freedom to use the work for non-commercial '
+   'purposes and requires they give appropriate credit and provide a link to '
+   'the license but does not allow publishing derivitave works.'
+  WHERE name = 'Creative Commons - Attrib,NonCom,NoDeriv License v4.0';
+
+UPDATE licenses
+  SET url = 'http://creativecommons.org/licenses/by-nc-sa/4.0/', description =
+   'The $name, gives users freedom to use the work for non-commercial '
+   'purposes and requires they give appropriate credit, provide a link to the '
+   'license and if they publish derivitave works those works must also be '
+   'published under the $name.'
+  WHERE name = 'Creative Commons - Attrib,NonCom,ShareAlike License v4.0';
+
 
 
 CREATE TABLE IF NOT EXISTS thing_type (
@@ -151,9 +231,9 @@ CREATE TABLE IF NOT EXISTS things (
   `type`         CHAR(8) NOT NULL,
   `title`        VARCHAR(128),
   `url`          VARCHAR(256),
-  `instructions` MEDIUMTEXT,
   `license`      VARCHAR(64) DEFAULT 'BSD License',
   `tags`         TEXT,
+  `instructions` MEDIUMTEXT,
 
   `published`    TIMESTAMP NULL,
   `created`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -167,7 +247,7 @@ CREATE TABLE IF NOT EXISTS things (
   `space`        BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
   PRIMARY KEY (`id`),
-  FULLTEXT KEY `text` (`name`, `title`, `instructions`, `tags`),
+  FULLTEXT KEY `text` (`name`, `title`, `tags`, `instructions`),
   UNIQUE (`owner_id`, `name`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`parent_id`) REFERENCES things(`id`) ON DELETE SET NULL,

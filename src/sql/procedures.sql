@@ -556,7 +556,7 @@ BEGIN
   END IF;
 
   SELECT t.name, _owner owner, t.type, title,
-    IF(t.published IS null, null, FormatTS(t.published)),
+    IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified, comments, stars,
     children, views, GetFileURL(_owner, t.name, f.name) image
     FROM things t
@@ -605,7 +605,7 @@ BEGIN
   -- Thing
   SELECT t.name, _owner owner, t.type, t.title,
     t.published, FormatTS(t.created) created, FormatTS(t.modified) modified,
-    t.url, t.instructions, t.tags, t.comments, t.stars, t.children, t.views,
+    t.url, t.tags, t.instructions, t.comments, t.stars, t.children, t.views,
     t.license, l.url license_url, CONCAT(p.name, '/', parent.name) parent
 
     FROM things t
@@ -626,8 +626,8 @@ BEGIN
   SELECT f.name, type, FormatTS(f.created) created, downloads, caption,
     display, space size, GetFileURL(_owner, _name, f.name) url
     FROM files f
-    WHERE f.thing_id = _thing_id
-    ORDER BY f.display, f.position, f.created;
+    WHERE f.thing_id = _thing_id AND f.confirmed
+    ORDER BY f.position, f.created;
 
   -- Comments
   CALL GetCommentsByID(_thing_id);
@@ -675,7 +675,7 @@ END;
 
 CREATE PROCEDURE PutThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
   IN _type CHAR(8), IN _title VARCHAR(256), IN _url VARCHAR(256),
-  IN _instructions TEXT, IN _license VARCHAR(64))
+  IN _license VARCHAR(64), IN _instructions MEDIUMTEXT)
 BEGIN
   SET _owner = GetProfileID(_owner);
 
@@ -685,17 +685,17 @@ BEGIN
   END IF;
 
   INSERT INTO things
-      (owner_id, name, type, title, url, instructions, license)
+      (owner_id, name, type, title, url, license, instructions)
 
     VALUES
-      (_owner, _name, _type, _title, _url, _instructions,
-       IFNULL(_license, 'BSD License'))
+      (_owner, _name, _type, _title, _url, IFNULL(_license, 'BSD License'),
+       instructions)
 
     ON DUPLICATE KEY UPDATE
       title        = IFNULL(_title, title),
       url          = IFNULL(_url, url),
-      instructions = IFNULL(_instructions, instructions),
       license      = IFNULL(_license, license),
+      instructions = IFNULL(_instructions, instructions),
       modified     = CURRENT_TIMESTAMP;
 END;
 
@@ -1028,6 +1028,55 @@ BEGIN
 END;
 
 
+CREATE PROCEDURE FileMove(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _name VARCHAR(256), IN _up BOOLEAN)
+BEGIN
+  DECLARE _thing_id INT;
+  DECLARE _file_id INT;
+  DECLARE _position INT;
+  DECLARE _next_id INT;
+
+  START TRANSACTION;
+
+  -- Get thing ID
+  SET _thing_id = GetThingID(_owner, _thing);
+
+  -- Get current file ID and position
+  SELECT id, position INTO _file_id, _position FROM files
+    WHERE thing_id = _thing_id AND name = _name;
+
+  -- Get next/prev file ID
+  SET _next_id = (
+    SELECT id FROM files
+      WHERE thing_id = _thing_id AND
+        IF(_up, position < _position, _position < position)
+      ORDER BY IF(_up, -position, position)
+      LIMIT 1);
+
+  -- Swap positions
+  UPDATE
+    files f1
+    JOIN files f2 ON f1.id = _file_id AND f2.id = _next_id
+    SET f1.position = f2.position, f2.position = f1.position;
+
+  COMMIT;
+END;
+
+
+CREATE PROCEDURE FileUp(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _name VARCHAR(256))
+BEGIN
+  CALL FileMove(_owner, _thing, _name, true);
+END;
+
+
+CREATE PROCEDURE FileDown(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _name VARCHAR(256))
+BEGIN
+  CALL FileMove(_owner, _thing, _name, false);
+END;
+
+
 CREATE PROCEDURE RenameFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _old_name VARCHAR(256), IN _new_name VARCHAR(256))
 BEGIN
@@ -1061,10 +1110,10 @@ END;
 
 
 CREATE PROCEDURE ConfirmFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
-  IN _name VARCHAR(256), IN _type VARCHAR(64), IN _space INT)
+  IN _name VARCHAR(256))
 BEGIN
   UPDATE files
-    SET type = _type, space = _space, confirmed = true
+    SET confirmed = true
     WHERE thing_id = GetThingID(_owner, _thing) AND name = _name;
 END;
 
@@ -1072,7 +1121,7 @@ END;
 -- Licenses
 CREATE PROCEDURE GetLicenses()
 BEGIN
-  SELECT name, url FROM licenses;
+  SELECT name, url, description FROM licenses;
 END;
 
 
@@ -1165,7 +1214,7 @@ BEGIN
       FormatTS(t.created) created, FormatTS(t.modified) modified,
       t.comments, t.stars, t.children, t.views,
       GetFileURL(p.name, t.name, f.name) image,
-      MATCH(t.name, t.title, t.instructions, t.tags)
+      MATCH(t.name, t.title, t.tags, t.instructions)
       AGAINST(_query IN BOOLEAN MODE) score
 
     FROM things t
@@ -1326,4 +1375,7 @@ CREATE PROCEDURE Maintenance()
 BEGIN
   -- Clean thing views
   DELETE FROM thing_views WHERE ts < now() - INTERVAL 1 day;
+
+  -- Clean old unconfirmed files
+  DELETE FROM files WHERE created < now() - INTERVAL 6 hour AND NOT confirmed;
 END;
