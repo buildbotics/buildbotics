@@ -417,7 +417,8 @@ CREATE PROCEDURE GetStarredThingsByID(IN _profile_id INT)
 BEGIN
   -- Keep in sync with GetThingsByID()
   SELECT t.name, p.name owner, t.type, t.title, t.comments, t.stars,
-    t.children, t.views, GetFileURL(p.name, t.name, f.name) image
+    t.children, t.views, GetFileURL(p.name, t.name, f.name) image,
+    IF(t.published IS null, null, FormatTS(t.published)) published
     FROM things t
     LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
     INNER JOIN stars s ON t.id = s.thing_id
@@ -604,7 +605,8 @@ BEGIN
 
   -- Thing
   SELECT t.name, _owner owner, t.type, t.title,
-    t.published, FormatTS(t.created) created, FormatTS(t.modified) modified,
+    IF(t.published IS null, null, FormatTS(t.published)) published,
+    FormatTS(t.created) created, FormatTS(t.modified) modified,
     t.url, t.tags, t.instructions, t.comments, t.stars, t.children, t.views,
     t.license, l.url license_url, CONCAT(p.name, '/', parent.name) parent
 
@@ -782,9 +784,10 @@ BEGIN
   SET SQL_SELECT_LIMIT = _limit;
 
   SELECT t.name, p.name owner, t.type, t.title,
-      FormatTS(t.created) created, FormatTS(t.modified) modified,
-      t.comments, t.stars, t.children, t.views,
-      GetFileURL(p.name, t.name, f.name) image
+    IF(t.published IS null, null, FormatTS(t.published)) published,
+    FormatTS(t.created) created, FormatTS(t.modified) modified,
+    t.comments, t.stars, t.children, t.views,
+    GetFileURL(p.name, t.name, f.name) image
 
     FROM things t
       LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
@@ -1211,11 +1214,12 @@ BEGIN
 
   -- Select
   SELECT t.name, p.name owner, t.type, t.title,
-      FormatTS(t.created) created, FormatTS(t.modified) modified,
-      t.comments, t.stars, t.children, t.views,
-      GetFileURL(p.name, t.name, f.name) image,
-      MATCH(t.name, t.title, t.tags, t.instructions)
-      AGAINST(_query IN BOOLEAN MODE) score
+    IF(t.published IS null, null, FormatTS(t.published)) published,
+    FormatTS(t.created) created, FormatTS(t.modified) modified,
+    t.comments, t.stars, t.children, t.views,
+    GetFileURL(p.name, t.name, f.name) image,
+    MATCH(t.name, t.title, t.tags, t.instructions)
+    AGAINST(_query IN BOOLEAN MODE) score
 
     FROM things t
       LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
