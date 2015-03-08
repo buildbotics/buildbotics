@@ -142,10 +142,7 @@ bool Transaction::apiError(int status, const string &msg) {
   LOG_ERROR(msg);
 
   // Reset output
-  if (!writer.isNull()) {
-    //writer->reset();
-    writer.release();
-  }
+  if (!writer.isNull()) writer.release();
   getOutputBuffer().clear();
 
   // Drop DB connection
@@ -396,6 +393,13 @@ bool Transaction::apiGetThing() {
       insertingInstructions(false) {}
 
     // From JSON::Sync
+    void reset() {
+      insertingInstructions = false;
+      streamPtr->flush();
+      JSON::Writer::reset();
+    }
+
+
     void beginInsert(const string &key) {
       JSON::Writer::beginInsert(key);
       insertingInstructions = key == "instructions";
@@ -911,11 +915,15 @@ void Transaction::returnJSONFields(MariaDB::EventDBCallback::state_t state) {
 
 void Transaction::returnReply(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_DONE: {
+  case MariaDB::EventDBCallback::EVENTDB_DONE:
     writer.release();
     reply();
     break;
-  }
+
+  case MariaDB::EventDBCallback::EVENTDB_RETRY:
+    if (!writer.isNull()) writer->reset();
+    getOutputBuffer().clear();
+    break;
 
   case MariaDB::EventDBCallback::EVENTDB_ERROR: {
     int error = HTTP_INTERNAL_SERVER_ERROR;
