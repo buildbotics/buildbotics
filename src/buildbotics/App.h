@@ -36,7 +36,6 @@
 #include "UserManager.h"
 
 #include <cbang/Application.h>
-#include <cbang/os/Mutex.h>
 #include <cbang/net/IPAddress.h>
 #include <cbang/security/KeyPair.h>
 #include <cbang/db/maria/EventDBCallback.h>
@@ -56,7 +55,7 @@ namespace cb {
 
 
 namespace BuildBotics {
-  class App : public cb::Application, public cb::Mutex {
+  class App : public cb::Application {
     cb::Event::Base base;
     cb::Event::DNSBase dns;
     cb::Event::Client client;
@@ -69,6 +68,7 @@ namespace BuildBotics {
     UserManager userManager;
 
     cb::IPAddress outboundIP;
+    std::string imageHost;
     std::string sessionCookieName;
     uint64_t authTimeout;
     uint64_t authGraceperiod;
@@ -107,6 +107,7 @@ namespace BuildBotics {
     cb::SmartPointer<cb::MariaDB::EventDB> getDBConnection();
 
     const cb::IPAddress &getOutboundIP() const {return outboundIP;}
+    const std::string &getImageHost() const {return imageHost;}
     const std::string &getSessionCookieName() const {return sessionCookieName;}
     uint64_t getAuthTimeout() const {return authTimeout;}
     uint64_t getAuthGraceperiod() const {return authGraceperiod;}

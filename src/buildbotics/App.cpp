@@ -32,7 +32,6 @@
 #include "App.h"
 
 #include <cbang/util/DefaultCatch.h>
-#include <cbang/util/SmartLock.h>
 
 #include <cbang/os/SystemUtilities.h>
 
@@ -55,6 +54,7 @@ App::App() :
   cb::Application("BuildBotics"), dns(base), client(base, dns, new SSLContext),
   googleAuth(getOptions()), githubAuth(getOptions()),
   facebookAuth(getOptions()), server(*this), userManager(*this),
+  imageHost("http://images.buildbotics.com"),
   sessionCookieName("buildbotics.sid"), authTimeout(30 * Time::SEC_PER_DAY),
   authGraceperiod(Time::SEC_PER_HOUR), dbHost("localhost"),
   dbName("buildbotics"), dbPort(3306), dbTimeout(5),
@@ -66,6 +66,7 @@ App::App() :
               "to first http-address.");
   options.addTarget("session-cookie-name", sessionCookieName,
                     "Name of the HTTP session cookie.");
+  options.addTarget("image-host", imageHost, "URL of image server");
   options.addTarget("auth-timeout", authTimeout,
                     "Time in seconds before a user authorization times out.");
   options.addTarget("auth-graceperiod", authGraceperiod,

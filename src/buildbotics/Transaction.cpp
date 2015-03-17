@@ -162,6 +162,25 @@ bool Transaction::pleaseLogin() {
 }
 
 
+SmartPointer<AWS4Post>
+Transaction::filePost(const string &key, const string &filename,
+                      const string &type, uint32_t minSize,
+                      uint32_t maxSize) const {
+  SmartPointer<AWS4Post> post =
+    new AWS4Post(app.getAWSBucket(), key, app.getAWSUploadExpires(),
+                 Time::now(), "s3", app.getAWSRegion());
+
+  post->setLengthRange(minSize, maxSize);
+  post->insert("Content-Type", type);
+  post->insert("acl", "public-read");
+  post->insert("success_action_status", "201");
+  post->addCondition("name", filename);
+  post->sign(app.getAWSID(), app.getAWSSecret());
+
+  return post;
+}
+
+
 void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
   if (!profile.isNull())
     try {
@@ -322,6 +341,7 @@ bool Transaction::apiGetProfile() {
 
 bool Transaction::apiGetProfileAvatar() {
   JSON::ValuePtr args = parseArgsPtr();
+  redirectTo = "%(url)s";
   query(&Transaction::download, "CALL GetProfileAvatar(%(profile)s)", args);
   return true;
 }
@@ -565,6 +585,9 @@ bool Transaction::apiDeleteComment() {
 bool Transaction::apiDownloadFile() {
   JSON::ValuePtr args = parseArgsPtr();
 
+  redirectTo = app.getImageHost() + "%(url)s?size=" +
+    args->getString("size", "orig");
+
   query(&Transaction::download,
         "CALL DownloadFile(%(profile)s, %(thing)s, %(file)s, %(count)b)", args);
 
@@ -599,16 +622,9 @@ bool Transaction::apiPutFile() {
   args->insert("url", uploadURL + URI::encode(key));
 
   // Build POST
-  AWS4Post post(app.getAWSBucket(), key, app.getAWSUploadExpires(),
-                Time::now(), "s3", app.getAWSRegion());
-
   uint32_t size = args->getU32("size");
-  post.setLengthRange(size, size);
-  post.insert("Content-Type", args->getString("type"));
-  post.insert("acl", "public-read");
-  post.insert("success_action_status", "201");
-  post.addCondition("name", args->getString("file"));
-  post.sign(app.getAWSID(), app.getAWSSecret());
+  SmartPointer<AWS4Post> post =
+    filePost(key, args->getString("file"), args->getString("type"), size, size);
 
   // Write JSON
   setContentType("application/json");
@@ -618,7 +634,7 @@ bool Transaction::apiPutFile() {
   writer->insert("file_url", URI::encode(fileURL));
   writer->insert("guid", guid);
   writer->beginInsert("post");
-  post.write(*writer);
+  post->write(*writer);
   writer->endDict();
   writer.release();
 
@@ -735,7 +751,7 @@ void Transaction::download(MariaDB::EventDBCallback::state_t state) {
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_ROW:
-    redirectTo = db->getString(0);
+    redirectTo = String::replace(redirectTo, "%\\(url\\)s", db->getString(0));
     break;
 
   default: returnReply(state); return;

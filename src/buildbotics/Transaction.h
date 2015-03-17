@@ -53,6 +53,7 @@ namespace cb {
 namespace BuildBotics {
   class App;
   class User;
+  class AWS4Post;
 
   class Transaction : public cb::Event::Request, public cb::Event::OAuth2Login {
     App &app;
@@ -80,6 +81,10 @@ namespace BuildBotics {
 
     bool apiError(int status, const std::string &msg);
     bool pleaseLogin();
+
+    cb::SmartPointer<AWS4Post>
+    filePost(const std::string &key, const std::string &filename,
+             const std::string &type, uint32_t minSize, uint32_t maxSize) const;
 
     // From cb::Event::OAuth2Login
     void processProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
