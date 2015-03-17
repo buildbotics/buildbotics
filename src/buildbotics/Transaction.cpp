@@ -341,7 +341,6 @@ bool Transaction::apiGetProfile() {
 
 bool Transaction::apiGetProfileAvatar() {
   JSON::ValuePtr args = parseArgsPtr();
-  redirectTo = "%(url)s";
   query(&Transaction::download, "CALL GetProfileAvatar(%(profile)s)", args);
   return true;
 }
@@ -585,9 +584,6 @@ bool Transaction::apiDeleteComment() {
 bool Transaction::apiDownloadFile() {
   JSON::ValuePtr args = parseArgsPtr();
 
-  redirectTo = app.getImageHost() + "%(url)s?size=" +
-    args->getString("size", "orig");
-
   query(&Transaction::download,
         "CALL DownloadFile(%(profile)s, %(thing)s, %(file)s, %(count)b)", args);
 
@@ -750,9 +746,29 @@ void Transaction::download(MariaDB::EventDBCallback::state_t state) {
     redirect(redirectTo);
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
-    redirectTo = String::replace(redirectTo, "%\\(url\\)s", db->getString(0));
+  case MariaDB::EventDBCallback::EVENTDB_ROW: {
+    string url = db->getString(0);
+
+    // Is absolute URL?
+    if (String::startsWith(url, "http://") ||
+        String::startsWith(url, "https://")) {
+      redirectTo = url;
+      break;
+    }
+
+    string type = 1 < db->getFieldCount() ? db->getString(1) : "";
+    string size = getArgs().getString("size", "orig");
+
+    // Is resizable image?
+    if (size != "orig" &&
+        (type == "image/png" || type == "image/gif" || type == "image/jpeg")) {
+      redirectTo = app.getImageHost() + url + "?size=" + size;
+      break;
+    }
+
+    redirectTo = "//" + app.getAWSBucket() + ".s3.amazonaws.com" + url;
     break;
+  }
 
   default: returnReply(state); return;
   }

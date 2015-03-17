@@ -1013,8 +1013,9 @@ CREATE PROCEDURE DownloadFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
 BEGIN
   DECLARE _file_id INT;
   DECLARE _path VARCHAR(256);
+  DECLARE _type VARCHAR(64);
 
-  SELECT id, path INTO _file_id, _path FROM files
+  SELECT id, path, type INTO _file_id, _path, _type FROM files
     WHERE thing_id = GetThingID(_owner, _thing) AND name = _name;
 
   IF _count THEN
@@ -1026,7 +1027,7 @@ BEGIN
     SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
       SET MESSAGE_TEXT = 'File not found';
   ELSE
-    SELECT _path path;
+    SELECT _path path, _type type;
   END IF;
 END;
 
