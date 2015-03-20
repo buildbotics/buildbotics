@@ -314,7 +314,7 @@ END;
 CREATE PROCEDURE GetProfileByID(IN _profile_id INT, IN _unpublished BOOL)
 BEGIN
   SELECT name, FormatTS(joined) joined, FormatTS(lastseen) lastseen, fullname,
-    location, avatar, url, bio, points, followers, following, stars, badges
+    location, url, bio, points, followers, following, stars, badges
     FROM profiles
     WHERE id = _profile_id AND NOT disabled;
 
@@ -342,17 +342,27 @@ END;
 
 CREATE PROCEDURE GetProfileAvatar(IN _profile VARCHAR(64))
 BEGIN
-  SELECT avatar FROM profiles WHERE name = _profile;
+  SELECT avatar, 'avatar' FROM profiles WHERE name = _profile;
+END;
+
+
+CREATE PROCEDURE PutProfileAvatar(IN _profile VARCHAR(64), IN _url VARCHAR(256))
+BEGIN
+  UPDATE profiles SET pending_avatar = _url WHERE name = _profile;
+END;
+
+
+CREATE PROCEDURE ConfirmProfileAvatar(IN _profile VARCHAR(64),
+  IN _url VARCHAR(256))
+BEGIN
+  UPDATE profiles SET avatar = _url
+    WHERE name = _profile AND pending_avatar = _url;
 END;
 
 
 CREATE PROCEDURE PutProfile(IN _profile VARCHAR(64), IN _fullname VARCHAR(256),
   IN _location VARCHAR(256), IN _url VARCHAR(256), IN _bio TEXT)
 BEGIN
-  DECLARE _profile_id INT;
-
-  SET _profile_id = GetProfileID(_profile);
-
   UPDATE profiles
     SET
       fullname = IFNULL(_fullname, fullname),
@@ -360,14 +370,14 @@ BEGIN
       url      = IFNULL(_url, url),
       bio      = IFNULL(_bio, bio)
     WHERE
-      id = _profile_id;
+      name = _profile;
 END;
 
 
 -- Follow
 CREATE PROCEDURE GetFollowingByID(IN _profile_id INT)
 BEGIN
-  SELECT name, avatar, points, followers, badges, FormatTS(joined) joined
+  SELECT name, points, followers, badges, FormatTS(joined) joined
     FROM profiles
     INNER JOIN followers f ON id = f.followed_id
     WHERE f.follower_id = _profile_id;
@@ -382,7 +392,7 @@ END;
 
 CREATE PROCEDURE GetFollowersByID(IN _profile_id INT)
 BEGIN
-  SELECT name, avatar, points, followers, badges, FormatTS(joined) joined
+  SELECT name, points, followers, badges, FormatTS(joined) joined
     FROM profiles
     INNER JOIN followers f ON id = f.follower_id
     WHERE f.followed_id = _profile_id;
@@ -435,7 +445,7 @@ END;
 
 CREATE PROCEDURE GetThingStarsByID(IN _thing_id INT)
 BEGIN
-    SELECT p.name, p.avatar FROM stars s
+    SELECT p.name FROM stars s
       INNER JOIN profiles p ON p.id = profile_id
       WHERE s.thing_id = _thing_id
       ORDER BY s.created;
@@ -920,7 +930,7 @@ END;
 -- Comments
 CREATE PROCEDURE GetCommentsByID(IN _thing_id INT)
 BEGIN
-    SELECT c.id comment, p.name owner, p.avatar, ref,
+    SELECT c.id comment, p.name owner, ref,
       FormatTS(c.created) created, FormatTS(c.modified) modified, c.text
       FROM comments c
       LEFT JOIN profiles p ON p.id = owner_id
@@ -1157,7 +1167,7 @@ BEGIN
   SET SQL_SELECT_LIMIT = _limit;
 
   -- Select
-  SELECT p.name, p.avatar, p.points, p.followers, p.badges,
+  SELECT p.name, p.points, p.followers, p.badges,
       FormatTS(p.joined) joined, MATCH(p.name, p.fullname, p.location, p.bio)
       AGAINST(_query IN BOOLEAN MODE) score
 

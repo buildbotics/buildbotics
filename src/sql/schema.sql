@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   `fullname`       VARCHAR(256),
   `location`       VARCHAR(256),
   `avatar`         VARCHAR(256),
+  `pending_avatar` VARCHAR(256),
   `url`            VARCHAR(256),
   `bio`            TEXT,
   `points`         INT NOT NULL DEFAULT 0,

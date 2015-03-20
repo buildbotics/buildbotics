@@ -83,6 +83,7 @@ void Server::init() {
 #define FILENAME_RE "[^/]+"
 #define TAG_RE "[\\w. -]+"
 #define PROFILE_RE "/api/profiles/(?P<profile>" NAME_RE ")"
+#define PROFILE_AVATAR_RE PROFILE_RE "/avatar/(?P<file>" FILENAME_RE ")"
 #define THING_RE PROFILE_RE "/things/(?P<thing>" NAME_RE ")"
 #define STAR_RE THING_RE "/star"
 #define COMMENTS_RE THING_RE "/comments"
@@ -109,6 +110,8 @@ void Server::init() {
   ADD_TM(api, HTTP_PUT, PROFILE_RE, apiPutProfile);
   ADD_TM(api, HTTP_GET, PROFILE_RE, apiGetProfile);
   ADD_TM(api, HTTP_GET, PROFILE_RE "/avatar", apiGetProfileAvatar);
+  ADD_TM(api, HTTP_PUT, PROFILE_AVATAR_RE , apiPutProfileAvatar);
+  ADD_TM(api, HTTP_PUT, PROFILE_AVATAR_RE "/confirm" , apiConfirmProfileAvatar);
 
   // Follow
   ADD_TM(api, HTTP_PUT, PROFILE_RE "/follow", apiFollow);

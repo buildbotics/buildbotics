@@ -162,22 +162,48 @@ bool Transaction::pleaseLogin() {
 }
 
 
-SmartPointer<AWS4Post>
-Transaction::filePost(const string &key, const string &filename,
-                      const string &type, uint32_t minSize,
-                      uint32_t maxSize) const {
-  SmartPointer<AWS4Post> post =
-    new AWS4Post(app.getAWSBucket(), key, app.getAWSUploadExpires(),
-                 Time::now(), "s3", app.getAWSRegion());
+string Transaction::postFile(const std::string &path, const string &file,
+                             const string &type, uint32_t minSize,
+                             uint32_t maxSize) {
+  // Create GUID
+  Digest hash("sha256");
+  hash.update(path);
+  hash.update(file);
+  hash.updateWith(Timer::now());
+  string guid = hash.toBase64();
 
-  post->setLengthRange(minSize, maxSize);
-  post->insert("Content-Type", type);
-  post->insert("acl", "public-read");
-  post->insert("success_action_status", "201");
-  post->addCondition("name", filename);
-  post->sign(app.getAWSID(), app.getAWSSecret());
+  // Create key
+  string key = guid + "/" + file;
 
-  return post;
+  // Create URLs
+  string uploadURL = "https://" + app.getAWSBucket() + ".s3.amazonaws.com/";
+  string fileURL = path + "/" + file;
+
+  // Build POST
+  AWS4Post post(app.getAWSBucket(), key, app.getAWSUploadExpires(),
+                Time::now(), "s3", app.getAWSRegion());
+
+  post.setLengthRange(minSize, maxSize);
+  post.insert("Content-Type", type);
+  post.insert("acl", "public-read");
+  post.insert("success_action_status", "201");
+  post.addCondition("name", file);
+  post.sign(app.getAWSID(), app.getAWSSecret());
+
+  // Write JSON
+  setContentType("application/json");
+  writer = getJSONWriter();
+  writer->beginDict();
+  writer->insert("upload_url", uploadURL);
+  writer->insert("file_url", URI::encode(fileURL));
+  writer->insert("guid", guid);
+  writer->beginInsert("post");
+  post.write(*writer);
+  writer->endDict();
+  writer.release();
+
+  // Return URL
+  return "/" + URI::encode(key);
 }
 
 
@@ -342,6 +368,47 @@ bool Transaction::apiGetProfile() {
 bool Transaction::apiGetProfileAvatar() {
   JSON::ValuePtr args = parseArgsPtr();
   query(&Transaction::download, "CALL GetProfileAvatar(%(profile)s)", args);
+  return true;
+}
+
+
+bool Transaction::apiPutProfileAvatar() {
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
+
+  string path = "/" + args->getString("profile");
+  string file = args->getString("file");
+  string type = args->getString("type");
+  uint32_t size = args->getU32("size");
+
+  // Limit size
+  if (5 * 1024 * 1024 < size) THROW("Avatar cannot be larger than 5MiB");
+
+  // Write post data
+  string url = postFile(path, file, type, size, size);
+
+  // Write to DB
+  args->insert("url", url);
+  query(&Transaction::returnReply,
+        "CALL PutProfileAvatar(%(profile)s, %(url)s)", args);
+
+  return true;
+}
+
+
+bool Transaction::apiConfirmProfileAvatar() {
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
+
+  string path = "/" + args->getString("profile");
+  string file = args->getString("file");
+  string guid = args->getString("guid");
+
+  // Write to DB
+  args->insert("url", "/" + guid + "/" + URI::encode(file));
+  query(&Transaction::returnOK,
+        "CALL ConfirmProfileAvatar(%(profile)s, %(url)s)", args);
+
   return true;
 }
 
@@ -600,41 +667,17 @@ bool Transaction::apiPutFile() {
   JSON::ValuePtr args = parseArgsPtr();
   requireUser(args->getString("profile"));
 
-  // Create GUID
-  Digest hash("sha256");
-  hash.update(args->getString("profile"));
-  hash.update(args->getString("thing"));
-  hash.update(args->getString("file"));
-  hash.updateWith(Timer::now());
-  string guid = hash.toBase64();
-
-  // Create key
-  string key = guid + "/" + args->getString("file");
-
-  // Create URLs
-  string uploadURL = "https://" + app.getAWSBucket() + ".s3.amazonaws.com/";
-  string fileURL = "/" + args->getString("profile") + "/" +
-    args->getString("thing") + "/" + args->getString("file");
-  args->insert("url", uploadURL + URI::encode(key));
-
-  // Build POST
+  string path =
+    "/" + args->getString("profile") + "/" + args->getString("thing");
+  string file = args->getString("file");
+  string type = args->getString("type");
   uint32_t size = args->getU32("size");
-  SmartPointer<AWS4Post> post =
-    filePost(key, args->getString("file"), args->getString("type"), size, size);
 
-  // Write JSON
-  setContentType("application/json");
-  writer = getJSONWriter();
-  writer->beginDict();
-  writer->insert("upload_url", uploadURL);
-  writer->insert("file_url", URI::encode(fileURL));
-  writer->insert("guid", guid);
-  writer->beginInsert("post");
-  post->write(*writer);
-  writer->endDict();
-  writer.release();
+  // Write post data
+  string url = postFile(path, file, type, size, size);
 
   // Write to DB
+  args->insert("url", url);
   query(&Transaction::returnReply,
         "CALL PutFile(%(profile)s, %(thing)s, %(file)s, %(type)s, %(size)u, "
         "%(url)s, %(caption)s, %(display)b)", args);
@@ -748,20 +791,32 @@ void Transaction::download(MariaDB::EventDBCallback::state_t state) {
 
   case MariaDB::EventDBCallback::EVENTDB_ROW: {
     string url = db->getString(0);
+    string size = getArgs().getString("size", "orig");
 
     // Is absolute URL?
     if (String::startsWith(url, "http://") ||
         String::startsWith(url, "https://")) {
+
+      if (size == "alarge") {
+        url = String::replace(url, "\\?sz=[0-9]+$", "?sz=200"); // Google
+        url = String::replace(url, "\\?type=small$", "?type=large"); // Facebook
+
+      } else if (size == "asmall") {
+        url = String::replace(url, "\\?sz=[0-9]+$", "?sz=150"); // Google
+        url = String::replace(url, "\\?type=small$",
+                              "?width=150\\&height=150"); // Facebook
+      }
+
       redirectTo = url;
       break;
     }
 
     string type = 1 < db->getFieldCount() ? db->getString(1) : "";
-    string size = getArgs().getString("size", "orig");
 
     // Is resizable image?
     if (size != "orig" &&
-        (type == "image/png" || type == "image/gif" || type == "image/jpeg")) {
+        (type == "image/png" || type == "image/gif" || type == "image/jpeg" ||
+         type == "avatar")) {
       redirectTo = app.getImageHost() + url + "?size=" + size;
       break;
     }

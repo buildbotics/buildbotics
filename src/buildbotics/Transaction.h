@@ -82,9 +82,9 @@ namespace BuildBotics {
     bool apiError(int status, const std::string &msg);
     bool pleaseLogin();
 
-    cb::SmartPointer<AWS4Post>
-    filePost(const std::string &key, const std::string &filename,
-             const std::string &type, uint32_t minSize, uint32_t maxSize) const;
+    std::string postFile(const std::string &key, const std::string &file,
+                         const std::string &type, uint32_t minSize,
+                         uint32_t maxSize);
 
     // From cb::Event::OAuth2Login
     void processProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
@@ -101,6 +101,8 @@ namespace BuildBotics {
     bool apiPutProfile();
     bool apiGetProfile();
     bool apiGetProfileAvatar();
+    bool apiPutProfileAvatar();
+    bool apiConfirmProfileAvatar();
 
     bool apiFollow();
     bool apiUnfollow();
