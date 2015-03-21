@@ -790,24 +790,30 @@ void Transaction::download(MariaDB::EventDBCallback::state_t state) {
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_ROW: {
-    string url = db->getString(0);
+    string path = db->getString(0);
     string size = getArgs().getString("size", "orig");
 
     // Is absolute URL?
-    if (String::startsWith(url, "http://") ||
-        String::startsWith(url, "https://")) {
+    if (String::startsWith(path, "http://") ||
+        String::startsWith(path, "https://")) {
 
-      if (size == "alarge") {
-        url = String::replace(url, "\\?sz=[0-9]+$", "?sz=200"); // Google
-        url = String::replace(url, "\\?type=small$", "?type=large"); // Facebook
+      string pixels = "32"; // Thumb
+      if (size == "alarge") pixels = "200";
+      else if (size == "asmall") pixels = "150";
 
-      } else if (size == "asmall") {
-        url = String::replace(url, "\\?sz=[0-9]+$", "?sz=150"); // Google
-        url = String::replace(url, "\\?type=small$",
-                              "?width=150\\&height=150"); // Facebook
-      }
+      URI url(path);
 
-      redirectTo = url;
+      if (url.getHost() == "avatars.githubusercontent.com") // GitHub
+        url["s"] = pixels;
+
+      else if (url.getHost().find("facebook") != string::npos) { // Facebook
+        url["width"] = pixels;
+        url["height"] = pixels;
+
+      } else if (url.getHost().find("google") != string::npos) // Google
+        url["sz"] = pixels;
+
+      redirectTo = url.toString();
       break;
     }
 
@@ -817,11 +823,11 @@ void Transaction::download(MariaDB::EventDBCallback::state_t state) {
     if (size != "orig" &&
         (type == "image/png" || type == "image/gif" || type == "image/jpeg" ||
          type == "avatar")) {
-      redirectTo = app.getImageHost() + url + "?size=" + size;
+      redirectTo = app.getImageHost() + path + "?size=" + size;
       break;
     }
 
-    redirectTo = "//" + app.getAWSBucket() + ".s3.amazonaws.com" + url;
+    redirectTo = "//" + app.getAWSBucket() + ".s3.amazonaws.com" + path;
     break;
   }
 
