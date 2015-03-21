@@ -803,14 +803,14 @@ void Transaction::download(MariaDB::EventDBCallback::state_t state) {
 
       URI url(path);
 
-      if (url.getHost() == "avatars.githubusercontent.com") // GitHub
+      if (url.getHost().find("github") != string::npos)
         url["s"] = pixels;
 
-      else if (url.getHost().find("facebook") != string::npos) { // Facebook
+      else if (url.getHost().find("facebook") != string::npos) {
         url["width"] = pixels;
         url["height"] = pixels;
 
-      } else if (url.getHost().find("google") != string::npos) // Google
+      } else if (url.getHost().find("google") != string::npos)
         url["sz"] = pixels;
 
       redirectTo = url.toString();
