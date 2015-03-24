@@ -467,45 +467,6 @@ bool Transaction::apiGetThing() {
 
   args->insert("user", userID);
 
-  // Override JSON::Writer and intercept writing "instruction" field
-  class ThingWriter : public JSON::Writer {
-    SmartPointer<ostream> streamPtr;
-    bool insertingInstructions;
-
-  public:
-    ThingWriter(const SmartPointer<ostream> &streamPtr, unsigned indent,
-                bool compact) :
-      JSON::Writer(*streamPtr, indent, compact), streamPtr(streamPtr),
-      insertingInstructions(false) {}
-
-    // From JSON::Sync
-    void reset() {
-      insertingInstructions = false;
-      streamPtr->flush();
-      JSON::Writer::reset();
-    }
-
-
-    void beginInsert(const string &key) {
-      JSON::Writer::beginInsert(key);
-      insertingInstructions = key == "instructions";
-    }
-
-
-    void write(const string &value) {
-      if (insertingInstructions) {
-        insertingInstructions = false;
-        try {
-          JSON::Sync::write(*JSON::Reader::parse(StringInputSource(value)));
-        } CATCH_ERROR;
-
-      } else JSON::Writer::write(value);
-    }
-  };
-
-  writer = new ThingWriter(getOutputStream(), 0, false);
-  writer->beginDict();
-
   jsonFields = "*thing files comments stars";
 
   query(&Transaction::returnJSONFields,
@@ -532,8 +493,6 @@ bool Transaction::apiPutThing() {
   requireUser(args->getString("profile"));
 
   if (!args->hasString("type")) args->insert("type", "project");
-  if (args->has("instructions"))
-    args->insert("instructions", args->getList("instructions").toString());
 
   query(&Transaction::returnOK,
         "CALL PutThing(%(profile)s, %(thing)s, %(type)s, %(title)s, "
