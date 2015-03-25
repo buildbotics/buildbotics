@@ -353,7 +353,7 @@ CREATE TABLE IF NOT EXISTS files (
   `name`      VARCHAR(80) NOT NULL,
   `type`      VARCHAR(64) NOT NULL,
   `space`     INT NOT NULL,
-  `url`       VARCHAR(256) NOT NULL,
+  `path`      VARCHAR(256) NOT NULL,
   `caption`   VARCHAR(256),
   `display`   BOOL NOT NULL DEFAULT true,
   `created`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

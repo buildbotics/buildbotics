@@ -772,15 +772,9 @@ BEGIN
 END;
 
 
-CREATE PROCEDURE FindThingsByTag(IN _tag VARCHAR(64),
-  IN _orderBy ENUM('stars', 'created', 'modified'), IN _limit INT,
+CREATE PROCEDURE FindThingsByTag(IN _tag VARCHAR(64), IN _limit INT,
   IN _offset INT)
 BEGIN
-  -- Order by
-  IF _orderBy IS null THEN
-    SET _orderBy = 'stars';
-  END IF;
-
   -- Limit
   IF _limit IS null THEN
     SET _limit = 100;
@@ -811,14 +805,7 @@ BEGIN
       ) AND
       t.published IS NOT NULL
 
-    ORDER BY
-      CASE _orderBy
-        WHEN 'created' THEN t.created
-        WHEN 'modifed' THEN t.modified
-      END ASC,
-      CASE _orderBy
-        WHEN 'stars' THEN t.stars
-      END DESC;
+    ORDER BY t.stars DESC, t.created DESC;
 
   SET SQL_SELECT_LIMIT = DEFAULT;
 END;
@@ -994,16 +981,16 @@ END;
 
 CREATE PROCEDURE PutFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _name VARCHAR(256), IN _type VARCHAR(64),
-  IN _space INT, IN _url VARCHAR(256), IN _caption VARCHAR(256),
+  IN _space INT, IN _path VARCHAR(256), IN _caption VARCHAR(256),
   IN _display BOOL)
 BEGIN
   SET _thing = GetThingID(_owner, _thing);
 
   INSERT INTO files
-    (thing_id, name, type, space, url, caption, display)
-    VALUES (_thing, _name, _type, _space, _url, _caption, _display)
+    (thing_id, name, type, space, path, caption, display)
+    VALUES (_thing, _name, _type, _space, _path, _caption, _display)
     ON DUPLICATE KEY UPDATE
-      url     = IFNULL(_url, url),
+      path    = IFNULL(_path, path),
       caption = IFNULL(_caption, caption),
       display = IFNULL(_display, display);
 END;
@@ -1012,7 +999,7 @@ END;
 CREATE PROCEDURE GetFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _name VARCHAR(256))
 BEGIN
-  SELECT f.name, type, space, url, caption, display,
+  SELECT f.name, type, space, path, caption, display,
     FormatTS(f.created) created, downloads, f.position position FROM files f
     WHERE f.thing_id = GetThingID(_owner, _thing) AND f.name = _name;
 END;
@@ -1194,21 +1181,11 @@ END;
 
 
 CREATE PROCEDURE FindThings(IN _query VARCHAR(256), IN _license VARCHAR(64),
-  IN _orderBy ENUM('stars', 'created', 'modified', 'score'), IN _limit INT,
-  IN _offset INT)
+  IN _limit INT, IN _offset INT)
 BEGIN
   -- Query
   IF TRIM(_query) = '' THEN
     SET _query = null;
-  END IF;
-
-  -- Order by
-  IF _orderBy IS null THEN
-    IF _query IS null THEN
-      SET _orderBy = 'stars';
-    ELSE
-      SET _orderBy = 'score';
-    END IF;
   END IF;
 
   -- Limit
@@ -1243,15 +1220,7 @@ BEGIN
     HAVING
       (_query IS null OR 0 < score)
 
-    ORDER BY
-      CASE _orderBy
-        WHEN 'created' THEN t.created
-        WHEN 'modifed' THEN t.modified
-      END ASC,
-      CASE _orderBy
-        WHEN 'stars' THEN t.stars
-        WHEN 'score' THEN score
-      END DESC;
+    ORDER BY t.score DESC, t.stars DESC, t.created DESC;
 
   SET SQL_SELECT_LIMIT = DEFAULT;
 END;

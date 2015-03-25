@@ -439,8 +439,7 @@ bool Transaction::apiGetThings() {
   JSON::ValuePtr args = parseArgsPtr();
 
   query(&Transaction::returnList,
-        "CALL FindThings(%(query)s, %(license)s, %(order)s, %(limit)u, "
-        "%(offset)u)", args);
+        "CALL FindThings(%(query)s, %(license)s, %(limit)u, %(offset)u)", args);
   return true;
 }
 
@@ -633,13 +632,13 @@ bool Transaction::apiPutFile() {
   uint32_t size = args->getU32("size");
 
   // Write post data
-  string url = postFile(path, file, type, size, size);
+  path = postFile(path, file, type, size, size);
 
   // Write to DB
-  args->insert("url", url);
+  args->insert("path", path);
   query(&Transaction::returnReply,
         "CALL PutFile(%(profile)s, %(thing)s, %(file)s, %(type)s, %(size)u, "
-        "%(url)s, %(caption)s, %(display)b)", args);
+        "%(path)s, %(caption)s, %(display)b)", args);
 
   return true;
 }
@@ -699,8 +698,7 @@ bool Transaction::apiGetTags() {
 bool Transaction::apiGetTagThings() {
   JSON::ValuePtr args = parseArgsPtr();
   query(&Transaction::returnList,
-        "CALL FindThingsByTag(%(tag)s, %(order)s, %(limit)u, %(offset)u)",
-        args);
+        "CALL FindThingsByTag(%(tag)s, %(limit)u, %(offset)u)", args);
   return true;
 }
 
