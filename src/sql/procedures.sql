@@ -1220,7 +1220,7 @@ BEGIN
     HAVING
       (_query IS null OR 0 < score)
 
-    ORDER BY t.score DESC, t.stars DESC, t.created DESC;
+    ORDER BY score DESC, t.stars DESC, t.created DESC;
 
   SET SQL_SELECT_LIMIT = DEFAULT;
 END;
