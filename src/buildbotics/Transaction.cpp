@@ -637,7 +637,7 @@ bool Transaction::apiUploadFile() {
 
   query(&Transaction::returnReply,
         "CALL UploadFile(%(profile)s, %(thing)s, %(file)s, %(type)s, %(size)u, "
-        "%(path)s, %(caption)s, %(visibility)s", args);
+        "%(path)s, %(caption)s, %(visibility)s)", args);
 
   return true;
 }
@@ -995,8 +995,9 @@ void Transaction::returnReply(MariaDB::EventDBCallback::state_t state) {
     default: break;
     }
 
-    apiError(error,
-             SSTR("DB:" << db->getErrorNumber() << ": " << db->getError()));
+    LOG_ERROR("DB:" << db->getErrorNumber() << ": " << db->getError());
+    apiError(error, db->getError());
+
     break;
   }
 

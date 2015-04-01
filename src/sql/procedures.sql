@@ -984,6 +984,12 @@ CREATE PROCEDURE UploadFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _space INT, IN _path VARCHAR(256), IN _caption VARCHAR(256),
   IN _visibility VARCHAR(8))
 BEGIN
+  DECLARE EXIT HANDLER FOR SQLSTATE '23000' BEGIN
+    DECLARE _text VARCHAR(256);
+    SET _text = CONCAT('File ', _name, ' already exists');
+    SIGNAL SQLSTATE '23000' SET MESSAGE_TEXT = _text;
+  END;
+
   SET _thing = GetThingID(_owner, _thing);
 
   INSERT INTO files
