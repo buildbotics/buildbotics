@@ -46,6 +46,7 @@
 #include <cbang/security/Digest.h>
 #include <cbang/net/URI.h>
 #include <cbang/io/StringInputSource.h>
+#include <cbang/os/SystemUtilities.h>
 
 #include <mysql/mysqld_error.h>
 
@@ -625,10 +626,44 @@ bool Transaction::apiUploadFile() {
   JSON::ValuePtr args = parseArgsPtr();
   requireUser(args->getString("profile"));
 
+  // Restrict by extension
+  string file = args->getString("file");
+  string ext = String::toLower(SystemUtilities::extension(file));
+  if (ext == "exe" || ext == "com" || ext == "bat" || ext == "lnk" ||
+      ext == "chm" || ext == "hta") {
+    apiError(HTTP_UNAUTHORIZED, "Uploading ." + ext +
+             " files is not allowed.");
+    return true;
+  }
+
+  // Restrict by media-type
+  string type = args->getString("type");
+  if (type == "application/x-msdownload" ||
+      type == "application/x-msdos-program" ||
+      type == "application/x-msdos-windows" ||
+      type == "application/x-download" ||
+      type == "application/bat" ||
+      type == "application/x-bat" ||
+      type == "application/com" ||
+      type == "application/x-com" ||
+      type == "application/exe" ||
+      type == "application/x-exe" ||
+      type == "application/x-winexe" ||
+      type == "application/x-winhlp" ||
+      type == "application/x-winhelp" ||
+      type == "application/x-javascript" ||
+      type == "application/hta" ||
+      type == "application/x-ms-shortcut" ||
+      type == "application/octet-stream" ||
+      type == "vms/exe") {
+    apiError(HTTP_UNAUTHORIZED, "Uploading files of type " + type +
+             " not allowed.");
+    return true;
+  }
+
+    // Compute path
   string path =
     "/" + args->getString("profile") + "/" + args->getString("thing");
-  string file = args->getString("file");
-  string type = args->getString("type");
   uint32_t size = args->getU32("size");
 
   // Write post data
