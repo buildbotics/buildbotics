@@ -994,7 +994,13 @@ BEGIN
 
   INSERT INTO files
     (thing_id, name, type, space, path, caption, visibility)
-    VALUES (_thing, _name, _type, _space, _path, _caption, _visibility);
+    VALUES (_thing, _name, _type, _space, _path, _caption, _visibility)
+    ON DUPLICATE UPDATE SET
+      type       = IFNULL(_type, type),
+      space      = IFNULL(_space, space),
+      path       = IFNULL(_path, path),
+      caption    = IFNULL(_caption, caption),
+      visibility = IFNULL(_visibility, visibility);
 END;
 
 
