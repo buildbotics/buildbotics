@@ -127,7 +127,8 @@ namespace BuildBotics {
 
     bool apiDownloadFile();
     bool apiGetFile();
-    bool apiPutFile();
+    bool apiUploadFile();
+    bool apiUpdateFile();
     bool apiDeleteFile();
     bool apiConfirmFile();
     bool apiFileUp();

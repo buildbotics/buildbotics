@@ -621,7 +621,7 @@ bool Transaction::apiGetFile() {
 }
 
 
-bool Transaction::apiPutFile() {
+bool Transaction::apiUploadFile() {
   JSON::ValuePtr args = parseArgsPtr();
   requireUser(args->getString("profile"));
 
@@ -633,12 +633,24 @@ bool Transaction::apiPutFile() {
 
   // Write post data
   path = postFile(path, file, type, size, size);
+  args->insert("path", path);
+
+  query(&Transaction::returnReply,
+        "CALL UploadFile(%(profile)s, %(thing)s, %(file)s, %(type)s, %(size)u, "
+        "%(path)s, %(caption)s, %(visibility)s", args);
+
+  return true;
+}
+
+
+bool Transaction::apiUpdateFile() {
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser(args->getString("profile"));
 
   // Write to DB
-  args->insert("path", path);
-  query(&Transaction::returnReply,
-        "CALL PutFile(%(profile)s, %(thing)s, %(file)s, %(type)s, %(size)u, "
-        "%(path)s, %(caption)s, %(display)b)", args);
+  query(&Transaction::returnOK,
+        "CALL UpdateFile(%(profile)s, %(thing)s, %(file)s, %(caption)s, "
+        "%(visibility)s, %(rename)s)", args);
 
   return true;
 }

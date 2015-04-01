@@ -138,7 +138,8 @@ void Server::init() {
   // Files
   ADD_TM(*this, HTTP_GET, FILE_URL_RE, apiDownloadFile);
   ADD_TM(api, HTTP_GET, FILE_RE, apiGetFile);
-  ADD_TM(api, HTTP_PUT, FILE_RE, apiPutFile);
+  ADD_TM(api, HTTP_POST, FILE_RE, apiUploadFile);
+  ADD_TM(api, HTTP_PUT, FILE_RE, apiUpdateFile);
   ADD_TM(api, HTTP_DELETE, FILE_RE, apiDeleteFile);
   ADD_TM(api, HTTP_PUT, FILE_RE "/confirm", apiConfirmFile);
   ADD_TM(api, HTTP_POST, FILE_RE "/up", apiFileUp);

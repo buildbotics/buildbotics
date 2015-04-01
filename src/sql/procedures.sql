@@ -636,7 +636,7 @@ BEGIN
 
   -- Files
   SELECT f.name, type, FormatTS(f.created) created, downloads, caption,
-    display, space size, GetFileURL(_owner, _name, f.name) url
+    visibility, space size, GetFileURL(_owner, _name, f.name) url
     FROM files f
     WHERE f.thing_id = _thing_id AND f.confirmed
     ORDER BY f.position, f.created;
@@ -963,7 +963,7 @@ BEGIN
 
   SET _id = (
     SELECT id FROM files
-      WHERE thing_id = _thing_id AND display
+      WHERE thing_id = _thing_id AND visibility != 'download'
       ORDER BY position, created LIMIT 1);
 
   RETURN _id;
@@ -979,27 +979,40 @@ BEGIN
 END;
 
 
-CREATE PROCEDURE PutFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+CREATE PROCEDURE UploadFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _name VARCHAR(256), IN _type VARCHAR(64),
   IN _space INT, IN _path VARCHAR(256), IN _caption VARCHAR(256),
-  IN _display BOOL)
+  IN _visibility VARCHAR(8))
 BEGIN
   SET _thing = GetThingID(_owner, _thing);
 
   INSERT INTO files
-    (thing_id, name, type, space, path, caption, display)
-    VALUES (_thing, _name, _type, _space, _path, _caption, _display)
-    ON DUPLICATE KEY UPDATE
-      path    = IFNULL(_path, path),
-      caption = IFNULL(_caption, caption),
-      display = IFNULL(_display, display);
+    (thing_id, name, type, space, path, caption, visibility)
+    VALUES (_thing, _name, _type, _space, _path, _caption, _visibility);
+END;
+
+
+CREATE PROCEDURE UpdateFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
+  IN _name VARCHAR(256), IN _caption VARCHAR(256),
+  IN _visibility VARCHAR(8), IN _rename VARCHAR(256))
+BEGIN
+  SET _thing = GetThingID(_owner, _thing);
+
+  UPDATE files
+    SET
+      name       = IFNULL(_rename, name),
+      caption    = IFNULL(_caption, caption),
+      visibility = IFNULL(_visibility, visibility)
+    WHERE
+      thing_id = _thing AND
+      name = _name;
 END;
 
 
 CREATE PROCEDURE GetFile(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _name VARCHAR(256))
 BEGIN
-  SELECT f.name, type, space, path, caption, display,
+  SELECT f.name, type, space, path, caption, visibility,
     FormatTS(f.created) created, downloads, f.position position FROM files f
     WHERE f.thing_id = GetThingID(_owner, _thing) AND f.name = _name;
 END;
