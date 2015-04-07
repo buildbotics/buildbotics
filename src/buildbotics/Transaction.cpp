@@ -98,14 +98,14 @@ bool Transaction::lookupUser(bool skipAuthCheck) {
   // Check if we have a user and it's not expired
   if (user.isNull() || user->hasExpired()) {
     user.release();
-    setCookie(app.getSessionCookieName(), "", "", "/");
+    clearAuthCookie();
     return false;
   }
 
   // Check if the user auth is expiring soon
   if (user->isExpiring()) {
     app.getUserManager().updateSession(user);
-    user->setCookie(*this);
+    setAuthCookie();
   }
 
   LOG_DEBUG(3, "User: " << user->getName());
@@ -129,6 +129,17 @@ void Transaction::requireUser(const string &name) {
 
 bool Transaction::isUser(const string &name) {
   return !user.isNull() && user->getName() == name;
+}
+
+
+void Transaction::setAuthCookie() {
+  string session = user->getSession();
+  setCookie(app.getSessionCookieName(), session, "", "/");
+}
+
+
+void Transaction::clearAuthCookie(uint64_t expires) {
+  setCookie(app.getSessionCookieName(), "", "", "/", expires);
 }
 
 
@@ -270,7 +281,7 @@ bool Transaction::apiAuthLogin() {
   }
 
   // Set session cookie
-  if (!uri.has("state")) user->setCookie(*this);
+  if (!uri.has("state")) setAuthCookie();
 
   OAuth2 *auth;
   string path = getURI().getPath();
@@ -287,7 +298,7 @@ bool Transaction::apiAuthLogin() {
 
 
 bool Transaction::apiAuthLogout() {
-  setCookie(app.getSessionCookieName(), "", "", "/", 1);
+  clearAuthCookie(1);
   getJSONWriter()->write("ok");
   setContentType("application/json");
   reply();
@@ -790,6 +801,7 @@ void Transaction::download(MariaDB::EventDBCallback::state_t state) {
     break;
 
   case MariaDB::EventDBCallback::EVENTDB_DONE:
+    setCache(Time::SEC_PER_HOUR);
     redirect(redirectTo);
     break;
 
@@ -844,7 +856,7 @@ void Transaction::authUser(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_ERROR:
     // Not really logged in, clear cookie
-    setCookie(app.getSessionCookieName(), "", "", "/");
+    clearAuthCookie();
 
     // Fall through
 
@@ -866,7 +878,7 @@ void Transaction::login(MariaDB::EventDBCallback::state_t state) {
 
   case MariaDB::EventDBCallback::EVENTDB_DONE:
     app.getUserManager().updateSession(user);
-    user->setCookie(*this);
+    setAuthCookie();
 
     getJSONWriter()->write("ok");
     setContentType("application/json");
@@ -883,7 +895,7 @@ void Transaction::registration(MariaDB::EventDBCallback::state_t state) {
   case MariaDB::EventDBCallback::EVENTDB_DONE:
     user->setName(getArg("profile"));
     app.getUserManager().updateSession(user);
-    user->setCookie(*this);
+    setAuthCookie();
     // Fall through
 
   default: returnOK(state); return;

@@ -80,8 +80,6 @@ namespace BuildBotics {
 
     bool isAuthenticated() const {return !provider.empty() && !id.empty();}
     void authenticate(const std::string &provider, const std::string &id);
-
-    void setCookie(cb::Event::Request &req) const;
   };
 }
 

@@ -126,8 +126,3 @@ void User::authenticate(const string &provider, const string &id) {
   this->provider = provider;
   this->id = id;
 }
-
-
-void User::setCookie(Event::Request &req) const {
-  req.setCookie(app.getSessionCookieName(), getSession(), "", "/");
-}

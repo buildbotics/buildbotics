@@ -74,6 +74,9 @@ namespace BuildBotics {
     void requireUser(const std::string &name);
     bool isUser(const std::string &name);
 
+    void setAuthCookie();
+    void clearAuthCookie(uint64_t expires = 0);
+
     typedef typename cb::MariaDB::EventDBMemberFunctor<Transaction>::member_t
     event_db_member_functor_t;
     void query(event_db_member_functor_t member, const std::string &s,
