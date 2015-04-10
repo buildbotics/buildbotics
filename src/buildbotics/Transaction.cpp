@@ -246,7 +246,7 @@ void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
       return;
     } CATCH_ERROR;
 
-  redirect("/");
+  redirect("/dashboard");
 }
 
 
@@ -276,7 +276,7 @@ bool Transaction::apiAuthLogin() {
   lookupUser(true);
   if (user.isNull()) user = app.getUserManager().create();
   if (user->isAuthenticated()) {
-    redirect("/");
+    redirect("/dashboard");
     return true;
   }
 
@@ -770,7 +770,8 @@ bool Transaction::apiGetLicenses() {
 bool Transaction::apiGetEvents() {
   JSON::ValuePtr args = parseArgsPtr();
   query(&Transaction::returnList, "CALL GetEvents(%(subject)s, %(action)s, "
-        "%(object_type)s, %(object)s, %(owner)s, %(since)s, %(limit)u)", args);
+        "%(object_type)s, %(object)s, %(owner)s, %(following)b, %(since)s, "
+        "%(limit)u)", args);
   return true;
 }
 
@@ -882,7 +883,7 @@ void Transaction::login(MariaDB::EventDBCallback::state_t state) {
 
     getJSONWriter()->write("ok");
     setContentType("application/json");
-    redirect("/");
+    redirect("/dashboard");
     break;
 
   default: returnReply(state); return;

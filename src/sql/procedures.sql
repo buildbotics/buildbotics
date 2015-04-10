@@ -328,8 +328,8 @@ BEGIN
   CALL GetFollowingByID(_profile_id);
   CALL GetStarredThingsByID(_profile_id);
   CALL GetBadgesByID(_profile_id);
-  CALL GetEventsByID(_profile_id, null, null, null, now() - INTERVAL 1 month,
-    null);
+  CALL GetEventsByID(_profile_id, null, null, null, false,
+    now() - INTERVAL 1 month, null);
 END;
 
 
@@ -1274,11 +1274,15 @@ END;
 
 
 CREATE PROCEDURE GetEventsByID(IN _subject_id INT, IN _action VARCHAR(16),
-  IN _object_type VARCHAR(16), IN _object_id INT, IN _since TIMESTAMP,
-  IN _limit INT)
+  IN _object_type VARCHAR(16), IN _object_id INT, IN _following BOOLEAN,
+  IN _since TIMESTAMP, IN _limit INT)
 BEGIN
   IF _limit IS null THEN
     SET _limit = 100;
+  END IF;
+
+  IF _following IS null THEN
+    SET _following = false;
   END IF;
 
   SELECT FormatTS(e.ts) ts, s.name subject, e.action, e.object_type,
@@ -1305,13 +1309,15 @@ BEGIN
     LEFT JOIN badges b    ON e.object_type = 'badge'   AND b.id = e.object_id
 
     WHERE
-      (_subject_id  IS null OR e.subject_id = _subject_id) AND
+      (_subject_id IS null OR e.subject_id = _subject_id OR
+       (_following AND e.subject_id IN (SELECT followed_id FROM followers
+          WHERE follower_id = _subject_id))) AND
       (_action      IS null OR FIND_IN_SET(e.action, _action)) AND
       (_object_type IS null OR e.object_type = _object_type) AND
-      (_object_id   IS null OR e.object_id  = _object_id ) AND
-      (_since       IS null OR _since      <= e.ts)
+      (_object_id   IS null OR e.object_id   = _object_id) AND
+      (_since       IS null OR _since       <= e.ts)
 
-    ORDER BY e.ts DESC
+    ORDER BY e.id DESC
 
     LIMIT _limit;
 END;
@@ -1319,7 +1325,7 @@ END;
 
 CREATE PROCEDURE GetEvents(IN _subject VARCHAR(64), IN _action VARCHAR(16),
   IN _object_type VARCHAR(16), IN _object VARCHAR(64), IN _owner VARCHAR(64),
-  IN _since TIMESTAMP, IN _limit INT)
+  IN _following BOOLEAN, IN _since TIMESTAMP, IN _limit INT)
 BEGIN
   DECLARE _subject_id INT;
   DECLARE _object_id INT;
@@ -1375,8 +1381,8 @@ BEGIN
       SET MESSAGE_TEXT = @message_text;
   END IF;
 
-  CALL GetEventsByID(_subject_id, _action, _object_type, _object_id, _since,
-    _limit);
+  CALL GetEventsByID(_subject_id, _action, _object_type, _object_id, _following,
+    _since, _limit);
 END;
 
 
