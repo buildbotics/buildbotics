@@ -32,7 +32,7 @@
 #include "AWS4Signature.h"
 
 #include <cbang/String.h>
-#include <cbang/security/Digest.h>
+#include <cbang/openssl/Digest.h>
 
 #include <cctype>
 

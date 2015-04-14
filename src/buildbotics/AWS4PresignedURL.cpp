@@ -31,7 +31,7 @@
 
 #include "AWS4PresignedURL.h"
 
-#include <cbang/security/Digest.h>
+#include <cbang/openssl/Digest.h>
 
 using namespace std;
 using namespace cb;

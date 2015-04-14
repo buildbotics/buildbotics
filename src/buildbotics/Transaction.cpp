@@ -43,7 +43,7 @@
 #include <cbang/util/DefaultCatch.h>
 #include <cbang/db/maria/EventDB.h>
 #include <cbang/time/Timer.h>
-#include <cbang/security/Digest.h>
+#include <cbang/openssl/Digest.h>
 #include <cbang/net/URI.h>
 #include <cbang/io/StringInputSource.h>
 #include <cbang/os/SystemUtilities.h>

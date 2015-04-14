@@ -37,7 +37,7 @@
 
 #include <cbang/Application.h>
 #include <cbang/net/IPAddress.h>
-#include <cbang/security/KeyPair.h>
+#include <cbang/openssl/KeyPair.h>
 #include <cbang/db/maria/EventDBCallback.h>
 
 #include <cbang/auth/GoogleOAuth2.h>

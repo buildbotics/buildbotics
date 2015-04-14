@@ -35,7 +35,7 @@
 
 #include <cbang/os/SystemUtilities.h>
 
-#include <cbang/security/SSLContext.h>
+#include <cbang/openssl/SSLContext.h>
 #include <cbang/time/Timer.h>
 #include <cbang/time/Time.h>
 #include <cbang/log/Logger.h>

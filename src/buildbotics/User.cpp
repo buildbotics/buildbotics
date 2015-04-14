@@ -37,8 +37,8 @@
 
 #include <cbang/String.h>
 #include <cbang/time/Time.h>
-#include <cbang/security/KeyContext.h>
-#include <cbang/security/KeyPair.h>
+#include <cbang/openssl/KeyContext.h>
+#include <cbang/openssl/KeyPair.h>
 #include <cbang/net/Base64.h>
 #include <cbang/io/StringInputSource.h>
 #include <cbang/log/Logger.h>

@@ -35,7 +35,7 @@
 #include "HTTPRE2Matcher.h"
 #include "HTTPHandlerFactory.h"
 
-#include <cbang/security/SSLContext.h>
+#include <cbang/openssl/SSLContext.h>
 
 #include <cbang/event/Request.h>
 #include <cbang/event/PendingRequest.h>
