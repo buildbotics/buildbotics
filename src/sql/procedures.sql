@@ -806,9 +806,10 @@ BEGIN
         SELECT thing_id FROM thing_tags
           LEFT JOIN tags ON thing_tags.tag_id = tags.id
           WHERE tags.name = _tag
-      )
 
-    ORDER BY (t.published IS NULL), t.stars DESC, t.created DESC;
+      ) AND t.published IS NOT NULL
+
+    ORDER BY t.stars DESC, t.created DESC;
 
   SET SQL_SELECT_LIMIT = DEFAULT;
 END;
@@ -1242,12 +1243,13 @@ BEGIN
       INNER JOIN profiles p ON t.owner_id = p.id
 
     WHERE
-      (_license IS null OR t.license = _license)
+      (_license IS null OR t.license = _license) AND
+      t.published IS NOT NULL
 
     HAVING
       (_query IS null OR 0 < score)
 
-    ORDER BY (t.published IS NULL), score DESC, t.stars DESC, t.created DESC;
+    ORDER BY score DESC, t.stars DESC, t.created DESC;
 
   SET SQL_SELECT_LIMIT = DEFAULT;
 END;
