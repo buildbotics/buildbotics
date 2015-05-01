@@ -42,10 +42,12 @@ namespace BuildBotics {
     unsigned methods;
     bool matchAll;
     RE2 regex;
+    std::string replace;
     cb::SmartPointer<cb::Event::HTTPHandler> child;
 
   public:
-    HTTPRE2Matcher(unsigned methods, const std::string &pattern,
+    HTTPRE2Matcher(unsigned methods, const std::string &search,
+                   const std::string &replace,
                    const cb::SmartPointer<cb::Event::HTTPHandler> &child);
 
     // From cb::Event::HTTPHandler

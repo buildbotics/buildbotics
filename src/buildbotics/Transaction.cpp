@@ -246,7 +246,7 @@ void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
       return;
     } CATCH_ERROR;
 
-  redirect("/dashboard");
+  redirect("/");
 }
 
 
@@ -276,7 +276,7 @@ bool Transaction::apiAuthLogin() {
   lookupUser(true);
   if (user.isNull()) user = app.getUserManager().create();
   if (user->isAuthenticated()) {
-    redirect("/dashboard");
+    redirect("/");
     return true;
   }
 
@@ -366,12 +366,10 @@ bool Transaction::apiPutProfile() {
 bool Transaction::apiGetProfile() {
   lookupUser();
   JSON::ValuePtr args = parseArgsPtr();
-  args->insertBoolean("unpublished", isUser(args->getString("profile")));
 
   jsonFields = "*profile things followers following starred badges events";
 
-  query(&Transaction::returnJSONFields,
-        "CALL GetProfile(%(profile)s, %(unpublished)b)", args);
+  query(&Transaction::returnJSONFields, "CALL GetProfile(%(profile)s)", args);
 
   return true;
 }
@@ -467,8 +465,6 @@ bool Transaction::apiGetThing() {
   lookupUser();
   JSON::ValuePtr args = parseArgsPtr();
 
-  args->insertBoolean("unpublished", isUser(args->getString("profile")));
-
   string userID;
   if (user.isNull()) {
     if (inHas("X-Real-IP")) userID = inGet("X-Real-IP");
@@ -481,8 +477,7 @@ bool Transaction::apiGetThing() {
   jsonFields = "*thing files comments stars";
 
   query(&Transaction::returnJSONFields,
-        "CALL GetThing(%(profile)s, %(thing)s, %(user)s, %(unpublished)b)",
-        args);
+        "CALL GetThing(%(profile)s, %(thing)s, %(user)s)", args);
 
   return true;
 }
@@ -625,11 +620,6 @@ bool Transaction::apiDownloadFile() {
         "CALL DownloadFile(%(profile)s, %(thing)s, %(file)s, %(count)b)", args);
 
   return true;
-}
-
-
-bool Transaction::apiGetFile() {
-  THROW("Not yet implemented");
 }
 
 
@@ -782,6 +772,12 @@ bool Transaction::apiNotFound() {
 }
 
 
+bool Transaction::notFound() {
+  apiError(HTTP_NOT_FOUND, "Not found " + getURI().getPath());
+  return true;
+}
+
+
 string Transaction::nextJSONField() {
   if (!jsonFields) return "";
 
@@ -883,7 +879,7 @@ void Transaction::login(MariaDB::EventDBCallback::state_t state) {
 
     getJSONWriter()->write("ok");
     setContentType("application/json");
-    redirect("/dashboard");
+    redirect("/");
     break;
 
   default: returnReply(state); return;

@@ -129,7 +129,6 @@ namespace BuildBotics {
     bool apiDeleteComment();
 
     bool apiDownloadFile();
-    bool apiGetFile();
     bool apiUploadFile();
     bool apiUpdateFile();
     bool apiDeleteFile();
@@ -147,6 +146,7 @@ namespace BuildBotics {
     bool apiGetEvents();
 
     bool apiNotFound();
+    bool notFound();
 
     // MariaDB::EventDB callbacks
     std::string nextJSONField();

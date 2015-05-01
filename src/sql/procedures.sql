@@ -306,12 +306,12 @@ BEGIN
   IF found IS null THEN
     SELECT name, avatar;
   ELSE
-    CALL GetProfileByID(profile_id, true);
+    CALL GetProfileByID(profile_id);
   END IF;
 END;
 
 
-CREATE PROCEDURE GetProfileByID(IN _profile_id INT, IN _unpublished BOOL)
+CREATE PROCEDURE GetProfileByID(IN _profile_id INT)
 BEGIN
   SELECT name, FormatTS(joined) joined, FormatTS(lastseen) lastseen, fullname,
     location, url, bio, points, followers, following, stars, badges
@@ -323,7 +323,7 @@ BEGIN
       SET MESSAGE_TEXT = 'Profile not found';
   END IF;
 
-  CALL GetThingsByID(_profile_id, null, null, _unpublished, null);
+  CALL GetThingsByID(_profile_id, null, null);
   CALL GetFollowersByID(_profile_id);
   CALL GetFollowingByID(_profile_id);
   CALL GetStarredThingsByID(_profile_id);
@@ -333,10 +333,10 @@ BEGIN
 END;
 
 
-CREATE PROCEDURE GetProfile(IN _profile VARCHAR(64), IN _unpublished BOOL)
+CREATE PROCEDURE GetProfile(IN _profile VARCHAR(64))
 BEGIN
   SET _profile = GetProfileID(_profile);
-  CALL GetProfileByID(_profile, _unpublished);
+  CALL GetProfileByID(_profile);
 END;
 
 
@@ -426,14 +426,16 @@ END;
 CREATE PROCEDURE GetStarredThingsByID(IN _profile_id INT)
 BEGIN
   -- Keep in sync with GetThingsByID()
-  SELECT t.name, p.name owner, t.type, t.title, t.comments, t.stars,
-    t.children, t.views, GetFileURL(p.name, t.name, f.name) image,
+  SELECT t.name, p.name owner, p.points owner_points, t.type, t.title,
+    t.comments, t.stars, t.children, t.views,
+    GetFileURL(p.name, t.name, f.name) image,
     IF(t.published IS null, null, FormatTS(t.published)) published
     FROM things t
     LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
     INNER JOIN stars s ON t.id = s.thing_id
     INNER JOIN profiles p ON owner_id = p.id
-    WHERE s.profile_id = _profile_id;
+    WHERE s.profile_id = _profile_id
+    ORDER BY s.created DESC;
 END;
 
 
@@ -445,7 +447,7 @@ END;
 
 CREATE PROCEDURE GetThingStarsByID(IN _thing_id INT)
 BEGIN
-    SELECT p.name FROM stars s
+    SELECT p.name, p.points FROM stars s
       INNER JOIN profiles p ON p.id = profile_id
       WHERE s.thing_id = _thing_id
       ORDER BY s.created;
@@ -560,29 +562,26 @@ END;
 
 
 CREATE PROCEDURE GetThingsByID(IN _owner_id INT, IN _name VARCHAR(64),
-  IN _type CHAR(8), IN _unpublished BOOL, IN _owner VARCHAR(64))
+  IN _type CHAR(8))
 BEGIN
-  IF _owner IS null THEN
-    SELECT name FROM profiles WHERE id = _owner_id INTO _owner;
-  END IF;
-
-  SELECT t.name, _owner owner, t.type, title,
+  SELECT t.name, p.name owner, p.points owner_points, t.type, title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
-    FormatTS(t.created) created, FormatTS(t.modified) modified, comments, stars,
-    children, views, GetFileURL(_owner, t.name, f.name) image
+    FormatTS(t.created) created, FormatTS(t.modified) modified, comments,
+    t.stars, children, views, GetFileURL(p.name, t.name, f.name) image
     FROM things t
+    LEFT JOIN profiles p ON p.id = _owner_id
     LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
     WHERE owner_id = _owner_id AND
       (_name IS null OR t.name = _name) AND
-      (_type IS null OR t.type = _type) AND
-      (_unpublished OR t.published IS NOT NULL);
+      (_type IS null OR t.type = _type)
+    ORDER BY t.created DESC;
 END;
 
 
 CREATE PROCEDURE GetThings(IN _owner VARCHAR(64), IN _name VARCHAR(64),
-  IN _type CHAR(8), IN _unpublished BOOL)
+  IN _type CHAR(8))
 BEGIN
-  CALL GetThingsByID(GetProfileID(_owner), _name, _type, _unpublished, _owner);
+  CALL GetThingsByID(GetProfileID(_owner), _name, _type);
 END;
 
 
@@ -600,7 +599,7 @@ END;
 
 
 CREATE PROCEDURE GetThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
-  IN _user VARCHAR(64), IN _unpublished BOOL)
+  IN _user VARCHAR(64))
 BEGIN
   DECLARE _owner_id INT;
   DECLARE _thing_id INT;
@@ -608,13 +607,18 @@ BEGIN
   SET _owner_id = GetProfileID(_owner);
   SET _thing_id = GetThingIDByID(_owner_id, _name);
 
+  IF _owner_id IS null OR _thing_id IS null THEN
+    SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
+     SET MESSAGE_TEXT = 'Thing not found';
+  END IF;
+
   -- Views
   INSERT INTO thing_views (thing_id, user)
     VALUES (_thing_id, _user)
     ON DUPLICATE KEY UPDATE thing_id = thing_id;
 
   -- Thing
-  SELECT t.name, _owner owner, t.type, t.title,
+  SELECT t.name, _owner owner, o.points owner_points, t.type, t.title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified,
     t.url, t.tags, t.instructions, t.comments, t.stars, t.children, t.views,
@@ -624,10 +628,10 @@ BEGIN
 
     LEFT JOIN things parent ON parent.id = t.parent_id
     LEFT JOIN profiles p ON p.id = parent.owner_id
+    LEFT JOIN profiles o ON o.id = _owner_id
     LEFT JOIN licenses l ON l.name = t.license
 
-    WHERE t.owner_id = _owner_id AND t.name = _name AND
-      (_unpublished OR t.published IS NOT NULL);
+    WHERE t.owner_id = _owner_id AND t.name = _name;
 
   IF FOUND_ROWS() != 1 THEN
     SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
@@ -787,7 +791,7 @@ BEGIN
 
   SET SQL_SELECT_LIMIT = _limit;
 
-  SELECT t.name, p.name owner, t.type, t.title,
+  SELECT t.name, p.name owner, p.points owner_points, t.type, t.title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified,
     t.comments, t.stars, t.children, t.views,
@@ -802,10 +806,9 @@ BEGIN
         SELECT thing_id FROM thing_tags
           LEFT JOIN tags ON thing_tags.tag_id = tags.id
           WHERE tags.name = _tag
-      ) AND
-      t.published IS NOT NULL
+      )
 
-    ORDER BY t.stars DESC, t.created DESC;
+    ORDER BY (t.published IS NULL), t.stars DESC, t.created DESC;
 
   SET SQL_SELECT_LIMIT = DEFAULT;
 END;
@@ -917,7 +920,7 @@ END;
 -- Comments
 CREATE PROCEDURE GetCommentsByID(IN _thing_id INT)
 BEGIN
-    SELECT c.id comment, p.name owner, ref,
+    SELECT c.id comment, p.name owner, p.points owner_points, ref,
       FormatTS(c.created) created, FormatTS(c.modified) modified, c.text
       FROM comments c
       LEFT JOIN profiles p ON p.id = owner_id
@@ -1226,7 +1229,7 @@ BEGIN
   SET SQL_SELECT_LIMIT = _limit;
 
   -- Select
-  SELECT t.name, p.name owner, t.type, t.title,
+  SELECT t.name, p.name owner, p.points owner_points, t.type, t.title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified,
     t.comments, t.stars, t.children, t.views,
@@ -1239,13 +1242,12 @@ BEGIN
       INNER JOIN profiles p ON t.owner_id = p.id
 
     WHERE
-      t.published IS NOT NULL AND
       (_license IS null OR t.license = _license)
 
     HAVING
       (_query IS null OR 0 < score)
 
-    ORDER BY score DESC, t.stars DESC, t.created DESC;
+    ORDER BY (t.published IS NULL), score DESC, t.stars DESC, t.created DESC;
 
   SET SQL_SELECT_LIMIT = DEFAULT;
 END;

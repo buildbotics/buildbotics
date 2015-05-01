@@ -33,7 +33,6 @@
 #include "App.h"
 #include "Transaction.h"
 #include "HTTPRE2Matcher.h"
-#include "HTTPHandlerFactory.h"
 
 #include <cbang/openssl/SSLContext.h>
 
@@ -41,6 +40,8 @@
 #include <cbang/event/PendingRequest.h>
 #include <cbang/event/Buffer.h>
 #include <cbang/event/RedirectSecure.h>
+#include <cbang/event/ResourceHTTPHandler.h>
+#include <cbang/event/FileHandler.h>
 
 #include <cbang/config/Options.h>
 #include <cbang/util/Resource.h>
@@ -59,7 +60,7 @@ namespace BuildBotics {
 
 Server::Server(App &app) :
   Event::WebServer(app.getOptions(), app.getEventBase(), new SSLContext,
-                   new HTTPHandlerFactory),
+                   SmartPointer<HTTPHandlerFactory>::Null(this)),
   app(app) {
 }
 
@@ -73,12 +74,15 @@ void Server::init() {
   // Force /api/auth/.* secure
   if (getNumSecureListenPorts()) {
     uint32_t port = getSecureListenPort(0).getPort();
-    api.addHandler(HTTP_ANY, "/api/auth/.*", new Event::RedirectSecure(port));
+    api.addHandler(HTTP_ANY, "/auth/.*", new Event::RedirectSecure(port));
   }
 
 #define ADD_TM(GROUP, METHODS, PATTERN, FUNC)                           \
   (GROUP).addMember<Transaction>(METHODS, PATTERN, &Transaction::FUNC)
 
+#define DIRNAME "([^/]*/)*"
+#define WITH_EXT "^" DIRNAME "[^/.]*\\..*$"
+#define WITHOUT_EXT "^" DIRNAME "[^/.]*$"
 #define NAME_RE "[\\w_.]+"
 #define FILENAME_RE "[^/]+"
 #define TAG_RE "[\\w. -]+"
@@ -92,7 +96,7 @@ void Server::init() {
 #define THING_TAGS_RE THING_RE "/tags/(?P<tags>" TAG_RE "(," TAG_RE ")*)"
 #define TAGS_RE "/api/tags"
 #define TAG_PATH_RE TAGS_RE "/(?P<tag>" TAG_RE ")"
-#define FILE_URL_RE \
+#define FILE_URL_RE                                                     \
   "/(?P<profile>" NAME_RE ")/(?P<thing>" NAME_RE ")/(?P<file>" FILENAME_RE ")"
 
   // Auth
@@ -136,8 +140,6 @@ void Server::init() {
   ADD_TM(api, HTTP_DELETE, COMMENT_RE, apiDeleteComment);
 
   // Files
-  ADD_TM(*this, HTTP_GET, FILE_URL_RE, apiDownloadFile);
-  ADD_TM(api, HTTP_GET, FILE_RE, apiGetFile);
   ADD_TM(api, HTTP_POST, FILE_RE, apiUploadFile);
   ADD_TM(api, HTTP_PUT, FILE_RE, apiUpdateFile);
   ADD_TM(api, HTTP_DELETE, FILE_RE, apiDeleteFile);
@@ -157,11 +159,20 @@ void Server::init() {
   // Events
   ADD_TM(api, HTTP_GET, "/api/events", apiGetEvents);
 
-  // Not found
+  // API not found
   ADD_TM(api, HTTP_ANY, "", apiNotFound);
 
-  if (app.getOptions()["document-root"].hasValue()) {
-    string root = app.getOptions()["document-root"];
+  // Docs
+  HTTPHandlerGroup &docs = *addGroup(HTTP_ANY, "/docs(/.*)", "\\1");
+  docs.addHandler(app.getOptions()["docs-root"]);
+  docs.addMember<Transaction>(HTTP_ANY, ".*\\..*", &Transaction::notFound);
+
+  // Download files
+  ADD_TM(*this, HTTP_GET, FILE_URL_RE, apiDownloadFile);
+
+  // Root
+  if (app.getOptions()["http-root"].hasValue()) {
+    string root = app.getOptions()["http-root"];
 
     addHandler(root);
     addHandler(root + "/index.html");
@@ -173,12 +184,24 @@ void Server::init() {
 }
 
 
-void Server::addHandler(unsigned methods, const string &pattern,
-                        const SmartPointer<HTTPHandler> &handler) {
-  addHandler(new HTTPRE2Matcher(methods, pattern, handler));
+Event::Request *Server::createRequest(evhttp_request *req) {
+  return new Transaction(app, req);
 }
 
 
-Event::Request *Server::createRequest(evhttp_request *req) {
-  return new Transaction(app, req);
+SmartPointer<Event::HTTPHandler>
+Server::createMatcher(unsigned methods, const string &search,
+                      const string &replace,
+                      const SmartPointer<Event::HTTPHandler> &child) {
+  return new HTTPRE2Matcher(methods, search, replace, child);
+}
+
+
+SmartPointer<Event::HTTPHandler> Server::createHandler(const Resource &res) {
+  return new Event::ResourceHTTPHandler(res);
+}
+
+
+SmartPointer<Event::HTTPHandler> Server::createHandler(const string &path) {
+  return new Event::FileHandler(path);
 }
