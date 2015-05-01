@@ -152,12 +152,51 @@ BEGIN
   UPDATE things SET comments = comments + 1 WHERE id = NEW.thing_id;
 END;
 
+DROP TRIGGER IF EXISTS UpdateComments;
+CREATE TRIGGER UpdateComments AFTER UPDATE ON comments
+FOR EACH ROW
+BEGIN
+  -- Profile points
+  IF NEW.votes != OLD.votes THEN
+    UPDATE profiles
+      SET points = points - OLD.votes + NEW.votes
+      WHERE id = NEW.owner_id;
+  END IF;
+END;
+
 DROP TRIGGER IF EXISTS DeleteComments;
 CREATE TRIGGER DeleteComments AFTER DELETE ON comments
 FOR EACH ROW
 BEGIN
+  -- Profile points
+  IF OLD.votes THEN
+    UPDATE profiles
+      SET points = points - OLD.votes
+      WHERE id = OLD.owner_id;
+  END IF;
+
   -- Dec thing comments
   UPDATE things SET comments = comments - 1 WHERE id = OLD.thing_id;
+END;
+
+
+-- Comment votes
+DROP TRIGGER IF EXISTS InsertCommentVotes;
+CREATE TRIGGER InsertCommentVotes AFTER INSERT ON comment_votes
+FOR EACH ROW
+BEGIN
+  -- Comment votes
+  UPDATE comments SET votes = votes + NEW.vote
+    WHERE id = NEW.comment_id;
+END;
+
+DROP TRIGGER IF EXISTS UpdateCommentVotes;
+CREATE TRIGGER UpdateCommentVotes AFTER UPDATE ON comment_votes
+FOR EACH ROW
+BEGIN
+  -- Comment votes
+  UPDATE comments SET votes = votes - OLD.vote + NEW.vote
+    WHERE id = NEW.comment_id;
 END;
 
 

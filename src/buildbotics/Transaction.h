@@ -127,6 +127,8 @@ namespace BuildBotics {
     bool apiPostComment();
     bool apiUpdateComment();
     bool apiDeleteComment();
+    bool apiUpvoteComment();
+    bool apiDownvoteComment();
 
     bool apiDownloadFile();
     bool apiUploadFile();
@@ -159,6 +161,7 @@ namespace BuildBotics {
     void returnList(cb::MariaDB::EventDBCallback::state_t state);
     void returnBool(cb::MariaDB::EventDBCallback::state_t state);
     void returnU64(cb::MariaDB::EventDBCallback::state_t state);
+    void returnS64(cb::MariaDB::EventDBCallback::state_t state);
     void returnJSON(cb::MariaDB::EventDBCallback::state_t state);
     void returnJSONFields(cb::MariaDB::EventDBCallback::state_t state);
     void returnReply(cb::MariaDB::EventDBCallback::state_t state);

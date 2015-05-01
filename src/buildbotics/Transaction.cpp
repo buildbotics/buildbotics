@@ -613,6 +613,30 @@ bool Transaction::apiDeleteComment() {
 }
 
 
+bool Transaction::apiUpvoteComment() {
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser();
+  args->insert("owner", user->getName());
+
+  query(&Transaction::returnOK, "CALL UpvoteComment(%(owner)s, %(comment)u)",
+        args);
+
+  return true;
+}
+
+
+bool Transaction::apiDownvoteComment() {
+  JSON::ValuePtr args = parseArgsPtr();
+  requireUser();
+  args->insert("owner", user->getName());
+
+  query(&Transaction::returnOK, "CALL DownvoteComment(%(owner)s, %(comment)u)",
+        args);
+
+  return true;
+}
+
+
 bool Transaction::apiDownloadFile() {
   JSON::ValuePtr args = parseArgsPtr();
 
@@ -954,6 +978,17 @@ void Transaction::returnU64(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_ROW:
     writer->write(db->getU64(0));
+    break;
+
+  default: return returnJSON(state);
+  }
+}
+
+
+void Transaction::returnS64(MariaDB::EventDBCallback::state_t state) {
+  switch (state) {
+  case MariaDB::EventDBCallback::EVENTDB_ROW:
+    writer->write(db->getS64(0));
     break;
 
   default: return returnJSON(state);

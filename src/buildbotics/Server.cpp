@@ -138,6 +138,8 @@ void Server::init() {
   ADD_TM(api, HTTP_POST, COMMENTS_RE, apiPostComment);
   ADD_TM(api, HTTP_PUT, COMMENT_RE, apiUpdateComment);
   ADD_TM(api, HTTP_DELETE, COMMENT_RE, apiDeleteComment);
+  ADD_TM(api, HTTP_PUT, COMMENT_RE "/up", apiUpvoteComment);
+  ADD_TM(api, HTTP_PUT, COMMENT_RE "/down", apiDownvoteComment);
 
   // Files
   ADD_TM(api, HTTP_POST, FILE_RE, apiUploadFile);

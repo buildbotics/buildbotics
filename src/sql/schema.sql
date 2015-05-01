@@ -296,12 +296,24 @@ CREATE TABLE IF NOT EXISTS comments (
   `modified`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ref`       INT,
   `text`      TEXT,
+  `votes`     INT NOT NULL DEFAULT 0,
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`text`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`thing_id`) REFERENCES things(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`ref`) REFERENCES comments(`id`) ON DELETE SET NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS comment_votes (
+  comment_id INT NOT NULL,
+  profile_id INT NOT NULL,
+  vote TINYINT NOT NULL,
+
+  UNIQUE (comment_id, profile_id),
+  FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+  FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
 
 

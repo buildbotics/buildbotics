@@ -922,11 +922,12 @@ END;
 CREATE PROCEDURE GetCommentsByID(IN _thing_id INT)
 BEGIN
     SELECT c.id comment, p.name owner, p.points owner_points, ref,
-      FormatTS(c.created) created, FormatTS(c.modified) modified, c.text
+      FormatTS(c.created) created, FormatTS(c.modified) modified, c.text,
+      c.votes
       FROM comments c
       LEFT JOIN profiles p ON p.id = owner_id
       WHERE c.thing_id = _thing_id
-      ORDER BY c.created;
+      ORDER BY c.votes DESC, c.created DESC;
 END;
 
 
@@ -938,6 +939,8 @@ BEGIN
       _text);
 
   SELECT LAST_INSERT_ID() id;
+
+  CALL UpvoteComment(_owner, id);
 END;
 
 
@@ -954,6 +957,38 @@ CREATE PROCEDURE DeleteComment(IN _owner VARCHAR(64), IN _comment INT)
 BEGIN
   DELETE FROM comments
     WHERE id = _comment AND owner_id = GetProfileID(_owner);
+END;
+
+
+CREATE PROCEDURE UpvoteComment(IN _owner VARCHAR(64), IN _comment INT)
+BEGIN
+  SET _owner = GetProfileID(_owner);
+
+  INSERT INTO comment_votes
+    VALUES (_comment, _owner, 1)
+    ON DUPLICATE KEY UPDATE vote = LEAST(1, vote + 1);
+
+  -- Error if duplicate
+  IF ROW_COUNT() = 0 THEN
+    SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+      SET MESSAGE_TEXT = 'Comment already upvoted by user.';
+  END IF;
+END;
+
+
+CREATE PROCEDURE DownvoteComment(IN _owner VARCHAR(64), IN _comment INT)
+BEGIN
+  SET _owner = GetProfileID(_owner);
+
+  INSERT INTO comment_votes
+    VALUES (_comment, _owner, -1)
+    ON DUPLICATE KEY UPDATE vote = GREATEST(-1, vote - 1);
+
+  -- Error if duplicate
+  IF ROW_COUNT() = 0 THEN
+    SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
+      SET MESSAGE_TEXT = 'Comment already downvoted by user.';
+  END IF;
 END;
 
 
