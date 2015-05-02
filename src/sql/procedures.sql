@@ -380,7 +380,8 @@ BEGIN
   SELECT name, points, followers, badges, FormatTS(joined) joined
     FROM profiles
     INNER JOIN followers f ON id = f.followed_id
-    WHERE f.follower_id = _profile_id;
+    WHERE f.follower_id = _profile_id
+    ORDER BY f.created DESC;
 END;
 
 
@@ -395,7 +396,8 @@ BEGIN
   SELECT name, points, followers, badges, FormatTS(joined) joined
     FROM profiles
     INNER JOIN followers f ON id = f.follower_id
-    WHERE f.followed_id = _profile_id;
+    WHERE f.followed_id = _profile_id
+    ORDER BY f.created DESC;
 END;
 
 
@@ -1191,18 +1193,12 @@ END;
 
 
 -- Search
-CREATE PROCEDURE FindProfiles(IN _query VARCHAR(256),
-  IN _orderBy ENUM('points', 'followers', 'joined', 'score'), IN _limit INT,
+CREATE PROCEDURE FindProfiles(IN _query VARCHAR(256), IN _limit INT,
   IN _offset INT)
 BEGIN
   -- Query
   IF TRIM(_query) = '' THEN
     SET _query = null;
-  END IF;
-
-  -- Order by
-  IF _orderBy IS null THEN
-    SET _orderBy = 'score';
   END IF;
 
   -- Limit
@@ -1230,15 +1226,7 @@ BEGIN
     HAVING
       (_query IS null OR 0 < score)
 
-    ORDER BY
-      CASE _orderBy
-        WHEN 'joined' THEN p.joined
-      END ASC,
-      CASE _orderBy
-        WHEN 'points' THEN p.points
-        WHEN 'followers' THEN p.followers
-        WHEN 'score' THEN score
-      END DESC;
+    ORDER BY score DESC, p.points DESC, p.joined ASC;
 
   SET SQL_SELECT_LIMIT = DEFAULT;
 END;

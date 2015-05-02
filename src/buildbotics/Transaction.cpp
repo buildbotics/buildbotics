@@ -309,7 +309,7 @@ bool Transaction::apiAuthLogout() {
 bool Transaction::apiGetProfiles() {
   JSON::ValuePtr args = parseArgsPtr();
   query(&Transaction::returnList,
-        "CALL FindProfiles(%(query)s, %(order)s, %(limit)u, %(offset)u)", args);
+        "CALL FindProfiles(%(query)s, %(limit)u, %(offset)u)", args);
   return true;
 }
 

@@ -51,8 +51,8 @@ BEGIN
   -- Event
   CALL Event(NEW.follower_id, 'follow', NEW.followed_id);
 
-  -- Inc profile followers
-  UPDATE profiles SET followers = followers + 1
+  -- Inc profile followers & points
+  UPDATE profiles SET followers = followers + 1, points = points + 25
     WHERE id = NEW.followed_id;
 
   -- Inc profile following
@@ -65,7 +65,7 @@ CREATE TRIGGER DeleteFollowers AFTER DELETE ON followers
 FOR EACH ROW
 BEGIN
   -- Dec profile followers
-  UPDATE profiles SET followers = followers - 1
+  UPDATE profiles SET followers = followers - 1, points = points - 25
     WHERE id = OLD.followed_id;
 
   -- Dec profile following
@@ -121,8 +121,8 @@ BEGIN
   -- Event
   CALL Event(NEW.profile_id, 'star', NEW.thing_id);
 
-  -- Inc profile stars
-  UPDATE profiles SET stars = stars + 1
+  -- Inc profile stars & points
+  UPDATE profiles SET stars = stars + 1, points = points + 10
     WHERE id = (SELECT owner_id FROM things WHERE id = NEW.thing_id);
 
   -- Inc thing stars
@@ -134,7 +134,7 @@ CREATE TRIGGER DeleteStars AFTER DELETE ON stars
 FOR EACH ROW
 BEGIN
   -- Dec profile stars
-  UPDATE profiles SET stars = stars - 1
+  UPDATE profiles SET stars = stars - 1, points = points - 10
     WHERE id = (SELECT owner_id FROM things WHERE id = OLD.thing_id);
   UPDATE things SET stars = stars - 1 WHERE id = OLD.thing_id;
 END;

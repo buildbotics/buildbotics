@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS associations (
 CREATE TABLE IF NOT EXISTS followers (
   `follower_id` INT NOT NULL,
   `followed_id` INT NOT NULL,
+  `created`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`follower_id`, `followed_id`),
   FOREIGN KEY (`follower_id`) REFERENCES profiles(id) ON DELETE CASCADE,
