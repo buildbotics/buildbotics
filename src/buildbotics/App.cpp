@@ -1,16 +1,16 @@
 /******************************************************************************\
 
-                 This file is part of the BuildBotics Webserver.
+                 This file is part of the Buildbotics Webserver.
 
                 Copyright (c) 2014-2015, Cauldron Development LLC
                                All rights reserved.
 
-        The BuildBotics Webserver is free software: you can redistribute
+        The Buildbotics Webserver is free software: you can redistribute
         it and/or modify it under the terms of the GNU General Public
         License as published by the Free Software Foundation, either
         version 2 of the License, or (at your option) any later version.
 
-        The BuildBotics Webserver is distributed in the hope that it will
+        The Buildbotics Webserver is distributed in the hope that it will
         be useful, but WITHOUT ANY WARRANTY; without even the implied
         warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
         PURPOSE.  See the GNU General Public License for more details.
@@ -45,13 +45,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-using namespace BuildBotics;
+using namespace Buildbotics;
 using namespace cb;
 using namespace std;
 
 
 App::App() :
-  cb::Application("BuildBotics"), dns(base), client(base, dns, new SSLContext),
+  cb::Application("Buildbotics"), dns(base), client(base, dns, new SSLContext),
   googleAuth(getOptions()), githubAuth(getOptions()),
   facebookAuth(getOptions()), server(*this), userManager(*this),
   imageHost("http://images.buildbotics.com"),
@@ -61,7 +61,7 @@ App::App() :
   dbMaintenancePeriod(Time::SEC_PER_HOUR), awsRegion("us-east-1"),
   awsUploadExpires(Time::SEC_PER_HOUR * 2) {
 
-  options.pushCategory("BuildBotics Server");
+  options.pushCategory("Buildbotics Server");
   options.add("outbound-ip", "IP address for outbound connections.  Defaults "
               "to first http-address.");
   options.addTarget("session-cookie-name", sessionCookieName,

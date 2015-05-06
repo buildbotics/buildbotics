@@ -1,4 +1,4 @@
-BuildBotics
+Buildbotics
 ===========
 
 [Buildbotics.com](http://buildbotics.com/) website

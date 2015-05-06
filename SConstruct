@@ -18,8 +18,8 @@ major, minor, revision = version.split('.')
 
 # Config vars
 env.Replace(PACKAGE_VERSION = version)
-env.Replace(RESOURCES_NS = 'BuildBotics')
-env.Replace(BUILD_INFO_NS = 'BuildBotics::BuildInfo')
+env.Replace(RESOURCES_NS = 'Buildbotics')
+env.Replace(BUILD_INFO_NS = 'Buildbotics::BuildInfo')
 
 if not env.GetOption('clean') and not 'package' in COMMAND_LINE_TARGETS:
     conf.CBConfig('compiler')
