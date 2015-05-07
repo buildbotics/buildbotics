@@ -60,7 +60,7 @@ namespace Buildbotics {
 
 Server::Server(App &app) :
   Event::WebServer(app.getOptions(), app.getEventBase(), new SSLContext,
-                   SmartPointer<HTTPHandlerFactory>::Null(this)),
+                   SmartPointer<HTTPHandlerFactory>::Phony(this)),
   app(app) {
 }
 

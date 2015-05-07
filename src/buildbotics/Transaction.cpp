@@ -68,7 +68,7 @@ Transaction::~Transaction() {
 
 
 SmartPointer<JSON::Dict> Transaction::parseArgsPtr() {
-  return SmartPointer<JSON::Dict>::Null(&parseArgs());
+  return SmartPointer<JSON::Dict>::Phony(&parseArgs());
 }
 
 
