@@ -17,3 +17,7 @@ http
 certificate.pem
 private.pem
 config.xml
+
+buildbotics
+package-description.txt
+package.txt
