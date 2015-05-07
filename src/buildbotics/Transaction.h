@@ -32,6 +32,8 @@
 #ifndef BUILDBOTICS_TRANSACTION_H
 #define BUILDBOTICS_TRANSACTION_H
 
+#include "AuthFlags.h"
+
 #include <cbang/event/Request.h>
 #include <cbang/event/RequestMethod.h>
 #include <cbang/event/PendingRequest.h>
@@ -70,9 +72,10 @@ namespace Buildbotics {
     cb::SmartPointer<cb::JSON::Dict> parseArgsPtr();
 
     bool lookupUser(bool skipAuthCheck = false);
-    void requireUser();
-    void requireUser(const std::string &name);
-    bool isUser(const std::string &name);
+    std::string getViewID();
+    void authorize(unsigned flags = AuthFlags::AUTH_NONE);
+    void authorize(unsigned flags, const std::string &name);
+    void authorize(const std::string &name);
 
     void setAuthCookie();
     void clearAuthCookie(uint64_t expires = 0);

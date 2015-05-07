@@ -281,32 +281,32 @@ END;
 
 CREATE PROCEDURE GetUser(IN _provider VARCHAR(16), IN _id VARCHAR(64))
 BEGIN
-  DECLARE profile_id INT;
-  DECLARE name VARCHAR(64);
-  DECLARE avatar VARCHAR(256);
-  DECLARE found INT;
+  DECLARE _profile_id INT;
+  DECLARE _name VARCHAR(64);
+  DECLARE _avatar VARCHAR(256);
+  DECLARE _auth BIGINT;
 
   -- Lookup association
-  SELECT a.profile_id, a.name, a.avatar
-    INTO profile_id, name, avatar
-    FROM associations a
-    WHERE a.provider = _provider AND a.id = _id;
+  SELECT profile_id, name, avatar
+    INTO _profile_id, _name, _avatar
+    FROM associations
+    WHERE provider = _provider AND id = _id;
 
   -- Error if not found
-  IF name IS null THEN
+  IF FOUND_ROWS() = 0 THEN
     SIGNAL SQLSTATE '02000' -- ER_SIGNAL_NOT_FOUND
       SET MESSAGE_TEXT = 'User not found';
   END IF;
 
-  -- Check if profile exists
-  SELECT id FROM profiles
-    WHERE id = profile_id
-    INTO found;
+  -- Check if profile exists and get auth
+  SELECT auth FROM profiles WHERE id = _profile_id INTO _auth;
 
-  IF found IS null THEN
-    SELECT name, avatar;
+  IF FOUND_ROWS() THEN
+    CALL GetProfileByID(_profile_id);
+    SELECT name auth FROM authorizations WHERE (_auth & (1 << (id - 1)));
+
   ELSE
-    CALL GetProfileByID(profile_id);
+    SELECT _name, _avatar;
   END IF;
 END;
 

@@ -22,6 +22,16 @@ CREATE TABLE IF NOT EXISTS authorizations (
   PRIMARY KEY (id)
 ) AUTO_INCREMENT = 0;
 
+INSERT INTO authorizations VALUES
+    (1 << 0, 'admin'),
+    (1 << 1, 'edit-things'),
+    (1 << 2, 'publish-things'),
+    (1 << 2, 'delete-things'),
+    (1 << 4, 'edit-comments'),
+    (1 << 5, 'upvote-comments'),
+    (1 << 6, 'downvote-comments')
+  ON DUPLICATE KEY UPDATE name = name;
+
 
 CREATE TABLE IF NOT EXISTS profiles (
   `id`             INT AUTO_INCREMENT,

@@ -69,7 +69,10 @@ namespace Buildbotics {
     bool hasExpired() const;
     bool isExpiring() const;
 
+    void setProvider(const std::string &provider) {this->provider = provider;}
     const std::string &getProvider() const {return provider;}
+
+    void setID(const std::string &id) {this->id = id;}
     const std::string &getID() const {return id;}
 
     void setName(const std::string &name) {this->name = name;}
@@ -79,7 +82,6 @@ namespace Buildbotics {
     uint64_t getAuth() const {return auth;}
 
     bool isAuthenticated() const {return !provider.empty() && !id.empty();}
-    void authenticate(const std::string &provider, const std::string &id);
   };
 }
 

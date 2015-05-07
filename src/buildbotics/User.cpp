@@ -120,9 +120,3 @@ bool User::hasExpired() const {
 bool User::isExpiring() const {
   return expires < Time::now() + app.getAuthGraceperiod();
 }
-
-
-void User::authenticate(const string &provider, const string &id) {
-  this->provider = provider;
-  this->id = id;
-}

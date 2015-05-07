@@ -114,21 +114,38 @@ bool Transaction::lookupUser(bool skipAuthCheck) {
 }
 
 
-void Transaction::requireUser() {
+string Transaction::getViewID() {
   lookupUser();
-  if (user.isNull() || !user->isAuthenticated())
-    THROWX("Not authorized, please login", HTTP_UNAUTHORIZED);
+
+  if (user.isNull()) {
+    if (inHas("X-Real-IP")) return inGet("X-Real-IP");
+    return getClientIP().toString();
+  }
+
+  return user->getName();
 }
 
 
-void Transaction::requireUser(const string &name) {
-  requireUser();
+void Transaction::authorize(unsigned flags) {
+  lookupUser();
+
+  if (user.isNull() || !user->isAuthenticated()) pleaseLogin();
+  if (user->getAuth() && AuthFlags::AUTH_ADMIN) return;
+  if ((user->getAuth() & flags) != flags)
+    THROWX("Not authorized", HTTP_UNAUTHORIZED);
+}
+
+
+void Transaction::authorize(unsigned flags, const string &name) {
+  authorize(flags);
+
+  if (user->getAuth() & (AuthFlags::AUTH_ADMIN | AuthFlags::AUTH_MOD)) return;
   if (user->getName() != name) THROWX("Not authorized", HTTP_UNAUTHORIZED);
 }
 
 
-bool Transaction::isUser(const string &name) {
-  return !user.isNull() && user->getName() == name;
+void Transaction::authorize(const string &name) {
+  authorize(AuthFlags::AUTH_NONE, name);
 }
 
 
@@ -223,9 +240,8 @@ void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
   if (!profile.isNull())
     try {
       // Authenticate user
-      user->authenticate(profile->getString("provider"),
-                         profile->getString("id"));
-      app.getUserManager().updateSession(user);
+      user->setProvider(profile->getString("provider"));
+      user->setID(profile->getString("id"));
 
       // Fix up Facebook avatar
       if (profile->getString("provider") == "facebook")
@@ -251,19 +267,14 @@ void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
 
 
 bool Transaction::apiAuthUser() {
-  lookupUser();
+  authorize();
 
-  if (!user.isNull() && user->isAuthenticated()) {
-    SmartPointer<JSON::Dict> dict = new JSON::Dict;
-    dict->insert("provider", user->getProvider());
-    dict->insert("id", user->getID());
+  SmartPointer<JSON::Dict> dict = new JSON::Dict;
+  dict->insert("provider", user->getProvider());
+  dict->insert("id", user->getID());
 
-    jsonFields = "*profile things followers following starred badges events";
-
-    query(&Transaction::authUser,
-          "CALL GetUser(%(provider)s, %(id)s)", dict);
-
-  } else pleaseLogin();
+  jsonFields = "*profile things followers following starred badges events auth";
+  query(&Transaction::authUser, "CALL GetUser(%(provider)s, %(id)s)", dict);
 
   return true;
 }
@@ -274,6 +285,7 @@ bool Transaction::apiAuthLogin() {
 
   // Get user
   lookupUser(true);
+
   if (user.isNull()) user = app.getUserManager().create();
   if (user->isAuthenticated()) {
     redirect("/");
@@ -353,7 +365,7 @@ bool Transaction::apiProfileSuggest() {
 
 bool Transaction::apiPutProfile() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
         "CALL PutProfile(%(profile)s, %(fullname)s, %(location)s, %(url)s, "
@@ -364,12 +376,10 @@ bool Transaction::apiPutProfile() {
 
 
 bool Transaction::apiGetProfile() {
-  lookupUser();
-  JSON::ValuePtr args = parseArgsPtr();
-
   jsonFields = "*profile things followers following starred badges events";
 
-  query(&Transaction::returnJSONFields, "CALL GetProfile(%(profile)s)", args);
+  query(&Transaction::returnJSONFields, "CALL GetProfile(%(profile)s)",
+        parseArgsPtr());
 
   return true;
 }
@@ -384,7 +394,7 @@ bool Transaction::apiGetProfileAvatar() {
 
 bool Transaction::apiPutProfileAvatar() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   string path = "/" + args->getString("profile");
   string file = args->getString("file");
@@ -408,7 +418,7 @@ bool Transaction::apiPutProfileAvatar() {
 
 bool Transaction::apiConfirmProfileAvatar() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   string path = "/" + args->getString("profile");
   string file = args->getString("file");
@@ -425,7 +435,7 @@ bool Transaction::apiConfirmProfileAvatar() {
 
 bool Transaction::apiFollow() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser();
+  authorize();
   args->insert("user", user->getName());
 
   query(&Transaction::returnOK, "CALL Follow(%(user)s, %(profile)s)", args);
@@ -436,7 +446,7 @@ bool Transaction::apiFollow() {
 
 bool Transaction::apiUnfollow() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser();
+  authorize();
   args->insert("user", user->getName());
 
   query(&Transaction::returnOK, "CALL Unfollow(%(user)s, %(profile)s)", args);
@@ -462,22 +472,14 @@ bool Transaction::apiThingAvailable() {
 
 
 bool Transaction::apiGetThing() {
-  lookupUser();
   JSON::ValuePtr args = parseArgsPtr();
 
-  string userID;
-  if (user.isNull()) {
-    if (inHas("X-Real-IP")) userID = inGet("X-Real-IP");
-    else userID = getClientIP().toString();
-
-  } else userID = user->getName();
-
-  args->insert("user", userID);
+  args->insert("view_id", getViewID());
 
   jsonFields = "*thing files comments stars";
 
   query(&Transaction::returnJSONFields,
-        "CALL GetThing(%(profile)s, %(thing)s, %(user)s)", args);
+        "CALL GetThing(%(profile)s, %(thing)s, %(view_id)s)", args);
 
   return true;
 }
@@ -485,7 +487,7 @@ bool Transaction::apiGetThing() {
 
 bool Transaction::apiPublishThing() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
         "CALL PublishThing(%(profile)s, %(thing)s)", args);
@@ -496,7 +498,7 @@ bool Transaction::apiPublishThing() {
 
 bool Transaction::apiPutThing() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   if (!args->hasString("type")) args->insert("type", "project");
 
@@ -510,7 +512,7 @@ bool Transaction::apiPutThing() {
 
 bool Transaction::apiRenameThing() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
         "CALL RenameThing(%(profile)s, %(thing)s, %(name)s)", args);
@@ -521,7 +523,7 @@ bool Transaction::apiRenameThing() {
 
 bool Transaction::apiDeleteThing() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   query(&Transaction::returnOK, "CALL DeleteThing(%(profile)s, %(thing)s)",
         args);
@@ -532,7 +534,7 @@ bool Transaction::apiDeleteThing() {
 
 bool Transaction::apiStarThing() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser();
+  authorize();
   args->insert("user", user->getName());
 
   query(&Transaction::returnOK,
@@ -544,7 +546,7 @@ bool Transaction::apiStarThing() {
 
 bool Transaction::apiUnstarThing() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser();
+  authorize();
   args->insert("user", user->getName());
 
   query(&Transaction::returnOK,
@@ -556,7 +558,7 @@ bool Transaction::apiUnstarThing() {
 
 bool Transaction::apiTagThing() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser();
+  authorize();
 
   query(&Transaction::returnOK,
         "CALL MultiTagThing(%(profile)s, %(thing)s, %(tags)s)", args);
@@ -567,7 +569,7 @@ bool Transaction::apiTagThing() {
 
 bool Transaction::apiUntagThing() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
         "CALL MultiUntagThing(%(profile)s, %(thing)s, %(tags)s)", args);
@@ -578,7 +580,7 @@ bool Transaction::apiUntagThing() {
 
 bool Transaction::apiPostComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser();
+  authorize();
   args->insert("owner", user->getName());
 
   query(&Transaction::returnU64,
@@ -591,7 +593,7 @@ bool Transaction::apiPostComment() {
 
 bool Transaction::apiUpdateComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser();
+  authorize();
   args->insert("owner", user->getName());
 
   query(&Transaction::returnOK,
@@ -603,7 +605,7 @@ bool Transaction::apiUpdateComment() {
 
 bool Transaction::apiDeleteComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser();
+  authorize();
   args->insert("owner", user->getName());
 
   query(&Transaction::returnOK, "CALL DeleteComment(%(owner)s, %(comment)u)",
@@ -615,7 +617,7 @@ bool Transaction::apiDeleteComment() {
 
 bool Transaction::apiUpvoteComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser();
+  authorize();
   args->insert("owner", user->getName());
 
   query(&Transaction::returnOK, "CALL UpvoteComment(%(owner)s, %(comment)u)",
@@ -627,7 +629,7 @@ bool Transaction::apiUpvoteComment() {
 
 bool Transaction::apiDownvoteComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser();
+  authorize();
   args->insert("owner", user->getName());
 
   query(&Transaction::returnOK, "CALL DownvoteComment(%(owner)s, %(comment)u)",
@@ -649,7 +651,7 @@ bool Transaction::apiDownloadFile() {
 
 bool Transaction::apiUploadFile() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   // Restrict by extension
   string file = args->getString("file");
@@ -705,7 +707,7 @@ bool Transaction::apiUploadFile() {
 
 bool Transaction::apiUpdateFile() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   // Write to DB
   query(&Transaction::returnOK,
@@ -718,7 +720,7 @@ bool Transaction::apiUpdateFile() {
 
 bool Transaction::apiDeleteFile() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
         "CALL DeleteFile(%(profile)s, %(thing)s, %(file)s)", args);
@@ -729,7 +731,7 @@ bool Transaction::apiDeleteFile() {
 
 bool Transaction::apiConfirmFile() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
         "CALL ConfirmFile(%(profile)s, %(thing)s, %(file)s)", args);
@@ -740,7 +742,7 @@ bool Transaction::apiConfirmFile() {
 
 bool Transaction::apiFileUp() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
         "CALL FileUp(%(profile)s, %(thing)s, %(file)s)", args);
@@ -751,7 +753,7 @@ bool Transaction::apiFileUp() {
 
 bool Transaction::apiFileDown() {
   JSON::ValuePtr args = parseArgsPtr();
-  requireUser(args->getString("profile"));
+  authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
         "CALL FileDown(%(profile)s, %(thing)s, %(file)s)", args);
@@ -1019,7 +1021,12 @@ void Transaction::returnJSONFields(MariaDB::EventDBCallback::state_t state) {
   switch (state) {
   case MariaDB::EventDBCallback::EVENTDB_ROW:
     if (writer->inDict()) db->insertRow(*writer, 0, -1, false);
-    else {
+
+    else if (db->getFieldCount() == 1) {
+      writer->beginAppend();
+      db->writeField(*writer, 0);
+
+    } else {
       writer->appendDict();
       db->insertRow(*writer, 0, -1, false);
       writer->endDict();
