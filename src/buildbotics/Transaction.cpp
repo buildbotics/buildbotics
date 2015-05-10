@@ -596,7 +596,7 @@ bool Transaction::apiPostComment() {
   args->insert("owner", user->getName());
 
   query(&Transaction::returnU64,
-        "CALL PostComment(%(owner)s, %(profile)s, %(thing)s, %(ref)u, "
+        "CALL PostComment(%(owner)s, %(profile)s, %(thing)s, %(parent)u, "
         "%(text)s)", args);
 
   return true;

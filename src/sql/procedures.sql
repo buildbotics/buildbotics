@@ -941,23 +941,35 @@ END;
 
 
 -- Comments
+CREATE FUNCTION WilsonScore(_upvotes INT, _downvotes INT)
+RETURNS DOUBLE
+DETERMINISTIC
+BEGIN
+  IF (_upvotes + _downvotes) = 0 THEN RETURN 0; END IF;
+
+  RETURN ((_upvotes + 1.9208) / (_upvotes + _downvotes) -
+    1.96 * SQRT((_upvotes * _downvotes) / (_upvotes + _downvotes) + 0.9604) /
+    (_upvotes + _downvotes)) / (1 + 3.8416 / (_upvotes + _downvotes));
+END;
+
 CREATE PROCEDURE GetCommentsByID(IN _thing_id INT)
 BEGIN
-    SELECT c.id comment, p.name owner, p.points owner_points, ref,
-      FormatTS(c.created) created, FormatTS(c.modified) modified, c.text,
-      c.votes
+    SELECT c.id comment, p.name owner, p.points owner_points, c.parent,
+      FormatTS(c.created) created, FormatTS(c.modified) modified,
+      IF(c.deleted, '', c.text) text, c.deleted,
+      c.upvotes, c.downvotes, WilsonScore(c.upvotes, c.downvotes) score
       FROM comments c
-      LEFT JOIN profiles p ON p.id = owner_id
+      LEFT JOIN profiles p ON p.id = c.owner_id
       WHERE c.thing_id = _thing_id
-      ORDER BY c.votes DESC, c.created DESC;
+      ORDER BY score DESC, c.created DESC;
 END;
 
 
 CREATE PROCEDURE PostComment(IN _owner VARCHAR(64), IN _thing_owner VARCHAR(64),
-  IN _thing VARCHAR(64), IN _ref INT, IN _text TEXT)
+  IN _thing VARCHAR(64), IN _parent INT, IN _text TEXT)
 BEGIN
-  INSERT INTO comments (owner_id, thing_id, ref, text)
-    VALUES (GetProfileID(_owner), GetThingID(_thing_owner, _thing), _ref,
+  INSERT INTO comments (owner_id, thing_id, parent, text)
+    VALUES (GetProfileID(_owner), GetThingID(_thing_owner, _thing), _parent,
       _text);
 
   SELECT LAST_INSERT_ID() id;
@@ -977,7 +989,15 @@ END;
 
 CREATE PROCEDURE DeleteComment(IN _owner VARCHAR(64), IN _comment INT)
 BEGIN
-  DELETE FROM comments
+  DELETE c1.* FROM comments c1
+    LEFT JOIN comments c2 ON c1.id = c2.parent
+    WHERE
+      c1.id = _comment AND
+      c1.owner_id = GetProfileID(_owner) AND
+      c2.id IS null;
+
+  UPDATE comments
+    SET deleted = true
     WHERE id = _comment AND owner_id = GetProfileID(_owner);
 END;
 

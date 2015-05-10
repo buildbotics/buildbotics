@@ -172,10 +172,43 @@ CREATE TRIGGER UpdateComments AFTER UPDATE ON comments
 FOR EACH ROW
 BEGIN
   -- Profile points
-  IF NEW.votes != OLD.votes THEN
+  IF NEW.upvotes != OLD.upvotes OR NEW.downvotes != OLD.downvotes THEN
     UPDATE profiles
-      SET points = points - OLD.votes + NEW.votes
+      SET points = points - OLD.upvotes + NEW.upvotes +
+        OLD.downvotes - NEW.downvotes
       WHERE id = NEW.owner_id;
+  END IF;
+
+  -- Deleted comments
+  IF NOT OLD.deleted AND NEW.deleted THEN
+    -- Profile points
+    IF OLD.upvotes OR OLD.downvotes THEN
+      UPDATE profiles
+        SET points = points - OLD.upvotes + OLD.downvotes
+        WHERE id = OLD.owner_id;
+    END IF;
+
+    -- Dec profile comments
+    UPDATE profiles SET comments = comments - 1 WHERE id = OLD.owner_id;
+
+    -- Dec thing comments
+    UPDATE things SET comments = comments - 1 WHERE id = OLD.thing_id;
+  END IF;
+
+  -- Undeleted comments
+  IF OLD.deleted AND NOT NEW.deleted THEN
+    -- Profile points
+    IF OLD.upvotes OR OLD.downvotes THEN
+      UPDATE profiles
+        SET points = points + OLD.upvotes - OLD.downvotes
+        WHERE id = OLD.owner_id;
+    END IF;
+
+    -- Inc profile comments
+    UPDATE profiles SET comments = comments + 1 WHERE id = OLD.owner_id;
+
+    -- Inc thing comments
+    UPDATE things SET comments = comments + 1 WHERE id = OLD.thing_id;
   END IF;
 END;
 
@@ -184,9 +217,9 @@ CREATE TRIGGER DeleteComments AFTER DELETE ON comments
 FOR EACH ROW
 BEGIN
   -- Profile points
-  IF OLD.votes THEN
+  IF OLD.upvotes OR OLD.downvotes THEN
     UPDATE profiles
-      SET points = points - OLD.votes
+      SET points = points - OLD.upvotes + OLD.downvotes
       WHERE id = OLD.owner_id;
   END IF;
 
@@ -204,8 +237,11 @@ CREATE TRIGGER InsertCommentVotes AFTER INSERT ON comment_votes
 FOR EACH ROW
 BEGIN
   -- Comment votes
-  UPDATE comments SET votes = votes + NEW.vote
-    WHERE id = NEW.comment_id;
+  IF 0 < NEW.vote THEN
+    UPDATE comments SET upvotes = upvotes + 1 WHERE id = NEW.comment_id;
+  ELSE
+    UPDATE comments SET downvotes = downvotes + 1 WHERE id = NEW.comment_id;
+  END IF;
 END;
 
 DROP TRIGGER IF EXISTS UpdateCommentVotes;
@@ -213,7 +249,10 @@ CREATE TRIGGER UpdateCommentVotes AFTER UPDATE ON comment_votes
 FOR EACH ROW
 BEGIN
   -- Comment votes
-  UPDATE comments SET votes = votes - OLD.vote + NEW.vote
+  UPDATE comments
+    SET
+      upvotes = upvotes + IF(NEW.vote = 1, 1, IF(OLD.vote = 1, -1, 0)),
+      downvotes = downvotes + IF(NEW.vote = -1, 1, IF(OLD.vote = -1, -1, 0))
     WHERE id = NEW.comment_id;
 END;
 

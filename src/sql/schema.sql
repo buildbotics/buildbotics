@@ -308,9 +308,11 @@ CREATE TABLE IF NOT EXISTS comments (
   `thing_id`  INT NOT NULL,
   `created`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `modified`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `ref`       INT,
+  `parent`    INT,
   `text`      TEXT,
-  `votes`     INT NOT NULL DEFAULT 0,
+  `upvotes`   INT NOT NULL DEFAULT 0,
+  `downvotes` INT NOT NULL DEFAULT 0,
+  `deleted`   BOOL NOT NULL DEFAULT false,
 
   PRIMARY KEY (`id`),
   FULLTEXT KEY `text` (`text`),
