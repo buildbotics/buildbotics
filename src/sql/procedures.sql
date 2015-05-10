@@ -989,16 +989,12 @@ END;
 
 CREATE PROCEDURE DeleteComment(IN _owner VARCHAR(64), IN _comment INT)
 BEGIN
+  UPDATE comments SET deleted = true
+    WHERE id = _comment AND owner_id = GetProfileID(_owner);
+
   DELETE c1.* FROM comments c1
     LEFT JOIN comments c2 ON c1.id = c2.parent
-    WHERE
-      c1.id = _comment AND
-      c1.owner_id = GetProfileID(_owner) AND
-      c2.id IS null;
-
-  UPDATE comments
-    SET deleted = true
-    WHERE id = _comment AND owner_id = GetProfileID(_owner);
+    WHERE c1.deleted AND c2.id IS null;
 END;
 
 
