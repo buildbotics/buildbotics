@@ -962,7 +962,7 @@ BEGIN
 
   SELECT LAST_INSERT_ID() id;
 
-  CALL UpvoteComment(_owner, id);
+  CALL UpvoteComment(_owner, LAST_INSERT_ID());
 END;
 
 
