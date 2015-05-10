@@ -73,7 +73,6 @@ App::App() :
                     "Time in seconds before expiration at which the server "
                     "automatically refreshes a user's authorization.");
   options.add("http-root", "Serve /* files from this directory.");
-  options.add("docs-root", "Serve /doc/* files from this directory.");
   options.popCategory();
 
   options.pushCategory("Debugging");

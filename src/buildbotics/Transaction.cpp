@@ -160,6 +160,17 @@ void Transaction::clearAuthCookie(uint64_t expires) {
 }
 
 
+bool Transaction::hasTag(const string &tag) const {
+  vector<string> tags;
+  String::tokenize(getArg("tags"), tags, ",");
+
+  for (unsigned i = 0; i < tags.size(); i++)
+    if (tags[i] == tag) return true;
+
+  return false;
+}
+
+
 void Transaction::query(event_db_member_functor_t member, const string &s,
                         const SmartPointer<JSON::Value> &dict) {
   if (db.isNull()) db = app.getDBConnection();
@@ -558,7 +569,7 @@ bool Transaction::apiUnstarThing() {
 
 bool Transaction::apiTagThing() {
   JSON::ValuePtr args = parseArgsPtr();
-  authorize();
+  authorize(hasTag("featured") ? AuthFlags::AUTH_ADMIN : AuthFlags::AUTH_NONE);
 
   query(&Transaction::returnOK,
         "CALL MultiTagThing(%(profile)s, %(thing)s, %(tags)s)", args);
@@ -569,7 +580,8 @@ bool Transaction::apiTagThing() {
 
 bool Transaction::apiUntagThing() {
   JSON::ValuePtr args = parseArgsPtr();
-  authorize(args->getString("profile"));
+  authorize(hasTag("featured") ? AuthFlags::AUTH_ADMIN : AuthFlags::AUTH_NONE,
+            args->getString("profile"));
 
   query(&Transaction::returnOK,
         "CALL MultiUntagThing(%(profile)s, %(thing)s, %(tags)s)", args);

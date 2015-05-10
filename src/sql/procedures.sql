@@ -778,9 +778,15 @@ BEGIN
 END;
 
 
-CREATE PROCEDURE FindThingsByTag(IN _tag VARCHAR(64), IN _limit INT,
+CREATE PROCEDURE FindThingsByTag(IN _tags VARCHAR(256), IN _limit INT,
   IN _offset INT)
 BEGIN
+  DECLARE _length INT;
+
+  -- Get length of list
+  SET _tags = TRIM(BOTH ',' FROM _tags);
+  SET _length = LENGTH(_tags) - LENGTH(REPLACE(_tags, ',', '')) + 1;
+
   -- Limit
   IF _limit IS null THEN
     SET _limit = 100;
@@ -807,7 +813,9 @@ BEGIN
       t.id IN (
         SELECT thing_id FROM thing_tags
           LEFT JOIN tags ON thing_tags.tag_id = tags.id
-          WHERE tags.name = _tag
+          WHERE FIND_IN_SET(tags.name, _tags)
+          GROUP BY thing_id
+          HAVING COUNT(thing_id) = _length
 
       ) AND t.published IS NOT NULL
 

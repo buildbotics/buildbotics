@@ -80,6 +80,8 @@ namespace Buildbotics {
     void setAuthCookie();
     void clearAuthCookie(uint64_t expires = 0);
 
+    bool hasTag(const std::string &tag) const;
+
     typedef typename cb::MariaDB::EventDBMemberFunctor<Transaction>::member_t
     event_db_member_functor_t;
     void query(event_db_member_functor_t member, const std::string &s,

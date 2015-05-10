@@ -95,7 +95,7 @@ void Server::init() {
 #define FILE_RE THING_RE "/files/(?P<file>" FILENAME_RE ")"
 #define THING_TAGS_RE THING_RE "/tags/(?P<tags>" TAG_RE "(," TAG_RE ")*)"
 #define TAGS_RE "/api/tags"
-#define TAG_PATH_RE TAGS_RE "/(?P<tag>" TAG_RE ")"
+#define TAG_PATH_RE TAGS_RE "/(?P<tag>" TAG_RE "(," TAG_RE ")*)"
 #define FILE_URL_RE                                                     \
   "/(?P<profile>" NAME_RE ")/(?P<thing>" NAME_RE ")/(?P<file>" FILENAME_RE ")"
 
@@ -165,8 +165,11 @@ void Server::init() {
   ADD_TM(api, HTTP_ANY, "", apiNotFound);
 
   // Docs
-  HTTPHandlerGroup &docs = *addGroup(HTTP_ANY, "/docs(/.*)", "\\1");
-  docs.addHandler(app.getOptions()["docs-root"]);
+  HTTPHandlerGroup &docs = *addGroup(HTTP_ANY, "/docs/.*");
+  if (app.getOptions()["http-root"].hasValue())
+    docs.addHandler(app.getOptions()["http-root"]);
+  else docs.addHandler(*resource0.find("http"));
+
   docs.addMember<Transaction>(HTTP_ANY, ".*\\..*", &Transaction::notFound);
 
   // Download files
