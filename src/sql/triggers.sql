@@ -1,3 +1,15 @@
+-- Profiles
+DROP TRIGGER IF EXISTS UpdateProfiles;
+CREATE TRIGGER UpdateProfiles BEFORE UPDATE ON profiles
+FOR EACH ROW
+BEGIN
+  -- Allow upvote after first comment
+  IF OLD.comments = 0 AND 0 < NEW.comments THEN
+    SET NEW.auth = NEW.auth | GetAuthFlag('upvote-comments');
+  END IF;
+END;
+
+
 -- Things
 DROP TRIGGER IF EXISTS UpdateThings;
 CREATE TRIGGER UpdateThings AFTER UPDATE ON things
@@ -148,6 +160,9 @@ BEGIN
   -- Event
   CALL Event(NEW.owner_id, 'comment', NEW.id);
 
+  -- Inc profile comments
+  UPDATE profiles SET comments = comments + 1 WHERE id = NEW.owner_id;
+
   -- Inc thing comments
   UPDATE things SET comments = comments + 1 WHERE id = NEW.thing_id;
 END;
@@ -174,6 +189,9 @@ BEGIN
       SET points = points - OLD.votes
       WHERE id = OLD.owner_id;
   END IF;
+
+  -- Dec profile comments
+  UPDATE profiles SET comments = comments - 1 WHERE id = OLD.owner_id;
 
   -- Dec thing comments
   UPDATE things SET comments = comments - 1 WHERE id = OLD.thing_id;

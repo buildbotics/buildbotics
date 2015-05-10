@@ -264,6 +264,18 @@ BEGIN
 END;
 
 
+-- Authorizations
+CREATE FUNCTION GetAuthFlag(_name VARCHAR(64))
+RETURNS INT
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+  DECLARE _id INT;
+  SELECT id INTO _id FROM authorizations WHERE name = _name;
+  RETURN _id;
+END;
+
+
 -- Profile
 CREATE FUNCTION GetProfileID(_name VARCHAR(64))
 RETURNS INT
@@ -314,7 +326,7 @@ END;
 CREATE PROCEDURE GetProfileByID(IN _profile_id INT)
 BEGIN
   SELECT name, FormatTS(joined) joined, FormatTS(lastseen) lastseen, fullname,
-    location, url, bio, points, followers, following, stars, badges
+    location, url, bio, points, followers, following, stars, badges, comments
     FROM profiles
     WHERE id = _profile_id AND NOT disabled;
 
@@ -568,7 +580,7 @@ CREATE PROCEDURE GetThingsByID(IN _owner_id INT, IN _name VARCHAR(64),
 BEGIN
   SELECT t.name, p.name owner, p.points owner_points, t.type, title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
-    FormatTS(t.created) created, FormatTS(t.modified) modified, comments,
+    FormatTS(t.created) created, FormatTS(t.modified) modified, t.comments,
     t.stars, children, views, GetFileURL(p.name, t.name, f.name) image
     FROM things t
     LEFT JOIN profiles p ON p.id = _owner_id
@@ -981,7 +993,7 @@ BEGIN
   -- Error if duplicate
   IF ROW_COUNT() = 0 THEN
     SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
-      SET MESSAGE_TEXT = 'Comment already upvoted by user.';
+      SET MESSAGE_TEXT = 'Comment already upvoted.';
   END IF;
 END;
 
@@ -997,7 +1009,7 @@ BEGIN
   -- Error if duplicate
   IF ROW_COUNT() = 0 THEN
     SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
-      SET MESSAGE_TEXT = 'Comment already downvoted by user.';
+      SET MESSAGE_TEXT = 'Comment already downvoted.';
   END IF;
 END;
 

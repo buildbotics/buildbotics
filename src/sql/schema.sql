@@ -45,11 +45,14 @@ CREATE TABLE IF NOT EXISTS profiles (
   `pending_avatar` VARCHAR(256),
   `url`            VARCHAR(256),
   `bio`            TEXT,
+
   `points`         INT NOT NULL DEFAULT 0,
   `followers`      INT NOT NULL DEFAULT 0,
   `following`      INT NOT NULL DEFAULT 0,
   `stars`          INT NOT NULL DEFAULT 0,
   `badges`         INT NOT NULL DEFAULT 0,
+  `comments`       INT NOT NULL DEFAULT 0,
+
   `space`          BIGINT UNSIGNED NOT NULL DEFAULT 0,
   `auth`           BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
