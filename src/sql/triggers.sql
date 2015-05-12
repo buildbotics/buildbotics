@@ -316,7 +316,7 @@ BEGIN
   UPDATE things
     SET
       space = space + NEW.space,
-      files = files + 1,
+      downloads = downloads + IF(NEW.visibility = 'display', 0, 1),
       modified = CURRENT_TIMESTAMP
     WHERE id = NEW.thing_id;
 END;
@@ -329,7 +329,19 @@ BEGIN
   -- Space
   IF NEW.space != OLD.space THEN
     UPDATE things
-      SET space = space + NEW.space - OLD.space, modified = CURRENT_TIMESTAMP
+      SET
+        space = space + NEW.space - OLD.space,
+        modified = CURRENT_TIMESTAMP
+      WHERE id = OLD.thing_id;
+  END IF;
+
+  -- Visibility
+  IF NEW.visibility != OLD.visibility THEN
+    UPDATE things
+      SET
+        downloads = downloads + IF(NEW.visibility = 'display', -1,
+          IF(OLD.visibility = 'display', 1, 0)),
+        modified = CURRENT_TIMESTAMP
       WHERE id = OLD.thing_id;
   END IF;
 END;
@@ -343,7 +355,7 @@ BEGIN
   UPDATE things
     SET
       space = space - OLD.space,
-      files = files - 1,
+      downloads = downloads - IF(OLD.visibility = 'display', 0, 1),
       modified = CURRENT_TIMESTAMP
     WHERE id = OLD.thing_id;
 END;

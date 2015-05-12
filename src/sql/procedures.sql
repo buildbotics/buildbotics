@@ -441,7 +441,7 @@ CREATE PROCEDURE GetStarredThingsByID(IN _profile_id INT)
 BEGIN
   -- Keep in sync with GetThingsByID()
   SELECT t.name, p.name owner, p.points owner_points, t.type, t.title,
-    t.comments, t.stars, t.children, t.views, t.files,
+    t.comments, t.stars, t.children, t.views, t.downloads,
     GetFileURL(p.name, t.name, f.name) image,
     IF(t.published IS null, null, FormatTS(t.published)) published
     FROM things t
@@ -581,7 +581,8 @@ BEGIN
   SELECT t.name, p.name owner, p.points owner_points, t.type, title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified, t.comments,
-    t.stars, children, views, files, GetFileURL(p.name, t.name, f.name) image
+    t.stars, children, views, t.downloads,
+    GetFileURL(p.name, t.name, f.name) image
     FROM things t
     LEFT JOIN profiles p ON p.id = _owner_id
     LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
@@ -635,8 +636,9 @@ BEGIN
   SELECT t.name, _owner owner, o.points owner_points, t.type, t.title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified,
-    t.tags, t.instructions, t.comments, t.stars, t.children, t.views, t.files,
-    t.license, l.url license_url, CONCAT(p.name, '/', parent.name) parent
+    t.tags, t.instructions, t.comments, t.stars, t.children, t.views,
+    t.downloads, t.license, l.url license_url,
+    CONCAT(p.name, '/', parent.name) parent
 
     FROM things t
 
@@ -813,7 +815,7 @@ BEGIN
   SELECT t.name, p.name owner, p.points owner_points, t.type, t.title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified,
-    t.comments, t.stars, t.children, t.views, t.files,
+    t.comments, t.stars, t.children, t.views, t.downloads,
     GetFileURL(p.name, t.name, f.name) image
 
     FROM things t
@@ -1031,7 +1033,10 @@ END;
 
 CREATE PROCEDURE FixCommentCounts()
 BEGIN
+  START TRANSACTION;
+
   -- Profiles
+  UPDATE profiles SET comments = 0;
   UPDATE profiles p
     INNER JOIN (
       SELECT owner_id, COUNT(*) cnt FROM comments
@@ -1041,6 +1046,7 @@ BEGIN
     SET p.comments = c.cnt;
 
   -- Things
+  UPDATE things SET comments = 0;
   UPDATE things t
     INNER JOIN (
       SELECT thing_id, COUNT(*) cnt FROM comments
@@ -1048,6 +1054,8 @@ BEGIN
         GROUP BY thing_id) c
     ON t.id = c.thing_id
     SET t.comments = c.cnt;
+
+  COMMIT;
 END;
 
 
@@ -1242,6 +1250,24 @@ BEGIN
 END;
 
 
+CREATE PROCEDURE FixDownloadCounts()
+BEGIN
+  START TRANSACTION;
+
+  -- Things
+  UPDATE things SET downloads = 0;
+  UPDATE things t
+    INNER JOIN (
+      SELECT thing_id, COUNT(*) cnt FROM files
+        WHERE visibility != 'display'
+        GROUP BY thing_id) f
+    ON t.id = f.thing_id
+    SET t.downloads = f.cnt;
+
+  COMMIT;
+END;
+
+
 -- Licenses
 CREATE PROCEDURE GetLicenses()
 BEGIN
@@ -1313,7 +1339,7 @@ BEGIN
   SELECT t.name, p.name owner, p.points owner_points, t.type, t.title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified,
-    t.comments, t.stars, t.children, t.views, t.files,
+    t.comments, t.stars, t.children, t.views, t.downloads,
     GetFileURL(p.name, t.name, f.name) image,
     MATCH(t.name, t.title, t.tags, t.instructions)
     AGAINST(_query IN BOOLEAN MODE) score

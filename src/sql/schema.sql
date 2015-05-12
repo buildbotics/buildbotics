@@ -257,7 +257,7 @@ CREATE TABLE IF NOT EXISTS things (
   `stars`        INT NOT NULL DEFAULT 0,
   `children`     INT NOT NULL DEFAULT 0,
   `views`        INT NOT NULL DEFAULT 0,
-  `files`        INT NOT NULL DEFAULT 0,
+  `downloads`    INT NOT NULL DEFAULT 0,
 
   `space`        BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
