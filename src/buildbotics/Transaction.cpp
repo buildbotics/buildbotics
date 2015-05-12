@@ -329,6 +329,19 @@ bool Transaction::apiAuthLogout() {
 }
 
 
+bool Transaction::apiGetInfo() {
+  jsonFields = "permissions licenses";
+  query(&Transaction::returnJSONFields, "CALL GetInfo()");
+  return true;
+}
+
+
+bool Transaction::apiGetPermissions() {
+  query(&Transaction::returnList, "CALL GetPermissions()");
+  return true;
+}
+
+
 bool Transaction::apiGetProfiles() {
   JSON::ValuePtr args = parseArgsPtr();
   query(&Transaction::returnList,

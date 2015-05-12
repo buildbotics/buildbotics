@@ -19,17 +19,30 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE TABLE IF NOT EXISTS authorizations (
   id INT AUTO_INCREMENT,
   name VARCHAR(64),
+
+  UNIQUE(name),
   PRIMARY KEY (id)
 ) AUTO_INCREMENT = 0;
 
 INSERT INTO authorizations VALUES
     (1 << 0, 'admin'),
-    (1 << 1, 'edit-things'),
-    (1 << 2, 'publish-things'),
-    (1 << 2, 'delete-things'),
-    (1 << 4, 'edit-comments'),
-    (1 << 5, 'upvote-comments'),
-    (1 << 6, 'downvote-comments')
+    (1 << 1, 'moderator')
+  ON DUPLICATE KEY UPDATE name = name;
+
+
+CREATE TABLE IF NOT EXISTS permissions (
+  name VARCHAR(64) NOT NULL,
+  points INT NOT NULL,
+
+  PRIMARY KEY (name)
+);
+
+INSERT INTO permissions VALUES
+    ('upvote-comments',      1),
+    ('downvote-comments',  100),
+    ('edit-comments',     2000),
+    ('delete-comments',   5000),
+    ('edit-things',      10000)
   ON DUPLICATE KEY UPDATE name = name;
 
 

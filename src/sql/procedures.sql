@@ -264,6 +264,21 @@ BEGIN
 END;
 
 
+-- Info
+CREATE PROCEDURE GetInfo()
+BEGIN
+  CALL GetPermissions();
+  CALL GetLicenses();
+END;
+
+
+-- Permissions
+CREATE PROCEDURE GetPermissions()
+BEGIN
+  SELECT name, points FROM permissions ORDER BY points ASC;
+END;
+
+
 -- Authorizations
 CREATE FUNCTION GetAuthFlag(_name VARCHAR(64))
 RETURNS INT
@@ -1276,7 +1291,7 @@ END;
 -- Licenses
 CREATE PROCEDURE GetLicenses()
 BEGIN
-  SELECT name, url, description FROM licenses;
+  SELECT name, url, description FROM licenses ORDER BY name;
 END;
 
 

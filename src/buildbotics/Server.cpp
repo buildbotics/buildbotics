@@ -106,6 +106,12 @@ void Server::init() {
          "(/callback)?", apiAuthLogin);
   ADD_TM(api, HTTP_GET, "/api/auth/logout", apiAuthLogout);
 
+  // Info
+  ADD_TM(api, HTTP_GET, "/api/info", apiGetInfo);
+
+  // Permissions
+  ADD_TM(api, HTTP_GET, "/api/permissions", apiGetPermissions);
+
   // Profiles
   ADD_TM(api, HTTP_GET, "/api/profiles", apiGetProfiles);
   ADD_TM(api, HTTP_PUT, PROFILE_RE "/register", apiProfileRegister);

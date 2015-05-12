@@ -102,6 +102,10 @@ namespace Buildbotics {
     bool apiAuthLogin();
     bool apiAuthLogout();
 
+    bool apiGetInfo();
+
+    bool apiGetPermissions();
+
     bool apiGetProfiles();
     bool apiProfileRegister();
     bool apiProfileAvailable();

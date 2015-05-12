@@ -1,15 +1,3 @@
--- Profiles
-DROP TRIGGER IF EXISTS UpdateProfiles;
-CREATE TRIGGER UpdateProfiles BEFORE UPDATE ON profiles
-FOR EACH ROW
-BEGIN
-  -- Allow upvote after first comment
-  IF OLD.comments = 0 AND 0 < NEW.comments THEN
-    SET NEW.auth = NEW.auth | GetAuthFlag('upvote-comments');
-  END IF;
-END;
-
-
 -- Things
 DROP TRIGGER IF EXISTS UpdateThings;
 CREATE TRIGGER UpdateThings AFTER UPDATE ON things
