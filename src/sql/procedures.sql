@@ -953,6 +953,7 @@ BEGIN
     (_upvotes + _downvotes)) / (1 + 3.8416 / (_upvotes + _downvotes));
 END;
 
+
 CREATE PROCEDURE GetCommentsByID(IN _thing_id INT)
 BEGIN
     SELECT c.id comment, p.name owner, p.points owner_points, c.parent,
@@ -1012,6 +1013,8 @@ BEGIN
     SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
       SET MESSAGE_TEXT = 'Comment already upvoted.';
   END IF;
+
+  SELECT upvotes, downvotes FROM comments WHERE id = _comment;
 END;
 
 
@@ -1028,6 +1031,8 @@ BEGIN
     SIGNAL SQLSTATE 'HY000' -- ER_SIGNAL_EXCEPTION
       SET MESSAGE_TEXT = 'Comment already downvoted.';
   END IF;
+
+  SELECT upvotes, downvotes FROM comments WHERE id = _comment;
 END;
 
 

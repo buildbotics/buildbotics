@@ -632,7 +632,7 @@ bool Transaction::apiUpvoteComment() {
   authorize();
   args->insert("owner", user->getName());
 
-  query(&Transaction::returnOK, "CALL UpvoteComment(%(owner)s, %(comment)u)",
+  query(&Transaction::returnJSON, "CALL UpvoteComment(%(owner)s, %(comment)u)",
         args);
 
   return true;
@@ -644,8 +644,8 @@ bool Transaction::apiDownvoteComment() {
   authorize();
   args->insert("owner", user->getName());
 
-  query(&Transaction::returnOK, "CALL DownvoteComment(%(owner)s, %(comment)u)",
-        args);
+  query(&Transaction::returnJSON,
+        "CALL DownvoteComment(%(owner)s, %(comment)u)", args);
 
   return true;
 }
