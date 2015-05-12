@@ -985,13 +985,15 @@ END;
 CREATE PROCEDURE PostComment(IN _owner VARCHAR(64), IN _thing_owner VARCHAR(64),
   IN _thing VARCHAR(64), IN _parent INT, IN _text TEXT)
 BEGIN
+  SET _owner = GetProfileID(_owner);
+
   INSERT INTO comments (owner_id, thing_id, parent, text)
-    VALUES (GetProfileID(_owner), GetThingID(_thing_owner, _thing), _parent,
-      _text);
+    VALUES (_owner, GetThingID(_thing_owner, _thing), _parent, _text);
 
   SELECT LAST_INSERT_ID() id;
 
-  CALL UpvoteComment(_owner, LAST_INSERT_ID());
+  -- Auto upvote own comments
+  INSERT INTO comment_votes VALUES (LAST_INSERT_ID(), _owner, 1);
 END;
 
 
