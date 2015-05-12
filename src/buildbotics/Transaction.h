@@ -94,6 +94,9 @@ namespace Buildbotics {
                          const std::string &type, uint32_t minSize,
                          uint32_t maxSize);
 
+    // From cb::Event::Request
+    void reset();
+
     // From cb::Event::OAuth2Login
     void processProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
 

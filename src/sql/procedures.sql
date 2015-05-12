@@ -333,7 +333,7 @@ BEGIN
     SELECT name auth FROM authorizations WHERE (_auth & (1 << (id - 1)));
 
   ELSE
-    SELECT _name, _avatar;
+    SELECT _name name, _avatar avatar;
   END IF;
 END;
 

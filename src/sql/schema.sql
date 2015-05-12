@@ -146,11 +146,11 @@ INSERT INTO licenses (name)
   ('MIT License'),
   ('BSD License'),
   ('Creative Commons - Attrib License v4.0'),
-  ('Creative Commons - Attrib,NoDeriv License v4.0'),
-  ('Creative Commons - Attrib,ShareAlike License v4.0'),
-  ('Creative Commons - Attrib,NonCom License v4.0'),
-  ('Creative Commons - Attrib,NonCom,NoDeriv License v4.0'),
-  ('Creative Commons - Attrib,NonCom,ShareAlike License v4.0')
+  ('Creative Commons - Attrib, NoDeriv License v4.0'),
+  ('Creative Commons - Attrib, Share Alike License v4.0'),
+  ('Creative Commons - Attrib, NonCom License v4.0'),
+  ('Creative Commons - Attrib, NonCom, NoDeriv License v4.0'),
+  ('Creative Commons - Attrib, NonCom, Share Alike License v4.0')
   ON DUPLICATE KEY UPDATE url = url;
 
 UPDATE licenses

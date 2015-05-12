@@ -178,26 +178,8 @@ void Transaction::query(event_db_member_functor_t member, const string &s,
 }
 
 
-bool Transaction::apiError(int status, const string &msg) {
-  LOG_ERROR(msg);
-
-  // Reset output
-  if (!writer.isNull()) writer.release();
-  getOutputBuffer().clear();
-
-  // Drop DB connection
-  if (!db.isNull()) db->close();
-
-  // Send error message
-  setContentType("text/plain");
-  reply(status, msg);
-
-  return true;
-}
-
-
 bool Transaction::pleaseLogin() {
-  apiError(HTTP_UNAUTHORIZED, "Not authorized, please login");
+  THROWX("Not authorized, please login", HTTP_UNAUTHORIZED);
   return true;
 }
 
@@ -244,6 +226,17 @@ string Transaction::postFile(const std::string &path, const string &file,
 
   // Return URL
   return "/" + URI::encode(key);
+}
+
+
+void Transaction::reset() {
+  // Release JSON writer
+  writer.release();
+
+  // Drop DB connection
+  if (!db.isNull()) db->close();
+
+  Event::Request::reset();
 }
 
 
@@ -682,11 +675,9 @@ bool Transaction::apiUploadFile() {
   string file = args->getString("file");
   string ext = String::toLower(SystemUtilities::extension(file));
   if (ext == "exe" || ext == "com" || ext == "bat" || ext == "lnk" ||
-      ext == "chm" || ext == "hta") {
-    apiError(HTTP_UNAUTHORIZED, "Uploading ." + ext +
-             " files is not allowed.");
-    return true;
-  }
+      ext == "chm" || ext == "hta")
+    THROWXS("Uploading ." << ext << " files is not allowed.",
+            HTTP_UNAUTHORIZED);
 
   // Restrict by media-type
   string type = args->getString("type");
@@ -707,11 +698,9 @@ bool Transaction::apiUploadFile() {
       type == "application/hta" ||
       type == "application/x-ms-shortcut" ||
       type == "application/octet-stream" ||
-      type == "vms/exe") {
-    apiError(HTTP_UNAUTHORIZED, "Uploading files of type " + type +
-             " not allowed.");
-    return true;
-  }
+      type == "vms/exe")
+    THROWXS("Uploading files of type " << type << " not allowed.",
+            HTTP_UNAUTHORIZED);
 
     // Compute path
   string path =
@@ -818,13 +807,13 @@ bool Transaction::apiGetEvents() {
 
 
 bool Transaction::apiNotFound() {
-  apiError(HTTP_NOT_FOUND, "Invalid API method " + getURI().getPath());
+  THROWXS("Invalid API method " << getURI().getPath(), HTTP_NOT_FOUND);
   return true;
 }
 
 
 bool Transaction::notFound() {
-  apiError(HTTP_NOT_FOUND, "Not found " + getURI().getPath());
+  THROWXS("Not found " << getURI().getPath(), HTTP_NOT_FOUND);
   return true;
 }
 
@@ -1107,13 +1096,13 @@ void Transaction::returnReply(MariaDB::EventDBCallback::state_t state) {
     }
 
     LOG_ERROR("DB:" << db->getErrorNumber() << ": " << db->getError());
-    apiError(error, db->getError());
+    THROWXS(db->getError(), error);
 
     break;
   }
 
   default:
-    apiError(HTTP_INTERNAL_SERVER_ERROR, "Unexpected DB response");
+    THROWX("Unexpected DB response", HTTP_INTERNAL_SERVER_ERROR);
     return;
   }
 }
