@@ -441,7 +441,7 @@ CREATE PROCEDURE GetStarredThingsByID(IN _profile_id INT)
 BEGIN
   -- Keep in sync with GetThingsByID()
   SELECT t.name, p.name owner, p.points owner_points, t.type, t.title,
-    t.comments, t.stars, t.children, t.views,
+    t.comments, t.stars, t.children, t.views, t.files,
     GetFileURL(p.name, t.name, f.name) image,
     IF(t.published IS null, null, FormatTS(t.published)) published
     FROM things t
@@ -581,7 +581,7 @@ BEGIN
   SELECT t.name, p.name owner, p.points owner_points, t.type, title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified, t.comments,
-    t.stars, children, views, GetFileURL(p.name, t.name, f.name) image
+    t.stars, children, views, files, GetFileURL(p.name, t.name, f.name) image
     FROM things t
     LEFT JOIN profiles p ON p.id = _owner_id
     LEFT JOIN files f ON f.id = GetFirstImageIDByID(t.id)
@@ -635,7 +635,7 @@ BEGIN
   SELECT t.name, _owner owner, o.points owner_points, t.type, t.title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified,
-    t.tags, t.instructions, t.comments, t.stars, t.children, t.views,
+    t.tags, t.instructions, t.comments, t.stars, t.children, t.views, t.files,
     t.license, l.url license_url, CONCAT(p.name, '/', parent.name) parent
 
     FROM things t
@@ -813,7 +813,7 @@ BEGIN
   SELECT t.name, p.name owner, p.points owner_points, t.type, t.title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified,
-    t.comments, t.stars, t.children, t.views,
+    t.comments, t.stars, t.children, t.views, t.files,
     GetFileURL(p.name, t.name, f.name) image
 
     FROM things t
@@ -1313,7 +1313,7 @@ BEGIN
   SELECT t.name, p.name owner, p.points owner_points, t.type, t.title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified,
-    t.comments, t.stars, t.children, t.views,
+    t.comments, t.stars, t.children, t.views, t.files,
     GetFileURL(p.name, t.name, f.name) image,
     MATCH(t.name, t.title, t.tags, t.instructions)
     AGAINST(_query IN BOOLEAN MODE) score

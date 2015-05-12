@@ -312,9 +312,12 @@ DROP TRIGGER IF EXISTS AfterInsertFiles;
 CREATE TRIGGER AfterInsertFiles AFTER INSERT ON files
 FOR EACH ROW
 BEGIN
-  -- Space
+  -- Space & file count
   UPDATE things
-    SET space = space + NEW.space, modified = CURRENT_TIMESTAMP
+    SET
+      space = space + NEW.space,
+      files = files + 1,
+      modified = CURRENT_TIMESTAMP
     WHERE id = NEW.thing_id;
 END;
 
@@ -338,6 +341,9 @@ FOR EACH ROW
 BEGIN
   -- Space
   UPDATE things
-    SET space = space - OLD.space, modified = CURRENT_TIMESTAMP
+    SET
+      space = space - OLD.space,
+      files = files - 1,
+      modified = CURRENT_TIMESTAMP
     WHERE id = OLD.thing_id;
 END;
