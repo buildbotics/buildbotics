@@ -216,18 +216,20 @@ DROP TRIGGER IF EXISTS DeleteComments;
 CREATE TRIGGER DeleteComments AFTER DELETE ON comments
 FOR EACH ROW
 BEGIN
-  -- Profile points
-  IF OLD.upvotes OR OLD.downvotes THEN
-    UPDATE profiles
-      SET points = points - OLD.upvotes + OLD.downvotes
-      WHERE id = OLD.owner_id;
+  IF NOT OLD.deleted THEN
+    -- Profile points
+    IF OLD.upvotes OR OLD.downvotes THEN
+      UPDATE profiles
+        SET points = points - OLD.upvotes + OLD.downvotes
+        WHERE id = OLD.owner_id;
+    END IF;
+
+    -- Dec profile comments
+    UPDATE profiles SET comments = comments - 1 WHERE id = OLD.owner_id;
+
+    -- Dec thing comments
+    UPDATE things SET comments = comments - 1 WHERE id = OLD.thing_id;
   END IF;
-
-  -- Dec profile comments
-  UPDATE profiles SET comments = comments - 1 WHERE id = OLD.owner_id;
-
-  -- Dec thing comments
-  UPDATE things SET comments = comments - 1 WHERE id = OLD.thing_id;
 END;
 
 

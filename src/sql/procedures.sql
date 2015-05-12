@@ -1029,6 +1029,28 @@ BEGIN
 END;
 
 
+CREATE PROCEDURE FixCommentCounts()
+BEGIN
+  -- Profiles
+  UPDATE profiles p
+    INNER JOIN (
+      SELECT owner_id, COUNT(*) cnt FROM comments
+        WHERE NOT deleted
+        GROUP BY owner_id) c
+    ON p.id = c.owner_id
+    SET p.comments = c.cnt;
+
+  -- Things
+  UPDATE things t
+    INNER JOIN (
+      SELECT thing_id, COUNT(*) cnt FROM comments
+        WHERE NOT deleted
+        GROUP BY thing_id) c
+    ON t.id = c.thing_id
+    SET t.comments = c.cnt;
+END;
+
+
 -- Files
 CREATE FUNCTION GetFirstImageIDByID(_thing_id INT)
 RETURNS INT
