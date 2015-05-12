@@ -515,7 +515,7 @@ bool Transaction::apiPutThing() {
 
   query(&Transaction::returnOK,
         "CALL PutThing(%(profile)s, %(thing)s, %(type)s, %(title)s, "
-        "%(url)s, %(license)s, %(instructions)s)", args);
+        "%(license)s, %(instructions)s)", args);
 
   return true;
 }

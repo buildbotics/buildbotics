@@ -635,7 +635,7 @@ BEGIN
   SELECT t.name, _owner owner, o.points owner_points, t.type, t.title,
     IF(t.published IS null, null, FormatTS(t.published)) published,
     FormatTS(t.created) created, FormatTS(t.modified) modified,
-    t.url, t.tags, t.instructions, t.comments, t.stars, t.children, t.views,
+    t.tags, t.instructions, t.comments, t.stars, t.children, t.views,
     t.license, l.url license_url, CONCAT(p.name, '/', parent.name) parent
 
     FROM things t
@@ -704,8 +704,8 @@ END;
 
 
 CREATE PROCEDURE PutThing(IN _owner VARCHAR(64), IN _name VARCHAR(64),
-  IN _type CHAR(8), IN _title VARCHAR(256), IN _url VARCHAR(256),
-  IN _license VARCHAR(64), IN _instructions MEDIUMTEXT)
+  IN _type CHAR(8), IN _title VARCHAR(256), IN _license VARCHAR(64),
+   IN _instructions MEDIUMTEXT)
 BEGIN
   SET _owner = GetProfileID(_owner);
 
@@ -715,15 +715,14 @@ BEGIN
   END IF;
 
   INSERT INTO things
-      (owner_id, name, type, title, url, license, instructions)
+      (owner_id, name, type, title, license, instructions)
 
     VALUES
-      (_owner, _name, _type, _title, _url, IFNULL(_license, 'BSD License'),
+      (_owner, _name, _type, _title, IFNULL(_license, 'BSD License'),
        instructions)
 
     ON DUPLICATE KEY UPDATE
       title        = IFNULL(_title, title),
-      url          = IFNULL(_url, url),
       license      = IFNULL(_license, license),
       instructions = IFNULL(_instructions, instructions),
       modified     = CURRENT_TIMESTAMP;
