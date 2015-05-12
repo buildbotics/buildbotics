@@ -229,8 +229,12 @@ BEGIN
   -- Comment votes
   IF 0 < NEW.vote THEN
     UPDATE comments SET upvotes = upvotes + 1 WHERE id = NEW.comment_id;
+
   ELSE
     UPDATE comments SET downvotes = downvotes + 1 WHERE id = NEW.comment_id;
+
+    -- Profile points
+    UPDATE profiles SET points = points - 1 WHERE id = NEW.profile_id;
   END IF;
 END;
 
@@ -244,6 +248,14 @@ BEGIN
       upvotes = upvotes + IF(NEW.vote = 1, 1, IF(OLD.vote = 1, -1, 0)),
       downvotes = downvotes + IF(NEW.vote = -1, 1, IF(OLD.vote = -1, -1, 0))
     WHERE id = NEW.comment_id;
+
+  -- Profile points
+  IF NEW.vote = -1 THEN
+    UPDATE profiles SET points = points - 1 WHERE id = NEW.profile_id;
+  END IF;
+  IF OLD.vote = -1 THEN
+    UPDATE profiles SET points = points + 1 WHERE id = NEW.profile_id;
+  END IF;
 END;
 
 
