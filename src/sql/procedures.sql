@@ -1380,6 +1380,8 @@ BEGIN
       (_object_id   IS null OR e.object_id   = _object_id) AND
       (_since       IS null OR _since       <= e.ts)
 
+    HAVING path IS NOT null
+
     ORDER BY e.id DESC
 
     LIMIT _limit;
