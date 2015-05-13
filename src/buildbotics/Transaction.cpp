@@ -229,14 +229,14 @@ string Transaction::postFile(const std::string &path, const string &file,
 }
 
 
-void Transaction::reset() {
+void Transaction::sendError(int code, const std::string &message) {
   // Release JSON writer
   writer.release();
 
   // Drop DB connection
   if (!db.isNull()) db->close();
 
-  Event::Request::reset();
+  Event::Request::sendError(code, message);
 }
 
 
@@ -1096,12 +1096,15 @@ void Transaction::returnReply(MariaDB::EventDBCallback::state_t state) {
     }
 
     LOG_ERROR("DB:" << db->getErrorNumber() << ": " << db->getError());
+    sendError(error, db->getError());
     THROWXS(db->getError(), error);
 
     break;
   }
 
   default:
+    resetOutput();
+    sendError(HTTP_INTERNAL_SERVER_ERROR);
     THROWX("Unexpected DB response", HTTP_INTERNAL_SERVER_ERROR);
     return;
   }

@@ -95,7 +95,8 @@ namespace Buildbotics {
                          uint32_t maxSize);
 
     // From cb::Event::Request
-    void reset();
+    using cb::Event::Request::sendError;
+    void sendError(int code, const std::string &message);
 
     // From cb::Event::OAuth2Login
     void processProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
