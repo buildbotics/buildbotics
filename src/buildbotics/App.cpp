@@ -51,7 +51,7 @@ using namespace std;
 
 
 App::App() :
-  ServerApplication("Buildbotics"), dns(base),
+  ServerApplication("Buildbotics", &App::_hasFeature), dns(base),
   client(base, dns, new SSLContext), googleAuth(getOptions()),
   githubAuth(getOptions()), facebookAuth(getOptions()), server(*this),
   userManager(*this), imageHost("http://images.buildbotics.com"),
@@ -109,6 +109,12 @@ App::App() :
 }
 
 
+bool App::_hasFeature(int feature) {
+  if (feature == FEATURE_LIFELINE) return true;
+  return ServerApplication::_hasFeature(feature);
+}
+
+
 SmartPointer<MariaDB::EventDB> App::getDBConnection() {
   // TODO Limit the total number of active connections
 
@@ -157,6 +163,10 @@ int App::init(int argc, char *argv[]) {
   // DB maintenance
   base.newEvent(this, &App::maintenanceEvent).add(dbMaintenancePeriod);
 
+  // Check lifeline
+  if (getLifeline())
+    base.newEvent(this, &App::lifelineEvent).add(0.25);
+
   // Handle exit signal
   base.newSignal(SIGINT, this, &App::signalEvent).add();
   base.newSignal(SIGTERM, this, &App::signalEvent).add();
@@ -193,6 +203,12 @@ void App::maintenanceEvent(Event::Event &e, int signal, unsigned flags) {
   LOG_INFO(3, "DB maintenance starting");
   maintenanceDB = getDBConnection();
   maintenanceDB->query(this, &App::dbMaintenanceCB, "CALL Maintenance()");
+}
+
+
+void App::lifelineEvent(Event::Event &e, int signal, unsigned flags) {
+  e.add(0.25);
+  if (shouldQuit()) base.loopExit();
 }
 
 

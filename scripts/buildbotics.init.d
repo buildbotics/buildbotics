@@ -21,7 +21,8 @@ NAME=buildbotics
 EXEC=/usr/bin/$NAME
 CONFIG=/etc/$NAME/config.xml
 USER=$NAME
-PID_FILE=/var/run/$NAME/$NAME.pid
+RUN=/var/run/$NAME
+PID_FILE=$RUN/$NAME.pid
 
 START_STOP_OPTS="-x $EXEC -n $NAME -p $PID_FILE"
 
@@ -29,7 +30,8 @@ START_STOP_OPTS="-x $EXEC -n $NAME -p $PID_FILE"
 start() {
     mkdir -p $(dirname $PID_FILE)
     start-stop-daemon --start $START_STOP_OPTS -- \
-      --config $CONFIG --daemon --run-as $USER --pid-file $PID_FILE
+      --config $CONFIG --daemon --run-as $USER --pid-file $PID_FILE \
+      --chdir $RUN
 }
 
 

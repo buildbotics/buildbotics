@@ -93,6 +93,8 @@ namespace Buildbotics {
   public:
     App();
 
+    static bool _hasFeature(int feature);
+
     cb::Event::Base &getEventBase() {return base;}
     cb::Event::DNSBase &getEventDNS() {return dns;}
     cb::Event::Client &getEventClient() {return client;}
@@ -126,6 +128,7 @@ namespace Buildbotics {
     void dbMaintenanceCB(cb::MariaDB::EventDBCallback::state_t state);
 
     void maintenanceEvent(cb::Event::Event &e, int signal, unsigned flags);
+    void lifelineEvent(cb::Event::Event &e, int signal, unsigned flags);
     void signalEvent(cb::Event::Event &e, int signal, unsigned flags);
   };
 }

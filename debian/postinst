@@ -8,9 +8,8 @@ LOG=/var/log/$NAME
 case "$1" in
     reconfigure|configure)
         # Setup permissions
-        chown root:$NAME $ETC
-        chown $NAME:$NAME $RUN $LOG
-        chmod 775 $ETC $RUN $LOG
+        chown -R $NAME:root $ETC $RUN $LOG
+        chmod 755 $ETC $RUN $LOG
 
         if [ -x insserv ]; then
             # Install the init.d script
