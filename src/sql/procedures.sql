@@ -438,7 +438,7 @@ CREATE PROCEDURE Follow(IN follower VARCHAR(64), IN followed VARCHAR(64))
 BEGIN
   SET follower = GetProfileID(follower);
   SET followed = GetProfileID(followed);
-  INSERT INTO followers VALUES (follower, followed);
+  INSERT INTO followers (follower_id, followed_id) VALUES (follower, followed);
 END;
 
 
