@@ -332,7 +332,7 @@ CREATE TABLE IF NOT EXISTS comments (
   FULLTEXT KEY `text` (`text`),
   FOREIGN KEY (`owner_id`) REFERENCES profiles(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`thing_id`) REFERENCES things(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`ref`) REFERENCES comments(`id`) ON DELETE SET NULL
+  FOREIGN KEY (`parent`) REFERENCES comments(`id`) ON DELETE SET NULL
 );
 
 
