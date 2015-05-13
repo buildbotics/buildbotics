@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS followers (
 CREATE TABLE IF NOT EXISTS licenses (
   `name`           VARCHAR(64),
   `url`            VARCHAR(256),
+  `description`    TEXT,
 
   PRIMARY KEY (`name`)
 );
