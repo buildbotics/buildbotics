@@ -51,10 +51,10 @@ using namespace std;
 
 
 App::App() :
-  cb::Application("Buildbotics"), dns(base), client(base, dns, new SSLContext),
-  googleAuth(getOptions()), githubAuth(getOptions()),
-  facebookAuth(getOptions()), server(*this), userManager(*this),
-  imageHost("http://images.buildbotics.com"),
+  ServerApplication("Buildbotics"), dns(base),
+  client(base, dns, new SSLContext), googleAuth(getOptions()),
+  githubAuth(getOptions()), facebookAuth(getOptions()), server(*this),
+  userManager(*this), imageHost("http://images.buildbotics.com"),
   sessionCookieName("buildbotics.sid"), authTimeout(30 * Time::SEC_PER_DAY),
   authGraceperiod(Time::SEC_PER_HOUR), dbHost("localhost"),
   dbName("buildbotics"), dbPort(3306), dbTimeout(5),
@@ -130,7 +130,7 @@ SmartPointer<MariaDB::EventDB> App::getDBConnection() {
 
 
 int App::init(int argc, char *argv[]) {
-  int i = Application::init(argc, argv);
+  int i = ServerApplication::init(argc, argv);
   if (i == -1) return -1;
 
   // Libevent debugging

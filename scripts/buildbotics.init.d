@@ -22,20 +22,19 @@ EXEC=/usr/bin/$NAME
 CONFIG=/etc/$NAME/config.xml
 USER=$NAME
 PID_FILE=/var/run/$NAME/$NAME.pid
-LOG=/var/log/$NAME/$NAME.log
 
-START_STOP_OPTS="-x $EXEC -n $NAME -c $USER -p $PID_FILE"
+START_STOP_OPTS="-x $EXEC -n $NAME -p $PID_FILE"
 
 
 start() {
     mkdir -p $(dirname $PID_FILE)
-    start-stop-daemon --start $START_STOP_OPTS -m -b -- --config $CONFIG \
-      --log $LOG --log-rotate-dir $(dirname $LOG)
+    start-stop-daemon --start $START_STOP_OPTS -- \
+      --config $CONFIG --daemon --run-as $USER --pid-file $PID_FILE
 }
 
 
 stop() {
-    start-stop-daemon --stop $START_STOP_OPTS
+    start-stop-daemon --stop --retry forever/-TERM/10 $START_STOP_OPTS
 }
 
 

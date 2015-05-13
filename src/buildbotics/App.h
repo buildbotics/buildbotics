@@ -35,7 +35,7 @@
 #include "Server.h"
 #include "UserManager.h"
 
-#include <cbang/Application.h>
+#include <cbang/ServerApplication.h>
 #include <cbang/net/IPAddress.h>
 #include <cbang/openssl/KeyPair.h>
 #include <cbang/db/maria/EventDBCallback.h>
@@ -55,7 +55,7 @@ namespace cb {
 
 
 namespace Buildbotics {
-  class App : public cb::Application {
+  class App : public cb::ServerApplication {
     cb::Event::Base base;
     cb::Event::DNSBase dns;
     cb::Event::Client client;
