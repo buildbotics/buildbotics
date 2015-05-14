@@ -259,7 +259,7 @@ CREATE TABLE IF NOT EXISTS things (
   `name`         VARCHAR(64) NOT NULL,
   `type`         CHAR(8) NOT NULL,
   `title`        VARCHAR(128),
-  `license`      VARCHAR(64) DEFAULT 'BSD License',
+  `license`      VARCHAR(64),
   `tags`         TEXT,
   `instructions` MEDIUMTEXT,
 

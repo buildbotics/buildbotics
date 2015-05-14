@@ -26,10 +26,19 @@ Then install the packages like this:
 
     sudo apt-get update
     sudo apt-get install libre2-dev libmariadbclient-dev mariadb-server-10.0 \
-      python-mysql.connector
+      python-mysql.connector ssl-cert
 
 # Build
 
     export CBANG_HOME=/path/to/cbang
     scons
+
+# Create the DB and user
+
+    mysql -u root -p
+    CREATE DATABASE buildbotics;
+    CREATE USER 'buildbotics'@'localhost' IDENTIFIED BY '<password>';
+    GRANT EXECUTE ON buildbotics.* TO 'buildbotics'@'localhost';
+    exit
+    ./src/sql/update_db.py
 

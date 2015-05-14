@@ -735,8 +735,7 @@ BEGIN
       (owner_id, name, type, title, license, instructions)
 
     VALUES
-      (_owner, _name, _type, _title, IFNULL(_license, 'BSD License'),
-       instructions)
+      (_owner, _name, _type, _title, _license, instructions)
 
     ON DUPLICATE KEY UPDATE
       title        = IFNULL(_title, title),
