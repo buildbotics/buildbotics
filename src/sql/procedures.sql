@@ -10,6 +10,49 @@ BEGIN
 END;
 
 
+CREATE FUNCTION TR(str TEXT, _from VARCHAR(1024), _to VARCHAR(1024))
+  RETURNS text
+  DETERMINISTIC
+BEGIN
+  DECLARE len INT;
+  DECLARE i INT;
+
+  IF _to IS NOT NULL AND
+    (CHAR_LENGTH(_from) != CHAR_LENGTH(_to)) THEN
+    SET @error = 'Lengths do not match.';
+    SIGNAL SQLSTATE '49999' SET MESSAGE_TEXT = @error;
+  END IF;
+
+  SET len = CHAR_LENGTH(_from);
+  SET i = 1;
+
+  WHILE i < len  DO
+    SET @f = SUBSTR(_from, i, 1);
+    SET @t = IF(_to IS NULL, '', SUBSTR(_to, i, 1));
+    SET str = REPLACE(str, @f, @t);
+    SET i = i + 1;
+  END WHILE;
+
+  RETURN str;
+END;
+
+
+CREATE FUNCTION ConvertLatinChars(str TEXT)
+  RETURNS text
+  DETERMINISTIC
+BEGIN
+  DECLARE _from VARCHAR(1024);
+  DECLARE _to VARCHAR(1024);
+
+  SET _from = 'ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝßàáâãäåçèéêëìíîïñòóôõöùúûüýÿ';
+  SET _to   = 'AAAAAACEEEEIIIINOOOOOUUUUYBaaaaaaceeeeiiiinooooouuuuyy';
+
+  SET str = TR(str, _from, _to);
+
+  RETURN str;
+END;
+
+
 -- Associations
 CREATE PROCEDURE Associate(IN _provider VARCHAR(16), IN _id VARCHAR(64),
   IN _name VARCHAR(256), IN _email VARCHAR(256), IN _avatar VARCHAR(256))
@@ -129,12 +172,24 @@ CREATE FUNCTION CleanName(_name VARCHAR(64))
 RETURNS VARCHAR(64)
 DETERMINISTIC
 BEGIN
-  SET @remove = '!#$%&*+-/=?^`{|}~ \''; -- '
-  SET @i = LENGTH(@remove);
+  DECLARE len INT;
+  DECLARE i INT;
+  DECLARE c VARCHAR(1);
 
-  WHILE @i DO
-    SET _name = REPLACE(_name, SUBSTR(@remove, @i, 1), '.');
-    SET @i = @i - 1;
+  SET @allowed =
+   '1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.';
+
+  SET _name = ConvertLatinChars(_name);
+
+  SET len = LENGTH(_name);
+  WHILE i < len DO
+    SET c = SUBSTR(_name, i, 1);
+
+    IF LOCATE(c, @allowed) = 0 THEN
+      SET _name = REPLACE(_name, c, '.');
+    END IF;
+
+    SET i = i + 1;
   END WHILE;
 
   SET @last = 0;
@@ -145,7 +200,7 @@ BEGIN
 
   SET _name = TRIM('.' FROM _name);
 
-  IF @last = 0 THEN
+  IF @last < 2 THEN
     RETURN null;
   END IF;
 
