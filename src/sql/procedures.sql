@@ -44,8 +44,8 @@ BEGIN
   DECLARE _from VARCHAR(1024);
   DECLARE _to VARCHAR(1024);
 
-  SET _from = 'ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝßàáâãäåçèéêëìíîïñòóôõöùúûüýÿ';
-  SET _to   = 'AAAAAACEEEEIIIINOOOOOOUUUUYBaaaaaaceeeeiiiinooooouuuuyy';
+  SET _from = 'ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝßàáâãäåçèéêëìíîïñòóôõöøùúûüýÿ';
+  SET _to   = 'AAAAAACEEEEIIIINOOOOOOUUUUYBaaaaaaceeeeiiiinoooooouuuuyy';
 
   SET str = TR(str, _from, _to);
 
