@@ -863,7 +863,7 @@ END;
 
 CREATE PROCEDURE AddTag(IN _tag VARCHAR(64))
 BEGIN
-  INSERT INTO tags (name) VALUES(_tag) ON DUPLICATE KEY UPDATE id = id;
+  INSERT INTO tags (name) VALUES(LOWER(_tag)) ON DUPLICATE KEY UPDATE id = id;
 END;
 
 
@@ -874,7 +874,7 @@ BEGIN
   START TRANSACTION;
 
   -- Get tag ID
-  SELECT id INTO _tag_id FROM tags WHERE name = _tag;
+  SELECT id INTO _tag_id FROM tags WHERE LOWER(name) = LOWER(_tag);
 
   -- Delete thing_tags
   -- Note trigger will remove tags from things
@@ -893,7 +893,7 @@ BEGIN
   DECLARE _length INT;
 
   -- Get length of list
-  SET _tags = TRIM(BOTH ',' FROM _tags);
+  SET _tags = LOWER(TRIM(BOTH ',' FROM _tags));
   SET _length = LENGTH(_tags) - LENGTH(REPLACE(_tags, ',', '')) + 1;
 
   -- Limit
@@ -942,6 +942,8 @@ BEGIN
   DROP TEMPORARY TABLE IF EXISTS parsedTags;
   CREATE TEMPORARY TABLE parsedTags (`tag` VARCHAR(64) NOT NULL UNIQUE);
 
+  SET _tags = LOWER(_tags);
+
   REPEAT
     SET i = LOCATE(',', _tags);
 
@@ -965,6 +967,8 @@ END;
 CREATE PROCEDURE TagThing(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _tag VARCHAR(64))
 BEGIN
+  SET _tag = LOWER(_tag);
+
   INSERT INTO tags (name, count) VALUES (_tag, 0)
     ON DUPLICATE KEY UPDATE name = name;
 
@@ -1004,6 +1008,8 @@ END;
 CREATE PROCEDURE UntagThing(IN _owner VARCHAR(64), IN _thing VARCHAR(64),
   IN _tag VARCHAR(64))
 BEGIN
+  SET _tag = LOWER(_tag);
+
   SELECT id INTO _tag FROM tags WHERE name = _tag;
 
   DELETE FROM thing_tags
