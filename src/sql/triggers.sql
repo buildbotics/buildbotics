@@ -28,6 +28,7 @@ DROP TRIGGER IF EXISTS DeleteThings;
 CREATE TRIGGER DeleteThings AFTER DELETE ON things
 FOR EACH ROW
 BEGIN
+  -- Events
   DELETE FROM events WHERE object_type = 'thing' AND object_id = OLD.id;
 END;
 

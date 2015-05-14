@@ -505,6 +505,33 @@ BEGIN
 END;
 
 
+CREATE PROCEDURE FixStarCounts()
+BEGIN
+  START TRANSACTION;
+
+  -- Profiles
+  UPDATE profiles SET stars = 0;
+  UPDATE profiles p
+    INNER JOIN (
+      SELECT profile_id, COUNT(*) cnt FROM stars
+        GROUP BY profile_id) s
+    ON p.id = s.profile_id
+    SET p.stars = s.cnt;
+
+  -- Things
+  UPDATE things SET stars = 0;
+  UPDATE things t
+    INNER JOIN (
+      SELECT thing_id, COUNT(*) cnt FROM stars
+        GROUP BY thing_id) s
+    ON t.id = s.thing_id
+    SET t.stars = s.cnt;
+
+  COMMIT;
+END;
+
+
+
 -- Badges
 CREATE FUNCTION GetBadgeID(_name VARCHAR(64))
 RETURNS INT
@@ -955,6 +982,25 @@ BEGIN
 END;
 
 
+CREATE PROCEDURE FixTagCounts()
+BEGIN
+  START TRANSACTION;
+
+  UPDATE tags SET count = 0;
+
+  UPDATE tags t
+    INNER JOIN (
+      SELECT tag_id, COUNT(*) cnt FROM thing_tags
+        GROUP BY tag_id) tt
+    ON t.id = tt.tag_id
+    SET t.count = tt.cnt;
+
+  DELETE FROM tags WHERE count = 0;
+
+  COMMIT;
+END;
+
+
 -- Comments
 CREATE FUNCTION WilsonScore(_upvotes INT, _downvotes INT)
 RETURNS DOUBLE
@@ -1075,6 +1121,34 @@ BEGIN
         GROUP BY thing_id) c
     ON t.id = c.thing_id
     SET t.comments = c.cnt;
+
+  COMMIT;
+END;
+
+
+CREATE PROCEDURE FixCommentVotes()
+BEGIN
+  START TRANSACTION;
+
+  UPDATE comments SET upvotes = 0, downvotes = 0;
+
+  -- Upvotes
+  UPDATE comments c
+    INNER JOIN (
+      SELECT comment_id, COUNT(*) cnt FROM comment_votes
+        WHERE 0 < vote
+        GROUP BY comment_id) cv
+    ON c.id = cv.comment_id
+    SET c.upvotes = cv.cnt;
+
+  -- Downvotes
+  UPDATE comments c
+    INNER JOIN (
+      SELECT comment_id, COUNT(*) cnt FROM comment_votes
+        WHERE vote < 0
+        GROUP BY comment_id) cv
+    ON c.id = cv.comment_id
+    SET c.downvotes = cv.cnt;
 
   COMMIT;
 END;
@@ -1526,4 +1600,14 @@ BEGIN
 
   -- Clean old unconfirmed files
   DELETE FROM files WHERE created < now() - INTERVAL 6 hour AND NOT confirmed;
+END;
+
+
+CREATE PROCEDURE FixAllCounts()
+BEGIN
+  CALL FixStarCounts();
+  CALL FixTagCounts();
+  CALL FixCommentCounts();
+  CALL FixCommentVotes();
+  CALL FixDownloadCounts();
 END;
