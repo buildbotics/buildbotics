@@ -91,7 +91,8 @@ void Server::init() {
 #define THING_RE PROFILE_RE "/things/(?P<thing>" NAME_RE ")"
 #define STAR_RE THING_RE "/star"
 #define COMMENTS_RE THING_RE "/comments"
-#define COMMENT_RE COMMENTS_RE "/(?P<comment>\\d+)"
+#define COMMENT_RE COMMENTS_RE                          \
+  "/(?P<comment>\\d+)(/owner/(?P<owner>" NAME_RE "))?"
 #define FILE_RE THING_RE "/files/(?P<file>" FILENAME_RE ")"
 #define THING_TAGS_RE THING_RE "/tags/(?P<tags>" TAG_RE "(," TAG_RE ")*)"
 #define TAGS_RE "/api/tags"

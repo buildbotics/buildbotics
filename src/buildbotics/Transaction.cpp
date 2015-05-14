@@ -242,7 +242,9 @@ void Transaction::sendError(int code, const std::string &message) {
   // Drop DB connection
   if (!db.isNull()) db->close();
 
-  Event::Request::sendError(code, message);
+  resetOutput();
+  send(message);
+  reply(code);
 }
 
 
@@ -602,10 +604,19 @@ bool Transaction::apiUntagThing() {
 }
 
 
+void Transaction::commentAuth() {
+  JSON::Dict &args = Event::Request::parseArgs();
+
+  string owner = args.getString("owner", "");
+  if (owner.empty()) args.insert("owner", getUser().getName());
+
+  authorize(args.getString("owner"));
+}
+
+
 bool Transaction::apiPostComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  if (!args->hasString("owner")) args->insert("owner", getUser().getName());
-  authorize(args->getString("owner"));
+  commentAuth();
 
   query(&Transaction::returnU64,
         "CALL PostComment(%(owner)s, %(profile)s, %(thing)s, %(parent)u, "
@@ -617,8 +628,7 @@ bool Transaction::apiPostComment() {
 
 bool Transaction::apiUpdateComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  if (!args->hasString("owner")) args->insert("owner", getUser().getName());
-  authorize(args->getString("owner"));
+  commentAuth();
 
   query(&Transaction::returnOK,
         "CALL UpdateComment(%(owner)s, %(comment)u, %(text)s)", args);
@@ -641,8 +651,7 @@ bool Transaction::apiDeleteComment() {
 
 bool Transaction::apiUpvoteComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  if (!args->hasString("owner")) args->insert("owner", getUser().getName());
-  authorize(args->getString("owner"));
+  commentAuth();
 
   query(&Transaction::returnJSON, "CALL UpvoteComment(%(owner)s, %(comment)u)",
         args);
@@ -653,8 +662,7 @@ bool Transaction::apiUpvoteComment() {
 
 bool Transaction::apiDownvoteComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  if (!args->hasString("owner")) args->insert("owner", getUser().getName());
-  authorize(args->getString("owner"));
+  commentAuth();
 
   query(&Transaction::returnJSON,
         "CALL DownvoteComment(%(owner)s, %(comment)u)", args);
@@ -1098,6 +1106,7 @@ void Transaction::returnReply(MariaDB::EventDBCallback::state_t state) {
 
     switch (db->getErrorNumber()) {
     case ER_SIGNAL_NOT_FOUND: error = HTTP_NOT_FOUND; break;
+    case ER_SIGNAL_EXCEPTION: error = HTTP_BAD_REQUEST; break;
     default: break;
     }
 

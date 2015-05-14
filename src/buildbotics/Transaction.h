@@ -138,6 +138,7 @@ namespace Buildbotics {
     bool apiTagThing();
     bool apiUntagThing();
 
+    void commentAuth();
     bool apiPostComment();
     bool apiUpdateComment();
     bool apiDeleteComment();
