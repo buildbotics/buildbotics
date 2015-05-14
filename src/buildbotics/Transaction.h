@@ -72,6 +72,7 @@ namespace Buildbotics {
     cb::SmartPointer<cb::JSON::Dict> parseArgsPtr();
 
     bool lookupUser(bool skipAuthCheck = false);
+    User &getUser();
     std::string getViewID();
     void authorize(unsigned flags = AuthFlags::AUTH_NONE);
     void authorize(unsigned flags, const std::string &name);

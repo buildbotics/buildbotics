@@ -114,6 +114,12 @@ bool Transaction::lookupUser(bool skipAuthCheck) {
 }
 
 
+User &Transaction::getUser() {
+  if (!lookupUser()) pleaseLogin();
+  return *user;
+}
+
+
 string Transaction::getViewID() {
   lookupUser();
 
@@ -598,8 +604,8 @@ bool Transaction::apiUntagThing() {
 
 bool Transaction::apiPostComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  authorize();
-  args->insert("owner", user->getName());
+  if (!args->hasString("owner")) args->insert("owner", getUser().getName());
+  authorize(args->getString("owner"));
 
   query(&Transaction::returnU64,
         "CALL PostComment(%(owner)s, %(profile)s, %(thing)s, %(parent)u, "
@@ -611,8 +617,8 @@ bool Transaction::apiPostComment() {
 
 bool Transaction::apiUpdateComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  authorize();
-  args->insert("owner", user->getName());
+  if (!args->hasString("owner")) args->insert("owner", getUser().getName());
+  authorize(args->getString("owner"));
 
   query(&Transaction::returnOK,
         "CALL UpdateComment(%(owner)s, %(comment)u, %(text)s)", args);
@@ -623,8 +629,8 @@ bool Transaction::apiUpdateComment() {
 
 bool Transaction::apiDeleteComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  authorize();
-  args->insert("owner", user->getName());
+  if (!args->hasString("owner")) args->insert("owner", getUser().getName());
+  authorize(args->getString("owner"));
 
   query(&Transaction::returnOK, "CALL DeleteComment(%(owner)s, %(comment)u)",
         args);
@@ -635,8 +641,8 @@ bool Transaction::apiDeleteComment() {
 
 bool Transaction::apiUpvoteComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  authorize();
-  args->insert("owner", user->getName());
+  if (!args->hasString("owner")) args->insert("owner", getUser().getName());
+  authorize(args->getString("owner"));
 
   query(&Transaction::returnJSON, "CALL UpvoteComment(%(owner)s, %(comment)u)",
         args);
@@ -647,8 +653,8 @@ bool Transaction::apiUpvoteComment() {
 
 bool Transaction::apiDownvoteComment() {
   JSON::ValuePtr args = parseArgsPtr();
-  authorize();
-  args->insert("owner", user->getName());
+  if (!args->hasString("owner")) args->insert("owner", getUser().getName());
+  authorize(args->getString("owner"));
 
   query(&Transaction::returnJSON,
         "CALL DownvoteComment(%(owner)s, %(comment)u)", args);

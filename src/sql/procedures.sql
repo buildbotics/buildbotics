@@ -926,9 +926,9 @@ BEGIN
           GROUP BY thing_id
           HAVING COUNT(thing_id) = _length
 
-      ) AND t.published IS NOT NULL
+      )
 
-    ORDER BY t.stars DESC, t.created DESC;
+    ORDER BY t.published IS NOT NULL, t.stars DESC, t.created DESC;
 
   SET SQL_SELECT_LIMIT = DEFAULT;
 END;
