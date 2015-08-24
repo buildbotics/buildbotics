@@ -45,7 +45,6 @@ namespace cb {
   class OAuth2Login;
   namespace MariaDB {class EventDB;}
   namespace JSON {
-    class Sync;
     class Writer;
     class Value;
   }

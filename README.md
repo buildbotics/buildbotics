@@ -19,8 +19,8 @@ contents:
 
 Install the MariaDB repo keys:
 
-    gpg --keyserver keys.gnupg.net --recv-keys CBCB082A1BB943DB
-    gpg -a --export CBCB082A1BB943DB | apt-key add -
+    gpg --keyserver pgp.mit.edu --recv-keys CBCB082A1BB943DB
+    gpg -a --export CBCB082A1BB943DB | sudo apt-key add -
 
 Then install the packages like this:
 
