@@ -964,7 +964,6 @@ void Transaction::returnOK(MariaDB::EventDBCallback::state_t state) {
 
   default: returnReply(state);
   }
-
 }
 
 
