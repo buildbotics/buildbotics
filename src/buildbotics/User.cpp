@@ -43,6 +43,7 @@
 #include <cbang/io/StringInputSource.h>
 #include <cbang/log/Logger.h>
 #include <cbang/event/Request.h>
+#include <cbang/util/ID.h>
 
 #include <stdlib.h>
 
@@ -73,7 +74,7 @@ string User::updateSession() {
   if (!provider.empty()) buf.insert("provider", provider);
   if (!id.empty()) buf.insert("id", id);
   if (!name.empty()) buf.insert("name", name);
-  buf.insert("auth", auth);
+  buf.insert("auth", ID(auth).toString());
   buf.endDict();
   buf.flush();
 
@@ -108,7 +109,7 @@ void User::decodeSession(const string &session) {
   provider = data->getString("provider");
   id = data->getString("id");
   name = data->getString("name", "");
-  auth = data->getNumber("auth", 0);
+  auth = data->getU64("auth", 0);
 }
 
 
