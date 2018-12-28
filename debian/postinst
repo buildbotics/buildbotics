@@ -11,23 +11,10 @@ case "$1" in
         chown -R $NAME:root $ETC $RUN $LOG
         chmod 755 $ETC $RUN $LOG
 
-        if [ -x insserv ]; then
-            # Install the init.d script
-            insserv -d $NAME
-
-            # Start the service
-            if [ -e $ETC/config.xml ]; then
-                service $NAME start || true
-            fi
-
-        else
-            # Install the init.d script
-            update-rc.d $NAME defaults 95
-
-            # Start the service
-            if [ -e $ETC/config.xml ]; then
-              invoke-rc.d $NAME start || true
-            fi
+        # Start the service
+        ln -sf /usr/share/$NAME/$NAME.service /etc/systemd/system/
+        if [ -e $ETC/config.xml ]; then
+            service $NAME start || true
         fi
         ;;
 esac

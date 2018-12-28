@@ -4,24 +4,14 @@ NAME=buildbotics
 
 case "$1" in
     remove)
-        if [ -x insserv ]; then
-            # Stop the service
-            service $NAME stop || true
-
-            # Uninstall init.d script
-            insserv -r $NAME
-        else
-            # Stop the service
-            invoke-rc.d $NAME stop || true
-
-            # Uninstall init.d script
-            update-rc.d -f $NAME remove
-        fi
+        # Stop the service
+        service $NAME stop || true
         ;;
 
     purge)
         # Remove files
         rm -rf /etc/$NAME /etc/default/$NAME /var/lib/$NAME
+        rm -f /etc/systemd/system/$NAME.service
 
         # Remove user if it exists
         if getent passwd $NAME >/dev/null; then

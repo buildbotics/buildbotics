@@ -9,11 +9,7 @@ case "$1" in
     install|upgrade)
         if [ "$1" == "upgrade" ]; then
             # Stop the service
-            if [ -x insserv ]; then
-                service $NAME stop || true
-            else
-                invoke-rc.d $NAME stop || true
-            fi
+            service $NAME stop || true
         fi
 
         # Create directories

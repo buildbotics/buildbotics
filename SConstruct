@@ -13,7 +13,7 @@ conf = env.CBConfigure()
 name = 'buildbotics'
 
 # Version
-version = '0.0.1'
+version = '0.1.0'
 major, minor, revision = version.split('.')
 
 # Config vars
@@ -47,11 +47,7 @@ tar = env.TarBZ2Dist(name, docs + [prog])
 Alias('dist', tar)
 AlwaysBuild(tar)
 
-description = \
-'''
-Buildbotics Web server
-'''
-
+description = 'Buildbotics Web server'
 short_description = description
 
 
@@ -70,8 +66,8 @@ if 'package' in COMMAND_LINE_TARGETS:
 
         documents = docs,
         programs = [str(prog[0])],
-        init_d = [['scripts/' + name + '.init.d', name]],
         changelog = 'ChangeLog',
+        platform_independent = ['scripts/buildbotics.service'],
 
         deb_directory = 'debian',
         deb_section = 'science',
