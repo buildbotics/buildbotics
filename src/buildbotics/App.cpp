@@ -54,7 +54,7 @@ App::App() :
   ServerApplication("Buildbotics", &App::_hasFeature), dns(base),
   client(base, dns, new SSLContext), googleAuth(getOptions()),
   githubAuth(getOptions()), facebookAuth(getOptions()), server(*this),
-  userManager(*this), imageHost("http://images.buildbotics.com"),
+  userManager(*this), imageHost("https://images.buildbotics.com"),
   sessionCookieName("buildbotics.sid"), authTimeout(30 * Time::SEC_PER_DAY),
   authGraceperiod(Time::SEC_PER_HOUR), dbHost("localhost"),
   dbName("buildbotics"), dbPort(3306), dbTimeout(5),
