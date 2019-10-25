@@ -29,8 +29,8 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_AWS4_POST_H
-#define BUILDBOTICS_AWS4_POST_H
+#pragma once
+
 
 #include "AWS4Signature.h"
 
@@ -80,6 +80,3 @@ namespace Buildbotics {
     void sign(const std::string &id, const std::string &secret);
   };
 }
-
-#endif // BUILDBOTICS_AWS4_POST_H
-

@@ -6,7 +6,7 @@ After=network.target
 User=buildbotics
 ExecStart=/usr/bin/buildbotics --config /etc/buildbotics/config.xml
 WorkingDirectory=/var/run/buildbotics
-Restart=on-failure
+Restart=always
 
 [Install]
 WantedBy=multi-user.target

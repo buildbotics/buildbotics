@@ -29,8 +29,8 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_APP_H
-#define BUILDBOTICS_APP_H
+#pragma once
+
 
 #include "Server.h"
 #include "UserManager.h"
@@ -38,7 +38,7 @@
 #include <cbang/ServerApplication.h>
 #include <cbang/net/IPAddress.h>
 #include <cbang/openssl/KeyPair.h>
-#include <cbang/db/maria/EventDBCallback.h>
+#include <cbang/db/maria/EventDB.h>
 
 #include <cbang/auth/GoogleOAuth2.h>
 #include <cbang/auth/GitHubOAuth2.h>
@@ -125,13 +125,10 @@ namespace Buildbotics {
     int init(int argc, char *argv[]);
     void run();
 
-    void dbMaintenanceCB(cb::MariaDB::EventDBCallback::state_t state);
+    void dbMaintenanceCB(cb::MariaDB::EventDB::state_t state);
 
     void maintenanceEvent(cb::Event::Event &e, int signal, unsigned flags);
     void lifelineEvent(cb::Event::Event &e, int signal, unsigned flags);
     void signalEvent(cb::Event::Event &e, int signal, unsigned flags);
   };
 }
-
-#endif // BUILDBOTICS_APP_H
-

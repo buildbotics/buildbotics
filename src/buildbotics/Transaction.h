@@ -29,16 +29,15 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_TRANSACTION_H
-#define BUILDBOTICS_TRANSACTION_H
+#pragma once
+
 
 #include "AuthFlags.h"
 
 #include <cbang/event/Request.h>
 #include <cbang/event/RequestMethod.h>
-#include <cbang/event/PendingRequest.h>
 #include <cbang/event/OAuth2Login.h>
-#include <cbang/db/maria/EventDBCallback.h>
+#include <cbang/db/maria/EventDB.h>
 
 
 namespace cb {
@@ -65,10 +64,9 @@ namespace Buildbotics {
     std::string redirectTo;
 
   public:
-    Transaction(App &app, evhttp_request *req);
+    Transaction(App &app, cb::Event::RequestMethod method, const cb::URI &uri,
+                const cb::Version &version);
     ~Transaction();
-
-    cb::SmartPointer<cb::JSON::Dict> parseArgsPtr();
 
     bool lookupUser(bool skipAuthCheck = false);
     User &getUser();
@@ -82,7 +80,7 @@ namespace Buildbotics {
 
     bool hasTag(const std::string &tag) const;
 
-    typedef typename cb::MariaDB::EventDBMemberFunctor<Transaction>::member_t
+    typedef typename cb::MariaDB::EventDB::Callback<Transaction>::member_t
     event_db_member_functor_t;
     void query(event_db_member_functor_t member, const std::string &s,
                const cb::SmartPointer<cb::JSON::Value> &dict = 0);
@@ -96,10 +94,11 @@ namespace Buildbotics {
 
     // From cb::Event::Request
     using cb::Event::Request::sendError;
-    void sendError(int code, const std::string &message);
+    void sendError(cb::Event::HTTPStatus code, const std::string &message);
 
     // From cb::Event::OAuth2Login
-    void processProfile(const cb::SmartPointer<cb::JSON::Value> &profile);
+    void processProfile(cb::Event::Request &req,
+                        const cb::SmartPointer<cb::JSON::Value> &profile);
 
     // Event::WebServer request callbacks
     bool apiAuthUser();
@@ -167,20 +166,17 @@ namespace Buildbotics {
     // MariaDB::EventDB callbacks
     std::string nextJSONField();
 
-    void download(cb::MariaDB::EventDBCallback::state_t state);
-    void authUser(cb::MariaDB::EventDBCallback::state_t state);
-    void login(cb::MariaDB::EventDBCallback::state_t state);
-    void registration(cb::MariaDB::EventDBCallback::state_t state);
-    void returnOK(cb::MariaDB::EventDBCallback::state_t state);
-    void returnList(cb::MariaDB::EventDBCallback::state_t state);
-    void returnBool(cb::MariaDB::EventDBCallback::state_t state);
-    void returnU64(cb::MariaDB::EventDBCallback::state_t state);
-    void returnS64(cb::MariaDB::EventDBCallback::state_t state);
-    void returnJSON(cb::MariaDB::EventDBCallback::state_t state);
-    void returnJSONFields(cb::MariaDB::EventDBCallback::state_t state);
-    void returnReply(cb::MariaDB::EventDBCallback::state_t state);
+    void download(cb::MariaDB::EventDB::state_t state);
+    void authUser(cb::MariaDB::EventDB::state_t state);
+    void login(cb::MariaDB::EventDB::state_t state);
+    void registration(cb::MariaDB::EventDB::state_t state);
+    void returnOK(cb::MariaDB::EventDB::state_t state);
+    void returnList(cb::MariaDB::EventDB::state_t state);
+    void returnBool(cb::MariaDB::EventDB::state_t state);
+    void returnU64(cb::MariaDB::EventDB::state_t state);
+    void returnS64(cb::MariaDB::EventDB::state_t state);
+    void returnJSON(cb::MariaDB::EventDB::state_t state);
+    void returnJSONFields(cb::MariaDB::EventDB::state_t state);
+    void returnReply(cb::MariaDB::EventDB::state_t state);
   };
 }
-
-#endif // BUILDBOTICS_TRANSACTION_H
-

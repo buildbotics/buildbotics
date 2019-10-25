@@ -40,7 +40,7 @@
 
 #include <cbang/json/JSON.h>
 #include <cbang/log/Logger.h>
-#include <cbang/util/DefaultCatch.h>
+#include <cbang/Catch.h>
 #include <cbang/db/maria/EventDB.h>
 #include <cbang/time/Timer.h>
 #include <cbang/openssl/Digest.h>
@@ -55,21 +55,15 @@ using namespace cb;
 using namespace Buildbotics;
 
 
-Transaction::Transaction(App &app, evhttp_request *req) :
-  Request(req), Event::OAuth2Login(app.getEventClient()), app(app),
-  jsonFields(0) {
+Transaction::Transaction(App &app, Event::RequestMethod method, const URI &uri,
+                         const Version &version) :
+  Request(method, uri, version), Event::OAuth2Login(app.getEventClient()),
+  app(app), jsonFields(0) {
   LOG_DEBUG(5, "Transaction()");
 }
 
 
-Transaction::~Transaction() {
-  LOG_DEBUG(5, "~Transaction()");
-}
-
-
-SmartPointer<JSON::Dict> Transaction::parseArgsPtr() {
-  return SmartPointer<JSON::Dict>::Phony(&parseArgs());
-}
+Transaction::~Transaction() {LOG_DEBUG(5, "~Transaction()");}
 
 
 bool Transaction::lookupUser(bool skipAuthCheck) {
@@ -198,7 +192,7 @@ string Transaction::postFile(const std::string &path, const string &file,
   hash.update(path);
   hash.update(file);
   hash.updateWith(Timer::now());
-  string guid = hash.toBase64();
+  string guid = hash.toURLBase64();
 
   // Create key
   string key = guid + "/" + file;
@@ -235,7 +229,7 @@ string Transaction::postFile(const std::string &path, const string &file,
 }
 
 
-void Transaction::sendError(int code, const std::string &message) {
+void Transaction::sendError(Event::HTTPStatus code, const string &message) {
   // Release JSON writer
   writer.release();
 
@@ -248,7 +242,8 @@ void Transaction::sendError(int code, const std::string &message) {
 }
 
 
-void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
+void Transaction::processProfile(Event::Request &req,
+                                 const SmartPointer<JSON::Value> &profile) {
   if (!profile.isNull())
     try {
       // Authenticate user
@@ -268,8 +263,8 @@ void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
 
       LOG_DEBUG(3, "Profile: " << *profile);
 
-      query(&Transaction::login, "CALL Login(%(provider)s, %(id)s, %(name)s, "
-            "%(email)s, %(avatar)s);", profile);
+      query(&Transaction::login, "CALL Login(%(provider)S, %(id)S, %(name)S, "
+            "%(email)S, %(avatar)S);", profile);
 
       return;
     } CATCH_ERROR;
@@ -281,12 +276,12 @@ void Transaction::processProfile(const SmartPointer<JSON::Value> &profile) {
 bool Transaction::apiAuthUser() {
   authorize();
 
-  SmartPointer<JSON::Dict> dict = new JSON::Dict;
+  SmartPointer<JSON::Value> dict = new JSON::Dict;
   dict->insert("provider", user->getProvider());
   dict->insert("id", user->getID());
 
   jsonFields = "*profile things followers following starred badges events auth";
-  query(&Transaction::authUser, "CALL GetUser(%(provider)s, %(id)s)", dict);
+  query(&Transaction::authUser, "CALL GetUser(%(provider)S, %(id)S)", dict);
 
   return true;
 }
@@ -317,7 +312,8 @@ bool Transaction::apiAuthLogin() {
   else if (String::endsWith(path, "/facebook")) auth = &app.getFacebookAuth();
   else THROWC("Unsupported login provider", HTTP_BAD_REQUEST);
 
-  return OAuth2Login::authorize(*this, *auth, user->getToken());
+  setOAuth2(SmartPointer<OAuth2>::Phony(auth));
+  return OAuth2Login::authorize(*this, user->getToken());
 }
 
 
@@ -344,9 +340,9 @@ bool Transaction::apiGetPermissions() {
 
 
 bool Transaction::apiGetProfiles() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   query(&Transaction::returnList,
-        "CALL FindProfiles(%(query)s, %(limit)u, %(offset)u)", args);
+        "CALL FindProfiles(%(query)S, %(limit)u, %(offset)u)", args);
   return true;
 }
 
@@ -355,20 +351,20 @@ bool Transaction::apiProfileRegister() {
   lookupUser();
   if (user.isNull()) return pleaseLogin();
 
-  SmartPointer<JSON::Dict> dict = new JSON::Dict;
+  SmartPointer<JSON::Value> dict = new JSON::Dict;
   dict->insert("profile", getArg("profile"));
   dict->insert("provider", user->getProvider());
   dict->insert("id", user->getID());
 
   query(&Transaction::registration,
-        "CALL Register(%(profile)s, %(provider)s, %(id)s)", dict);
+        "CALL Register(%(profile)S, %(provider)S, %(id)S)", dict);
   return true;
 }
 
 
 bool Transaction::apiProfileAvailable() {
-  query(&Transaction::returnBool, "CALL Available(%(profile)s)",
-        parseArgsPtr());
+  query(&Transaction::returnBool, "CALL Available(%(profile)S)",
+        parseArgs());
   return true;
 }
 
@@ -377,11 +373,11 @@ bool Transaction::apiProfileSuggest() {
   lookupUser();
   if (user.isNull()) return pleaseLogin();
 
-  SmartPointer<JSON::Dict> dict = new JSON::Dict;
+  SmartPointer<JSON::Value> dict = new JSON::Dict;
   dict->insert("provider", user->getProvider());
   dict->insert("id", user->getID());
 
-  query(&Transaction::returnList, "CALL Suggest(%(provider)s, %(id)s, 5)",
+  query(&Transaction::returnList, "CALL Suggest(%(provider)S, %(id)S, 5)",
         dict);
 
   return true;
@@ -389,12 +385,12 @@ bool Transaction::apiProfileSuggest() {
 
 
 bool Transaction::apiPutProfile() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
-        "CALL PutProfile(%(profile)s, %(fullname)s, %(location)s, %(url)s, "
-        "%(bio)s)", args);
+        "CALL PutProfile(%(profile)S, %(fullname)S, %(location)S, %(url)S, "
+        "%(bio)S)", args);
 
   return true;
 }
@@ -403,22 +399,22 @@ bool Transaction::apiPutProfile() {
 bool Transaction::apiGetProfile() {
   jsonFields = "*profile things followers following starred badges events";
 
-  query(&Transaction::returnJSONFields, "CALL GetProfile(%(profile)s)",
-        parseArgsPtr());
+  query(&Transaction::returnJSONFields, "CALL GetProfile(%(profile)S)",
+        parseArgs());
 
   return true;
 }
 
 
 bool Transaction::apiGetProfileAvatar() {
-  JSON::ValuePtr args = parseArgsPtr();
-  query(&Transaction::download, "CALL GetProfileAvatar(%(profile)s)", args);
+  JSON::ValuePtr args = parseArgs();
+  query(&Transaction::download, "CALL GetProfileAvatar(%(profile)S)", args);
   return true;
 }
 
 
 bool Transaction::apiPutProfileAvatar() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   string path = "/" + args->getString("profile");
@@ -435,14 +431,14 @@ bool Transaction::apiPutProfileAvatar() {
   // Write to DB
   args->insert("url", url);
   query(&Transaction::returnReply,
-        "CALL PutProfileAvatar(%(profile)s, %(url)s)", args);
+        "CALL PutProfileAvatar(%(profile)S, %(url)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiConfirmProfileAvatar() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   string path = "/" + args->getString("profile");
@@ -452,105 +448,105 @@ bool Transaction::apiConfirmProfileAvatar() {
   // Write to DB
   args->insert("url", "/" + guid + "/" + URI::encode(file));
   query(&Transaction::returnOK,
-        "CALL ConfirmProfileAvatar(%(profile)s, %(url)s)", args);
+        "CALL ConfirmProfileAvatar(%(profile)S, %(url)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiFollow() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize();
   args->insert("user", user->getName());
 
-  query(&Transaction::returnOK, "CALL Follow(%(user)s, %(profile)s)", args);
+  query(&Transaction::returnOK, "CALL Follow(%(user)S, %(profile)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiUnfollow() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize();
   args->insert("user", user->getName());
 
-  query(&Transaction::returnOK, "CALL Unfollow(%(user)s, %(profile)s)", args);
+  query(&Transaction::returnOK, "CALL Unfollow(%(user)S, %(profile)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiGetThings() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
 
   query(&Transaction::returnList,
-        "CALL FindThings(%(query)s, %(license)s, %(limit)u, %(offset)u)", args);
+        "CALL FindThings(%(query)S, %(license)S, %(limit)u, %(offset)u)", args);
   return true;
 }
 
 
 bool Transaction::apiThingAvailable() {
-  query(&Transaction::returnBool, "CALL ThingAvailable(%(profile)s, %(thing)s)",
-        parseArgsPtr());
+  query(&Transaction::returnBool, "CALL ThingAvailable(%(profile)S, %(thing)S)",
+        parseArgs());
   return true;
 }
 
 
 bool Transaction::apiGetThing() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
 
   args->insert("view_id", getViewID());
 
   jsonFields = "*thing files comments stars";
 
   query(&Transaction::returnJSONFields,
-        "CALL GetThing(%(profile)s, %(thing)s, %(view_id)s)", args);
+        "CALL GetThing(%(profile)S, %(thing)S, %(view_id)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiPublishThing() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
-        "CALL PublishThing(%(profile)s, %(thing)s)", args);
+        "CALL PublishThing(%(profile)S, %(thing)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiPutThing() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   if (!args->hasString("type")) args->insert("type", "project");
 
   query(&Transaction::returnOK,
-        "CALL PutThing(%(profile)s, %(thing)s, %(type)s, %(title)s, "
-        "%(license)s, %(instructions)s)", args);
+        "CALL PutThing(%(profile)S, %(thing)S, %(type)S, %(title)S, "
+        "%(license)S, %(instructions)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiRenameThing() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
-        "CALL RenameThing(%(profile)s, %(thing)s, %(name)s)", args);
+        "CALL RenameThing(%(profile)S, %(thing)S, %(name)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiDeleteThing() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
-  query(&Transaction::returnOK, "CALL DeleteThing(%(profile)s, %(thing)s)",
+  query(&Transaction::returnOK, "CALL DeleteThing(%(profile)S, %(thing)S)",
         args);
 
   return true;
@@ -558,54 +554,54 @@ bool Transaction::apiDeleteThing() {
 
 
 bool Transaction::apiStarThing() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize();
   args->insert("user", user->getName());
 
   query(&Transaction::returnOK,
-        "CALL StarThing(%(user)s, %(profile)s, %(thing)s)", args);
+        "CALL StarThing(%(user)S, %(profile)S, %(thing)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiUnstarThing() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize();
   args->insert("user", user->getName());
 
   query(&Transaction::returnOK,
-        "CALL UnstarThing(%(user)s, %(profile)s, %(thing)s)", args);
+        "CALL UnstarThing(%(user)S, %(profile)S, %(thing)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiTagThing() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(hasTag("featured") ? AuthFlags::AUTH_ADMIN : AuthFlags::AUTH_NONE);
 
   query(&Transaction::returnOK,
-        "CALL MultiTagThing(%(profile)s, %(thing)s, %(tags)s)", args);
+        "CALL MultiTagThing(%(profile)S, %(thing)S, %(tags)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiUntagThing() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(hasTag("featured") ? AuthFlags::AUTH_ADMIN : AuthFlags::AUTH_NONE,
             args->getString("profile"));
 
   query(&Transaction::returnOK,
-        "CALL MultiUntagThing(%(profile)s, %(thing)s, %(tags)s)", args);
+        "CALL MultiUntagThing(%(profile)S, %(thing)S, %(tags)S)", args);
 
   return true;
 }
 
 
 void Transaction::commentAuth() {
-  JSON::Dict &args = Event::Request::parseArgs();
+  auto &args = *parseArgs();
 
   string owner = args.getString("owner", "");
   if (owner.empty()) args.insert("owner", getUser().getName());
@@ -615,34 +611,34 @@ void Transaction::commentAuth() {
 
 
 bool Transaction::apiPostComment() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   commentAuth();
 
   query(&Transaction::returnU64,
-        "CALL PostComment(%(owner)s, %(profile)s, %(thing)s, %(parent)u, "
-        "%(text)s)", args);
+        "CALL PostComment(%(owner)S, %(profile)S, %(thing)S, %(parent)u, "
+        "%(text)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiUpdateComment() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   commentAuth();
 
   query(&Transaction::returnOK,
-        "CALL UpdateComment(%(owner)s, %(comment)u, %(text)s)", args);
+        "CALL UpdateComment(%(owner)S, %(comment)u, %(text)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiDeleteComment() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   if (!args->hasString("owner")) args->insert("owner", getUser().getName());
   authorize(args->getString("owner"));
 
-  query(&Transaction::returnOK, "CALL DeleteComment(%(owner)s, %(comment)u)",
+  query(&Transaction::returnOK, "CALL DeleteComment(%(owner)S, %(comment)u)",
         args);
 
   return true;
@@ -650,10 +646,10 @@ bool Transaction::apiDeleteComment() {
 
 
 bool Transaction::apiUpvoteComment() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   commentAuth();
 
-  query(&Transaction::returnJSON, "CALL UpvoteComment(%(owner)s, %(comment)u)",
+  query(&Transaction::returnJSON, "CALL UpvoteComment(%(owner)S, %(comment)u)",
         args);
 
   return true;
@@ -661,28 +657,28 @@ bool Transaction::apiUpvoteComment() {
 
 
 bool Transaction::apiDownvoteComment() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   commentAuth();
 
   query(&Transaction::returnJSON,
-        "CALL DownvoteComment(%(owner)s, %(comment)u)", args);
+        "CALL DownvoteComment(%(owner)S, %(comment)u)", args);
 
   return true;
 }
 
 
 bool Transaction::apiDownloadFile() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
 
   query(&Transaction::download,
-        "CALL DownloadFile(%(profile)s, %(thing)s, %(file)s, %(count)b)", args);
+        "CALL DownloadFile(%(profile)S, %(thing)S, %(file)S, %(count)b)", args);
 
   return true;
 }
 
 
 bool Transaction::apiUploadFile() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   // Restrict by extension
@@ -690,7 +686,7 @@ bool Transaction::apiUploadFile() {
   string ext = String::toLower(SystemUtilities::extension(file));
   if (ext == "exe" || ext == "com" || ext == "bat" || ext == "lnk" ||
       ext == "chm" || ext == "hta")
-    THROWXS("Uploading ." << ext << " files is not allowed.",
+    THROWX("Uploading ." << ext << " files is not allowed.",
             HTTP_UNAUTHORIZED);
 
   // Restrict by media-type
@@ -713,7 +709,7 @@ bool Transaction::apiUploadFile() {
       type == "application/x-ms-shortcut" ||
       type == "application/octet-stream" ||
       type == "vms/exe")
-    THROWXS("Uploading files of type " << type << " not allowed.",
+    THROWX("Uploading files of type " << type << " not allowed.",
             HTTP_UNAUTHORIZED);
 
     // Compute path
@@ -726,81 +722,81 @@ bool Transaction::apiUploadFile() {
   args->insert("path", path);
 
   query(&Transaction::returnReply,
-        "CALL UploadFile(%(profile)s, %(thing)s, %(file)s, %(type)s, %(size)u, "
-        "%(path)s, %(caption)s, %(visibility)s)", args);
+        "CALL UploadFile(%(profile)S, %(thing)S, %(file)S, %(type)S, %(size)u, "
+        "%(path)S, %(caption)S, %(visibility)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiUpdateFile() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   // Write to DB
   query(&Transaction::returnOK,
-        "CALL UpdateFile(%(profile)s, %(thing)s, %(file)s, %(caption)s, "
-        "%(visibility)s, %(rename)s)", args);
+        "CALL UpdateFile(%(profile)S, %(thing)S, %(file)S, %(caption)S, "
+        "%(visibility)S, %(rename)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiDeleteFile() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
-        "CALL DeleteFile(%(profile)s, %(thing)s, %(file)s)", args);
+        "CALL DeleteFile(%(profile)S, %(thing)S, %(file)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiConfirmFile() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
-        "CALL ConfirmFile(%(profile)s, %(thing)s, %(file)s)", args);
+        "CALL ConfirmFile(%(profile)S, %(thing)S, %(file)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiFileUp() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
-        "CALL FileUp(%(profile)s, %(thing)s, %(file)s)", args);
+        "CALL FileUp(%(profile)S, %(thing)S, %(file)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiFileDown() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   authorize(args->getString("profile"));
 
   query(&Transaction::returnOK,
-        "CALL FileDown(%(profile)s, %(thing)s, %(file)s)", args);
+        "CALL FileDown(%(profile)S, %(thing)S, %(file)S)", args);
 
   return true;
 }
 
 
 bool Transaction::apiGetTags() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   query(&Transaction::returnList, "CALL GetTags(%(limit)u)", args);
   return true;
 }
 
 
 bool Transaction::apiGetTagThings() {
-  JSON::ValuePtr args = parseArgsPtr();
+  JSON::ValuePtr args = parseArgs();
   query(&Transaction::returnList,
-        "CALL FindThingsByTag(%(tag)s, %(limit)u, %(offset)u)", args);
+        "CALL FindThingsByTag(%(tag)S, %(limit)u, %(offset)u)", args);
   return true;
 }
 
@@ -812,22 +808,22 @@ bool Transaction::apiGetLicenses() {
 
 
 bool Transaction::apiGetEvents() {
-  JSON::ValuePtr args = parseArgsPtr();
-  query(&Transaction::returnList, "CALL GetEvents(%(subject)s, %(action)s, "
-        "%(object_type)s, %(object)s, %(owner)s, %(following)b, %(since)s, "
+  JSON::ValuePtr args = parseArgs();
+  query(&Transaction::returnList, "CALL GetEvents(%(subject)S, %(action)S, "
+        "%(object_type)S, %(object)S, %(owner)S, %(following)b, %(since)S, "
         "%(limit)u)", args);
   return true;
 }
 
 
 bool Transaction::apiNotFound() {
-  THROWXS("Invalid API method " << getURI().getPath(), HTTP_NOT_FOUND);
+  THROWX("Invalid API method " << getURI().getPath(), HTTP_NOT_FOUND);
   return true;
 }
 
 
 bool Transaction::notFound() {
-  THROWXS("Not found " << getURI().getPath(), HTTP_NOT_FOUND);
+  THROWX("Not found " << getURI().getPath(), HTTP_NOT_FOUND);
   return true;
 }
 
@@ -845,20 +841,20 @@ string Transaction::nextJSONField() {
 }
 
 
-void Transaction::download(MariaDB::EventDBCallback::state_t state) {
+void Transaction::download(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
-  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+  case MariaDB::EventDB::EVENTDB_BEGIN_RESULT:
+  case MariaDB::EventDB::EVENTDB_END_RESULT:
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_DONE:
+  case MariaDB::EventDB::EVENTDB_DONE:
     setCache(Time::SEC_PER_HOUR);
     redirect(redirectTo);
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_ROW: {
+  case MariaDB::EventDB::EVENTDB_ROW: {
     string path = db->getString(0);
-    string size = getArgs().getString("size", "orig");
+    string size = getArg("size", "orig");
 
     // Is absolute URL?
     if (String::startsWith(path, "http://") ||
@@ -903,9 +899,9 @@ void Transaction::download(MariaDB::EventDBCallback::state_t state) {
 }
 
 
-void Transaction::authUser(MariaDB::EventDBCallback::state_t state) {
+void Transaction::authUser(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_ERROR:
+  case MariaDB::EventDB::EVENTDB_ERROR:
     // Not really logged in, clear cookie
     clearAuthCookie();
 
@@ -916,18 +912,18 @@ void Transaction::authUser(MariaDB::EventDBCallback::state_t state) {
 }
 
 
-void Transaction::login(MariaDB::EventDBCallback::state_t state) {
+void Transaction::login(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
-  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+  case MariaDB::EventDB::EVENTDB_BEGIN_RESULT:
+  case MariaDB::EventDB::EVENTDB_END_RESULT:
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
+  case MariaDB::EventDB::EVENTDB_ROW:
     user->setName(db->getString(0));
     user->setAuth(db->getU64(1));
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_DONE:
+  case MariaDB::EventDB::EVENTDB_DONE:
     app.getUserManager().updateSession(user);
     setAuthCookie();
 
@@ -941,9 +937,9 @@ void Transaction::login(MariaDB::EventDBCallback::state_t state) {
 }
 
 
-void Transaction::registration(MariaDB::EventDBCallback::state_t state) {
+void Transaction::registration(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_DONE:
+  case MariaDB::EventDB::EVENTDB_DONE:
     user->setName(getArg("profile"));
     app.getUserManager().updateSession(user);
     setAuthCookie();
@@ -954,9 +950,9 @@ void Transaction::registration(MariaDB::EventDBCallback::state_t state) {
 }
 
 
-void Transaction::returnOK(MariaDB::EventDBCallback::state_t state) {
+void Transaction::returnOK(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_DONE:
+  case MariaDB::EventDB::EVENTDB_DONE:
     getJSONWriter()->write("ok");
     setContentType("application/json");
     reply();
@@ -967,22 +963,22 @@ void Transaction::returnOK(MariaDB::EventDBCallback::state_t state) {
 }
 
 
-void Transaction::returnList(MariaDB::EventDBCallback::state_t state) {
-  if (state != MariaDB::EventDBCallback::EVENTDB_ROW) returnJSON(state);
+void Transaction::returnList(MariaDB::EventDB::state_t state) {
+  if (state != MariaDB::EventDB::EVENTDB_ROW) returnJSON(state);
 
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
+  case MariaDB::EventDB::EVENTDB_ROW:
     writer->beginAppend();
 
     if (db->getFieldCount() == 1) db->writeField(*writer, 0);
     else db->writeRowDict(*writer);
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
+  case MariaDB::EventDB::EVENTDB_BEGIN_RESULT:
     writer->beginList();
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+  case MariaDB::EventDB::EVENTDB_END_RESULT:
     writer->endList();
     break;
 
@@ -991,9 +987,9 @@ void Transaction::returnList(MariaDB::EventDBCallback::state_t state) {
 }
 
 
-void Transaction::returnBool(MariaDB::EventDBCallback::state_t state) {
+void Transaction::returnBool(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
+  case MariaDB::EventDB::EVENTDB_ROW:
     writer->writeBoolean(db->getBoolean(0));
     break;
 
@@ -1003,9 +999,9 @@ void Transaction::returnBool(MariaDB::EventDBCallback::state_t state) {
 
 
 
-void Transaction::returnU64(MariaDB::EventDBCallback::state_t state) {
+void Transaction::returnU64(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
+  case MariaDB::EventDB::EVENTDB_ROW:
     writer->write(db->getU64(0));
     break;
 
@@ -1014,9 +1010,9 @@ void Transaction::returnU64(MariaDB::EventDBCallback::state_t state) {
 }
 
 
-void Transaction::returnS64(MariaDB::EventDBCallback::state_t state) {
+void Transaction::returnS64(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
+  case MariaDB::EventDB::EVENTDB_ROW:
     writer->write(db->getS64(0));
     break;
 
@@ -1025,28 +1021,28 @@ void Transaction::returnS64(MariaDB::EventDBCallback::state_t state) {
 }
 
 
-void Transaction::returnJSON(MariaDB::EventDBCallback::state_t state) {
+void Transaction::returnJSON(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
+  case MariaDB::EventDB::EVENTDB_ROW:
     if (db->getFieldCount() == 1) db->writeField(*writer, 0);
     else db->writeRowDict(*writer);
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT:
+  case MariaDB::EventDB::EVENTDB_BEGIN_RESULT:
     setContentType("application/json");
     if (writer.isNull()) writer = getJSONWriter();
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_END_RESULT: break;
+  case MariaDB::EventDB::EVENTDB_END_RESULT: break;
 
   default: return returnReply(state);
   }
 }
 
 
-void Transaction::returnJSONFields(MariaDB::EventDBCallback::state_t state) {
+void Transaction::returnJSONFields(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_ROW:
+  case MariaDB::EventDB::EVENTDB_ROW:
     if (writer->inDict()) db->insertRow(*writer, 0, -1, false);
 
     else if (db->getFieldCount() == 1) {
@@ -1060,7 +1056,7 @@ void Transaction::returnJSONFields(MariaDB::EventDBCallback::state_t state) {
     }
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_BEGIN_RESULT: {
+  case MariaDB::EventDB::EVENTDB_BEGIN_RESULT: {
     setContentType("application/json");
     if (writer.isNull()) {
       writer = getJSONWriter();
@@ -1074,12 +1070,12 @@ void Transaction::returnJSONFields(MariaDB::EventDBCallback::state_t state) {
     break;
   }
 
-  case MariaDB::EventDBCallback::EVENTDB_END_RESULT:
+  case MariaDB::EventDB::EVENTDB_END_RESULT:
     if (writer->inList()) writer->endList();
     else writer->endDict();
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_DONE:
+  case MariaDB::EventDB::EVENTDB_DONE:
     if (!writer.isNull()) writer->endDict();
     // Fall through
 
@@ -1088,20 +1084,20 @@ void Transaction::returnJSONFields(MariaDB::EventDBCallback::state_t state) {
 }
 
 
-void Transaction::returnReply(MariaDB::EventDBCallback::state_t state) {
+void Transaction::returnReply(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_DONE:
+  case MariaDB::EventDB::EVENTDB_DONE:
     writer.release();
     reply();
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_RETRY:
+  case MariaDB::EventDB::EVENTDB_RETRY:
     if (!writer.isNull()) writer->reset();
     getOutputBuffer().clear();
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_ERROR: {
-    int error = HTTP_INTERNAL_SERVER_ERROR;
+  case MariaDB::EventDB::EVENTDB_ERROR: {
+    Event::HTTPStatus error = HTTP_INTERNAL_SERVER_ERROR;
 
     switch (db->getErrorNumber()) {
     case ER_SIGNAL_NOT_FOUND: error = HTTP_NOT_FOUND; break;
@@ -1111,7 +1107,7 @@ void Transaction::returnReply(MariaDB::EventDBCallback::state_t state) {
 
     LOG_ERROR("DB:" << db->getErrorNumber() << ": " << db->getError());
     sendError(error, db->getError());
-    THROWXS(db->getError(), error);
+    THROWX(db->getError(), error);
 
     break;
   }

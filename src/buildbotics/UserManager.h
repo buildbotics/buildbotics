@@ -29,8 +29,8 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_USER_MANAGER_H
-#define BUILDBOTICS_USER_MANAGER_H
+#pragma once
+
 
 #include "User.h"
 
@@ -57,6 +57,3 @@ namespace Buildbotics {
     void updateSession(const cb::SmartPointer<User> &user);
   };
 }
-
-#endif // BUILDBOTICS_USER_MANAGER_H
-

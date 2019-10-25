@@ -31,7 +31,7 @@
 
 #include "App.h"
 
-#include <cbang/util/DefaultCatch.h>
+#include <cbang/Catch.h>
 
 #include <cbang/os/SystemUtilities.h>
 
@@ -157,19 +157,19 @@ int App::init(int argc, char *argv[]) {
   key.readPrivate(*SystemUtilities::iopen(options["private-key-file"]));
 
   // Check DB credentials
-  if (dbUser.empty()) THROWS("db-user not set");
-  if (dbPass.empty()) THROWS("db-pass not set");
+  if (dbUser.empty()) THROW("db-user not set");
+  if (dbPass.empty()) THROW("db-pass not set");
 
   // DB maintenance
-  base.newEvent(this, &App::maintenanceEvent).add(dbMaintenancePeriod);
+  base.newEvent(this, &App::maintenanceEvent)->add(dbMaintenancePeriod);
 
   // Check lifeline
   if (getLifeline())
-    base.newEvent(this, &App::lifelineEvent).add(0.25);
+    base.newEvent(this, &App::lifelineEvent)->add(0.25);
 
   // Handle exit signal
-  base.newSignal(SIGINT, this, &App::signalEvent).add();
-  base.newSignal(SIGTERM, this, &App::signalEvent).add();
+  base.newSignal(SIGINT, this, &App::signalEvent)->add();
+  base.newSignal(SIGTERM, this, &App::signalEvent)->add();
 
   return 0;
 }
@@ -183,13 +183,13 @@ void App::run() {
 }
 
 
-void App::dbMaintenanceCB(MariaDB::EventDBCallback::state_t state) {
+void App::dbMaintenanceCB(MariaDB::EventDB::state_t state) {
   switch (state) {
-  case MariaDB::EventDBCallback::EVENTDB_DONE:
+  case MariaDB::EventDB::EVENTDB_DONE:
     LOG_INFO(3, "DB maintenance complete");
     break;
 
-  case MariaDB::EventDBCallback::EVENTDB_ERROR:
+  case MariaDB::EventDB::EVENTDB_ERROR:
     LOG_ERROR("DB maintenance");
     break;
 

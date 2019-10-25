@@ -29,8 +29,7 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_SERVER_H
-#define BUILDBOTICS_SERVER_H
+#pragma once
 
 #include <cbang/event/WebServer.h>
 
@@ -48,21 +47,15 @@ namespace Buildbotics {
 
     void init();
 
-
-    // From cb::Event::HTTPHandler
-    cb::Event::Request *createRequest(evhttp_request *req);
+    // From cb::Event::WebServer
+    cb::SmartPointer<cb::Event::Request>
+    createRequest(cb::Event::RequestMethod method, const cb::URI &uri,
+                  const cb::Version &version);
 
     // From cb::Event::HTTPHandlerFactory
-    cb::SmartPointer<cb::Event::HTTPHandler>
+    cb::Event::HTTPRequestHandlerPtr
     createMatcher(unsigned methods, const std::string &search,
                   const std::string &replace,
-                  const cb::SmartPointer<cb::Event::HTTPHandler> &child);
-    cb::SmartPointer<cb::Event::HTTPHandler>
-    createHandler(const cb::Resource &res);
-    cb::SmartPointer<cb::Event::HTTPHandler>
-    createHandler(const std::string &path);
+                  const cb::Event::HTTPRequestHandlerPtr &child);
   };
 }
-
-#endif // BUILDBOTICS_SERVER_H
-

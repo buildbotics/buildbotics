@@ -29,13 +29,13 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_AWS4_PRESIGNED_URL_H
-#define BUILDBOTICS_AWS4_PRESIGNED_URL_H
+#pragma once
+
 
 #include "AWS4Signature.h"
 
 #include <cbang/net/URI.h>
-#include <cbang/http/RequestMethod.h>
+#include <cbang/event/RequestMethod.h>
 
 #include <map>
 
@@ -63,6 +63,3 @@ namespace Buildbotics {
     void sign(const std::string &id, const std::string &secret);
   };
 }
-
-#endif // BUILDBOTICS_AWS4_PRESIGNED_URL_H
-

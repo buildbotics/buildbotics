@@ -32,7 +32,7 @@
 #include "UserManager.h"
 
 #include <cbang/log/Logger.h>
-#include <cbang/util/DefaultCatch.h>
+#include <cbang/Catch.h>
 
 using namespace std;
 using namespace cb;
@@ -53,7 +53,7 @@ SmartPointer<User> UserManager::create() {
   SmartPointer<User> user = new User(app);
 
   if (!users.insert(users_t::value_type(user->getToken(), user)).second)
-    THROWS("User token already exists: " << user->getToken());
+    THROW("User token already exists: " << user->getToken());
 
   return user;
 }
@@ -86,7 +86,7 @@ void UserManager::updateSession(const SmartPointer<User> &user) {
 
   // Insert user under new token
   if (!users.insert(users_t::value_type(newToken, user)).second)
-    THROWS("User token already exists " << newToken);
+    THROW("User token already exists " << newToken);
 
   // Remove user under old token
   users.erase(oldToken);

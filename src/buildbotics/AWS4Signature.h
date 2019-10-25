@@ -29,8 +29,8 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_AWS4_SIGNATURE_H
-#define BUILDBOTICS_AWS4_SIGNATURE_H
+#pragma once
+
 
 #include <cbang/StdTypes.h>
 #include <cbang/time/Time.h>
@@ -77,6 +77,3 @@ namespace Buildbotics {
     static std::string uriEncode(const std::string &s, bool encodeSlash = true);
   };
 }
-
-#endif // BUILDBOTICS_AWS4_SIGNATURE_H
-

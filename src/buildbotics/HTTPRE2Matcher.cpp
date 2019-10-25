@@ -45,10 +45,10 @@ using namespace Buildbotics;
 
 HTTPRE2Matcher::HTTPRE2Matcher(unsigned methods, const string &search,
                                const string &replace,
-                               const SmartPointer<Event::HTTPHandler> &child) :
+                               const Event::HTTPRequestHandlerPtr &child) :
   methods(methods), matchAll(search.empty()), regex(search), replace(replace),
   child(child) {
-  if (regex.error_code()) THROWS("Failed to compile RE2: " << regex.error());
+  if (regex.error_code()) THROW("Failed to compile RE2: " << regex.error());
 }
 
 
@@ -80,7 +80,7 @@ bool HTTPRE2Matcher::operator()(Event::Request &req) {
   for (int i = 0; i < n; i++)
     if (names.find(i + 1) != names.end())
       req.insertArg(names.at(i + 1), results[i]);
-    else req.insertArg(results[i]);
+    else req.appendArg(results[i]);
 
   // Replace path
   Event::RestoreURIPath restoreURIPath(uri);

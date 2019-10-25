@@ -29,31 +29,27 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_HTTPRE2_MATCHER_H
-#define BUILDBOTICS_HTTPRE2_MATCHER_H
+#pragma once
 
-#include <cbang/event/HTTPHandler.h>
+#include <cbang/event/HTTPRequestHandler.h>
 
 #include <re2/re2.h>
 
 
 namespace Buildbotics {
-  class HTTPRE2Matcher : public cb::Event::HTTPHandler {
+  class HTTPRE2Matcher : public cb::Event::HTTPRequestHandler {
     unsigned methods;
     bool matchAll;
     RE2 regex;
     std::string replace;
-    cb::SmartPointer<cb::Event::HTTPHandler> child;
+    cb::Event::HTTPRequestHandlerPtr child;
 
   public:
     HTTPRE2Matcher(unsigned methods, const std::string &search,
                    const std::string &replace,
-                   const cb::SmartPointer<cb::Event::HTTPHandler> &child);
+                   const cb::Event::HTTPRequestHandlerPtr &child);
 
-    // From cb::Event::HTTPHandler
+    // From cb::Event::HTTPRequestHandler
     bool operator()(cb::Event::Request &req);
   };
 }
-
-#endif // BUILDBOTICS_HTTPRE2_MATCHER_H
-

@@ -29,8 +29,8 @@
 
 \******************************************************************************/
 
-#ifndef BUILDBOTICS_USER_H
-#define BUILDBOTICS_USER_H
+#pragma once
+
 
 #include <cbang/json/Dict.h>
 
@@ -84,6 +84,3 @@ namespace Buildbotics {
     bool isAuthenticated() const {return !provider.empty() && !id.empty();}
   };
 }
-
-#endif // BUILDBOTICS_USER_H
-

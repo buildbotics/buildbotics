@@ -37,7 +37,6 @@
 #include <cbang/openssl/SSLContext.h>
 
 #include <cbang/event/Request.h>
-#include <cbang/event/PendingRequest.h>
 #include <cbang/event/Buffer.h>
 #include <cbang/event/RedirectSecure.h>
 #include <cbang/event/ResourceHTTPHandler.h>
@@ -62,6 +61,7 @@ Server::Server(App &app) :
   Event::WebServer(app.getOptions(), app.getEventBase(), new SSLContext,
                    SmartPointer<HTTPHandlerFactory>::Phony(this)),
   app(app) {
+  HTTPHandlerFactory::setAutoIndex(false);
 }
 
 
@@ -196,24 +196,17 @@ void Server::init() {
 }
 
 
-Event::Request *Server::createRequest(evhttp_request *req) {
-  return new Transaction(app, req);
+SmartPointer<Event::Request> Server::createRequest
+(Event::RequestMethod method, const URI &uri, const Version &version) {
+  return new Transaction(app, method, uri, version);
 }
 
 
-SmartPointer<Event::HTTPHandler>
+Event::HTTPRequestHandlerPtr
 Server::createMatcher(unsigned methods, const string &search,
                       const string &replace,
-                      const SmartPointer<Event::HTTPHandler> &child) {
+                      const Event::HTTPRequestHandlerPtr &child) {
+  // TODO replace with with HTTPHandlerFactory::createMatcher()
+  // which now uses HTTPRE2PatternMatcher()
   return new HTTPRE2Matcher(methods, search, replace, child);
-}
-
-
-SmartPointer<Event::HTTPHandler> Server::createHandler(const Resource &res) {
-  return new Event::ResourceHTTPHandler(res);
-}
-
-
-SmartPointer<Event::HTTPHandler> Server::createHandler(const string &path) {
-  return new Event::FileHandler(path);
 }
