@@ -32,7 +32,6 @@
 #include "Server.h"
 #include "App.h"
 #include "Transaction.h"
-#include "HTTPRE2Matcher.h"
 
 #include <cbang/openssl/SSLContext.h>
 
@@ -58,10 +57,9 @@ namespace Buildbotics {
 
 
 Server::Server(App &app) :
-  Event::WebServer(app.getOptions(), app.getEventBase(), new SSLContext,
-                   SmartPointer<HTTPHandlerFactory>::Phony(this)),
+  Event::WebServer(app.getOptions(), app.getEventBase(), new SSLContext),
   app(app) {
-  HTTPHandlerFactory::setAutoIndex(false);
+  getHandlerFactory()->setAutoIndex(false);
 }
 
 
@@ -72,10 +70,12 @@ void Server::init() {
   HTTPHandlerGroup &api = *addGroup(HTTP_ANY, "/api/.*");
 
   // Force /api/auth/.* secure
-  if (getNumSecureListenPorts()) {
-    uint32_t port = getSecureListenPort(0).getPort();
-    api.addHandler(HTTP_ANY, "/auth/.*", new Event::RedirectSecure(port));
-  }
+  for (auto it = getPorts().begin(); it != getPorts().end(); it++)
+    if ((*it)->isSecure()) {
+      api.addHandler(HTTP_ANY, "/auth/.*",
+                     new Event::RedirectSecure((*it)->getAddr().getPort()));
+      break;
+    }
 
 #define ADD_TM(GROUP, METHODS, PATTERN, FUNC)                           \
   (GROUP).addMember<Transaction>(METHODS, PATTERN, &Transaction::FUNC)
@@ -199,14 +199,4 @@ void Server::init() {
 SmartPointer<Event::Request> Server::createRequest
 (Event::RequestMethod method, const URI &uri, const Version &version) {
   return new Transaction(app, method, uri, version);
-}
-
-
-Event::HTTPRequestHandlerPtr
-Server::createMatcher(unsigned methods, const string &search,
-                      const string &replace,
-                      const Event::HTTPRequestHandlerPtr &child) {
-  // TODO replace with with HTTPHandlerFactory::createMatcher()
-  // which now uses HTTPRE2PatternMatcher()
-  return new HTTPRE2Matcher(methods, search, replace, child);
 }

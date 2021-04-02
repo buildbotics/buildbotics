@@ -38,8 +38,7 @@ namespace Buildbotics {
   class App;
   class User;
 
-  class Server : public cb::Event::WebServer,
-                 public cb::Event::HTTPHandlerFactory {
+  class Server : public cb::Event::WebServer {
     App &app;
 
   public:
@@ -51,11 +50,5 @@ namespace Buildbotics {
     cb::SmartPointer<cb::Event::Request>
     createRequest(cb::Event::RequestMethod method, const cb::URI &uri,
                   const cb::Version &version);
-
-    // From cb::Event::HTTPHandlerFactory
-    cb::Event::HTTPRequestHandlerPtr
-    createMatcher(unsigned methods, const std::string &search,
-                  const std::string &replace,
-                  const cb::Event::HTTPRequestHandlerPtr &child);
   };
 }
