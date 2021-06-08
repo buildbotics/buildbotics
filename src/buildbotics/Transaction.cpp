@@ -162,7 +162,7 @@ void Transaction::clearAuthCookie(uint64_t expires) {
 
 bool Transaction::hasTag(const string &tag) const {
   vector<string> tags;
-  String::tokenize(getArg("tags"), tags, ",");
+  String::tokenize(getArgs()->getString("tags"), tags, ",");
 
   for (unsigned i = 0; i < tags.size(); i++)
     if (tags[i] == tag) return true;
@@ -352,7 +352,7 @@ bool Transaction::apiProfileRegister() {
   if (user.isNull()) return pleaseLogin();
 
   SmartPointer<JSON::Value> dict = new JSON::Dict;
-  dict->insert("profile", getArg("profile"));
+  dict->insert("profile", getArgs()->getString("profile"));
   dict->insert("provider", user->getProvider());
   dict->insert("id", user->getID());
 
@@ -854,7 +854,7 @@ void Transaction::download(MariaDB::EventDB::state_t state) {
 
   case MariaDB::EventDB::EVENTDB_ROW: {
     string path = db->getString(0);
-    string size = getArg("size", "orig");
+    string size = getArgs()->getString("size", "orig");
 
     // Is absolute URL?
     if (String::startsWith(path, "http://") ||
@@ -940,7 +940,7 @@ void Transaction::login(MariaDB::EventDB::state_t state) {
 void Transaction::registration(MariaDB::EventDB::state_t state) {
   switch (state) {
   case MariaDB::EventDB::EVENTDB_DONE:
-    user->setName(getArg("profile"));
+    user->setName(getArgs()->getString("profile"));
     app.getUserManager().updateSession(user);
     setAuthCookie();
     // Fall through
