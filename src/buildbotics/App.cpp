@@ -51,7 +51,7 @@ using namespace std;
 
 
 App::App() :
-  ServerApplication("Buildbotics", &App::_hasFeature), dns(base),
+  ServerApplication("Buildbotics", &App::_hasFeature), base(true), dns(base),
   client(base, dns, new SSLContext), googleAuth(getOptions()),
   githubAuth(getOptions()), facebookAuth(getOptions()), server(*this),
   userManager(*this), imageHost("https://images.buildbotics.com"),
