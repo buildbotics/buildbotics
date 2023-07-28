@@ -31,11 +31,10 @@
 
 #pragma once
 
-
-#include <cbang/StdTypes.h>
 #include <cbang/time/Time.h>
 
 #include <string>
+#include <cstdint>
 
 
 namespace Buildbotics {

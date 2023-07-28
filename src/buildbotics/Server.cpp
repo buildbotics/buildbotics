@@ -45,7 +45,7 @@
 #include <cbang/util/Resource.h>
 #include <cbang/log/Logger.h>
 
-#include <stdlib.h>
+#include <cstdlib>
 
 using namespace cb;
 using namespace std;

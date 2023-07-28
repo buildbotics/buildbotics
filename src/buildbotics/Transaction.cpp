@@ -236,7 +236,7 @@ void Transaction::sendError(Event::HTTPStatus code, const string &message) {
   // Drop DB connection
   if (!db.isNull()) db->close();
 
-  resetOutput();
+  getOutputBuffer().clear();
   send(message);
   reply(code);
 }
@@ -1113,7 +1113,7 @@ void Transaction::returnReply(MariaDB::EventDB::state_t state) {
   }
 
   default:
-    resetOutput();
+    getOutputBuffer().clear();
     sendError(HTTP_INTERNAL_SERVER_ERROR);
     THROWX("Unexpected DB response", HTTP_INTERNAL_SERVER_ERROR);
     return;

@@ -42,7 +42,7 @@
 #include <cbang/event/Event.h>
 #include <cbang/db/maria/EventDB.h>
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
 
 using namespace Buildbotics;

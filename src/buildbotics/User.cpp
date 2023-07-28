@@ -45,7 +45,7 @@
 #include <cbang/event/Request.h>
 #include <cbang/util/ID.h>
 
-#include <stdlib.h>
+#include <cstdlib>
 
 using namespace std;
 using namespace cb;
