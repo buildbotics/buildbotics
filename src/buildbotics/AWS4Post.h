@@ -69,6 +69,7 @@ namespace Buildbotics {
 
     void setLengthRange(int minLength, int maxLength);
 
+    using cb::JSON::Dict::insert;
     void insert(const std::string &name, const std::string &value,
                 bool withCondition = true);
 
