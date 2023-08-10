@@ -154,7 +154,7 @@ int App::init(int argc, char *argv[]) {
   outboundIP.setPort(0);
 
   // Read private key
-  key.readPrivate(*SystemUtilities::iopen(options["private-key-file"]));
+  key.readPrivatePEM(*SystemUtilities::iopen(options["private-key-file"]));
 
   // Check DB credentials
   if (dbUser.empty()) THROW("db-user not set");
