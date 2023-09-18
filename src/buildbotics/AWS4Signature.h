@@ -64,9 +64,10 @@ namespace Buildbotics {
 
     const char *getAlgorithm() const {return "AWS4-HMAC-SHA256";}
     std::string getExpiration() const
-    {return cb::Time(ts + expires, "%Y-%m-%dT%H:%M:%S.000Z");}
-    std::string getDate() const {return cb::Time(ts, "%Y%m%d");}
-    std::string getDateTime() const {return cb::Time(ts, "%Y%m%dT%H%M%SZ");}
+    {return cb::Time(ts + expires).toString("%Y-%m-%dT%H:%M:%S.000Z");}
+    std::string getDate() const {return cb::Time(ts).toString("%Y%m%d");}
+    std::string getDateTime() const
+    {return cb::Time(ts).toString("%Y%m%dT%H%M%SZ");}
     std::string getScope() const;
     std::string getCredential(const std::string &id) const;
     std::string getKey(const std::string &secret) const;
