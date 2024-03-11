@@ -38,10 +38,9 @@ using namespace cb;
 using namespace Buildbotics;
 
 
-AWS4PresignedURL::AWS4PresignedURL(const URI &resource,
-                                   HTTP::RequestMethod method, unsigned expires,
-                                   uint64_t ts, const string &service,
-                                   const string &region) :
+AWS4PresignedURL::AWS4PresignedURL(
+  const URI &resource, Event::RequestMethod method, unsigned expires,
+  uint64_t ts, const string &service, const string &region) :
   AWS4Signature(expires, ts, service, region), URI(resource), method(method) {}
 
 

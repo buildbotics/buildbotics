@@ -44,8 +44,8 @@
 #include <cbang/auth/GitHubOAuth2.h>
 #include <cbang/auth/FacebookOAuth2.h>
 
+#include <cbang/dns/Base.h>
 #include <cbang/event/Base.h>
-#include <cbang/event/DNSBase.h>
 #include <cbang/event/Client.h>
 
 namespace cb {
@@ -57,7 +57,7 @@ namespace cb {
 namespace Buildbotics {
   class App : public cb::ServerApplication {
     cb::Event::Base base;
-    cb::Event::DNSBase dns;
+    cb::DNS::Base dns;
     cb::Event::Client client;
 
     cb::GoogleOAuth2 googleAuth;
@@ -96,7 +96,7 @@ namespace Buildbotics {
     static bool _hasFeature(int feature);
 
     cb::Event::Base &getEventBase() {return base;}
-    cb::Event::DNSBase &getEventDNS() {return dns;}
+    cb::DNS::Base &getEventDNS() {return dns;}
     cb::Event::Client &getEventClient() {return client;}
 
     cb::GoogleOAuth2 &getGoogleAuth() {return googleAuth;}

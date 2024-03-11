@@ -42,19 +42,19 @@
 
 namespace Buildbotics {
   class AWS4PresignedURL : public AWS4Signature, public cb::URI {
-    cb::HTTP::RequestMethod method;
+    cb::Event::RequestMethod method;
 
     typedef std::map<std::string, std::string> signed_headers_t;
     signed_headers_t signedHeaders;
 
   public:
-    AWS4PresignedURL(const cb::URI &resource, cb::HTTP::RequestMethod method,
+    AWS4PresignedURL(const cb::URI &resource, cb::Event::RequestMethod method,
                      unsigned expires, uint64_t ts = cb::Time::now(),
                      const std::string &service = "s3",
                      const std::string &region = "us-east-1");
 
-    void setMethod(cb::HTTP::RequestMethod method) {this->method = method;}
-    cb::HTTP::RequestMethod getMethod() const {return method;}
+    void setMethod(cb::Event::RequestMethod method) {this->method = method;}
+    cb::Event::RequestMethod getMethod() const {return method;}
 
     void clearSignedHeaders();
     void setSignedHeader(const std::string &name, const std::string &value);
